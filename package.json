@@ -5,7 +5,7 @@
   "private": true,
   "description": "ByteCabin — fast, private, browser-based developer tools.",
   "engines": {
-    "node": ">=20.3.0"
+    "node": ">=22.12.0"
   },
   "scripts": {
     "dev": "astro dev",

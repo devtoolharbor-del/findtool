@@ -83,7 +83,10 @@ scripts/
   verify-build.mjs       Static QA gate — links, metadata, schema, secrets
   audit-site.mjs         Browser audit — a11y, JS errors, network, tools
   cross-browser.mjs      All 50 tools in Chromium, Firefox and WebKit
+  security-check.mjs     XSS payloads, CSP, ReDoS, input limits
+  edge-cases.mjs         Empty / malformed / oversized input, keyboard
   measure-perf.mjs       Core Web Vitals against a budget
+  generate-og.mjs        Per-tool social cards (runs as part of build)
   submit-indexnow.mjs    Ping Bing/Yandex when URLs change
 tests/                   Vitest unit tests for every lib module
 docs/adding-a-tool.md    The full contract for a new tool
@@ -96,17 +99,24 @@ element, which is all the isolation these need.
 
 **Why a hand-rolled sitemap.** `@astrojs/sitemap` cannot express per-tool
 `lastmod` from registry metadata, and it emits trailing-slash URLs that
-disagree with our canonical form. `src/pages/sitemap.xml.ts` is 60 lines and
-stays correct at 1,000 tools.
+disagree with our canonical form. `src/pages/sitemap.xml.ts` is short, has no
+dependencies, and stays correct at 1,000 tools.
 
 ## Local development
 
-Requires Node 20.3+ (Node 22 recommended — Wrangler needs it).
+**Requires Node 22.12 or newer.** Astro 7 builds with rolldown, which ships a
+native binary and refuses to start on older versions.
 
 ```bash
 npm install
 npm run dev          # http://localhost:4321
 ```
+
+> **If the build fails with "Cannot find native binding":** npm resolved the
+> platform-specific rolldown package against a different Node version
+> ([npm/cli#4828](https://github.com/npm/cli/issues/4828)). Delete
+> `node_modules` and `package-lock.json` and reinstall under Node 22. Switching
+> Node versions without reinstalling is the usual cause.
 
 | Command            | What it does                                        |
 | ------------------ | --------------------------------------------------- |
@@ -327,8 +337,12 @@ invisible to static analysis.
 
 Measures LCP, CLS and FCP under Slow 4G with a 4× CPU slowdown, serving
 gzipped so the transfer figure reflects what a CDN actually sends. Budgets:
-LCP < 2500ms, CLS < 0.1, FCP < 1800ms, transfer < 120 KB. Current worst
-case is LCP 788ms, CLS 0.001, 90 KB.
+LCP < 2500ms, CLS < 0.1, FCP < 1800ms, transfer < 120 KB.
+
+At the time of writing the worst page measures roughly 780ms LCP, CLS 0.001
+and 93 KB — comfortably inside every budget. Run `npm run perf` for current
+figures rather than trusting this paragraph; it is the kind of number that
+rots.
 
 ### Static build verification (`scripts/verify-build.mjs`)
 
