@@ -221,6 +221,49 @@ for (const pagePath of allPages) {
   await page.close();
 }
 
+// ─── No-JavaScript pass ──────────────────────────────────────────────────
+//
+// Search engines render JavaScript, but not reliably and not promptly, and a
+// page whose content only exists after hydration is a page that ranks late or
+// not at all. The brief requires titles, descriptions and explanatory content
+// to be in the served HTML; this proves it rather than assuming it.
+
+{
+  const noJs = await browser.newContext({ javaScriptEnabled: false });
+  for (const pagePath of allPages) {
+    const page = await noJs.newPage();
+    await page.goto(`${BASE}${pagePath}`, { waitUntil: 'domcontentloaded' });
+
+    const shape = await page.evaluate(() => ({
+      h1: document.querySelector('h1')?.textContent?.trim() ?? '',
+      title: document.title,
+      description: document.querySelector('meta[name="description"]')?.content ?? '',
+      words: (document.body.innerText ?? '').trim().split(/\s+/).filter(Boolean).length,
+      internalLinks: document.querySelectorAll('a[href^="/"]').length,
+      jsonLd: document.querySelectorAll('script[type="application/ld+json"]').length,
+    }));
+
+    if (!shape.h1) record(`${pagePath} [no-js]`, 'nojs', 'No <h1> without JavaScript');
+    if (!shape.title) record(`${pagePath} [no-js]`, 'nojs', 'No <title> without JavaScript');
+    if (!shape.description) record(`${pagePath} [no-js]`, 'nojs', 'No meta description without JavaScript');
+    // The 404 page is noindex, so structured data on it would be pointless.
+    if (shape.jsonLd === 0 && pagePath !== '/404') {
+      record(`${pagePath} [no-js]`, 'nojs', 'No structured data without JavaScript');
+    }
+    if (shape.internalLinks < 5) {
+      record(`${pagePath} [no-js]`, 'nojs', `Only ${shape.internalLinks} internal links — crawl depth suffers`);
+    }
+    // Tool pages carry explainer prose and an FAQ; index pages are lighter.
+    const minWords = pagePath.startsWith('/tools/') && pagePath !== '/tools' ? 250 : 100;
+    if (shape.words < minWords) {
+      record(`${pagePath} [no-js]`, 'nojs', `Only ${shape.words} words without JavaScript (expected ${minWords}+)`);
+    }
+
+    await page.close();
+  }
+  await noJs.close();
+}
+
 // ─── Dark mode + mobile pass on representative pages ─────────────────────
 
 const sample = ['/', '/tools', '/json', '/tools/json-formatter', '/tools/regex-tester', '/tools/password-generator'];
@@ -359,7 +402,12 @@ await writeFile(
 console.log(`\nFull report: .audit-report.json`);
 
 const blocking = problems.filter(
-  (p) => p.kind.startsWith('a11y:critical') || p.kind.startsWith('a11y:serious') ||
-         p.kind === 'jserror' || p.kind === 'network' || p.kind === 'tool',
+  (p) =>
+    p.kind.startsWith('a11y:critical') ||
+    p.kind.startsWith('a11y:serious') ||
+    p.kind === 'jserror' ||
+    p.kind === 'network' ||
+    p.kind === 'tool' ||
+    p.kind === 'nojs',
 );
 process.exit(blocking.length > 0 ? 1 : 0);
