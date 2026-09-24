@@ -62,6 +62,10 @@ async function walkSource(dir) {
 
 const sourceFiles = await walkSource(join(ROOT, 'src'));
 for (const file of sourceFiles) {
+  // src/data/faqs/ is prose, not code. Its answers legitimately name the very
+  // APIs this scan bans — an answer about React escaping has to mention
+  // dangerouslySetInnerHTML to be useful.
+  if (file.includes('/data/faqs/')) continue;
   const text = await readFile(file, 'utf8');
   // Strip comments so prose explaining why we avoid eval() is not a hit.
   const code = text
@@ -129,6 +133,14 @@ const context = await browser.newContext();
 // Any dialog at all means a payload executed.
 let dialogFired = false;
 
+/** Abort a per-tool run rather than letting one stuck page stall the suite. */
+const withTimeout = (promise, ms, label) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`timeout: ${label}`)), ms)),
+  ]);
+
+let done = 0;
 for (const slug of slugs) {
   const page = await context.newPage();
   page.on('dialog', async (d) => {
@@ -137,49 +149,67 @@ for (const slug of slugs) {
     await d.dismiss().catch(() => {});
   });
 
-  await page.goto(`${base}/tools/${slug}`, { waitUntil: 'load' });
+  try {
+    await withTimeout(
+      (async () => {
+        await page.goto(`${base}/tools/${slug}`, { waitUntil: 'domcontentloaded' });
 
-  const root = page.locator(`[data-tool="${slug}"]`);
-  if ((await root.count()) === 0) {
-    await page.close();
-    continue;
-  }
+        const root = page.locator(`[data-tool="${slug}"]`);
+        if ((await root.count()) === 0) return;
 
-  for (const payload of PAYLOADS) {
-    const fields = await root.locator('textarea, input[type="text"], input:not([type])').all();
-    if (!fields.length) break;
+        // Prefer the declared primary input. Falling back to "first text
+        // field" picked read-only OUTPUT fields on the generators, where
+        // fill() waits for editability and burns its default 30s timeout.
+        const declared = root.locator('[data-primary-input]').first();
+        const field =
+          (await declared.count()) > 0
+            ? declared
+            : root.locator('textarea:not([readonly]), input[type="text"]:not([readonly])').first();
+        if ((await field.count()) === 0) return;
 
-    for (const field of fields.slice(0, 2)) {
-      await field.fill(payload).catch(() => {});
-    }
+        for (const payload of PAYLOADS) {
+          // Short, explicit timeout: a field that will not accept input is a
+          // fact to move past, not something to wait half a minute for.
+          await field.fill(payload, { timeout: 1500 }).catch(() => {});
 
-    // Trigger whatever the tool does with input.
-    const primary = root.locator('.bc-btn-primary:visible').first();
-    if ((await primary.count()) > 0) await primary.click({ timeout: 3000 }).catch(() => {});
-    await page.waitForTimeout(120);
+          const primary = root.locator('.bc-btn-primary:visible').first();
+          if ((await primary.count()) > 0) {
+            await primary.click({ timeout: 2000 }).catch(() => {});
+          }
+          await page.waitForTimeout(60);
 
-    const executed = await page.evaluate(() => Boolean(window.__xss));
-    if (executed) {
-      report('xss', `${slug}: payload executed — ${payload.slice(0, 50)}`);
-      await page.evaluate(() => {
-        delete window.__xss;
-      });
-    }
+          const result = await page.evaluate(() => {
+            const executed = Boolean(window.__xss);
+            delete window.__xss;
+            const scope = document.querySelector('[data-tool]');
+            const injected = Boolean(
+              scope &&
+                (scope.querySelector('img[src="x"]') ||
+                  scope.querySelector('svg[onload]') ||
+                  scope.querySelector('script') ||
+                  scope.querySelector('[onerror]')),
+            );
+            return { executed, injected };
+          });
 
-    // A payload that became live DOM is a finding even if it did not fire.
-    const injected = await root.evaluate(() => {
-      return Boolean(
-        document.querySelector('[data-tool] img[src="x"]') ||
-          document.querySelector('[data-tool] svg[onload]') ||
-          document.querySelector('[data-tool] script'),
-      );
-    });
-    if (injected) {
-      report('xss', `${slug}: payload became live DOM — ${payload.slice(0, 50)}`);
-    }
+          if (result.executed) {
+            report('xss', `${slug}: payload EXECUTED — ${payload.slice(0, 50)}`);
+          }
+          if (result.injected) {
+            report('xss', `${slug}: payload became live DOM — ${payload.slice(0, 50)}`);
+          }
+        }
+      })(),
+      30_000,
+      slug,
+    );
+  } catch (err) {
+    report('xss', `${slug}: ${String(err).slice(0, 80)}`);
   }
 
   await page.close();
+  done++;
+  if (done % 10 === 0) process.stdout.write(`   ${done}/${slugs.length} tools probed\n`);
 }
 
 // ─── 4. Regex denial of service ──────────────────────────────────────────

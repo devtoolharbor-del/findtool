@@ -68,6 +68,11 @@ jobs:
       - name: Cross-browser tool suite
         run: npm run cross-browser
 
+      # Feeds XSS payloads to every tool, checks the CSP is non-trivial, and
+      # confirms a catastrophically backtracking regex cannot hang the page.
+      - name: Security check
+        run: npm run security
+
       # Fails the build if Core Web Vitals or the transfer budget regress.
       - name: Core Web Vitals budget
         run: npm run perf

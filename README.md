@@ -119,6 +119,7 @@ npm run dev          # http://localhost:4321
 | `npm run audit`    | Real-browser audit of every page (a11y, JS, tools)   |
 | `npm run audit:shots` | The same, plus screenshots in `.audit-screenshots/` |
 | `npm run cross-browser` | All 50 tools in Chromium, Firefox and WebKit    |
+| `npm run security` | XSS payloads, CSP checks, ReDoS and input limits     |
 | `npm run perf`     | Core Web Vitals against a budget, throttled          |
 | `npm run assets`   | Regenerate favicons / PWA icons / OG image           |
 | `npm run ci`       | Everything above in order — what CI runs              |
@@ -349,6 +350,20 @@ dialog and theme toggle. WebKit is Safari's engine and the usual source of
 divergence — clipboard permissions, `<dialog>`, `Intl.Segmenter` and regex
 lookbehind all shipped there later than elsewhere. Run a single engine with
 `node scripts/cross-browser.mjs --engine=webkit`.
+
+### Security check (`scripts/security-check.mjs`)
+
+Static review says the code looks safe; this tries to break it. It feeds
+seven XSS payloads to every tool — raw tags, attribute breakouts,
+`javascript:` URLs, SVG handlers, and HTML-entity-encoded forms that a
+*decoder* tool might turn back into live markup, which is the realistic risk
+on a site full of decoders — then asserts nothing executed and nothing became
+live DOM. It also greps for `eval`, `new Function`, `document.write` and
+string-bodied timers, checks the CSP has no wildcard and no `unsafe-eval`,
+confirms `(a+)+$` against a pathological input leaves the page responsive,
+and confirms a 2.2 MB paste is refused with a message rather than freezing.
+
+Current result: 350 injection attempts, none executed.
 
 ### Manual QA before a release
 
