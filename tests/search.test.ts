@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { search, normalize, highlight, type SearchEntry } from '~/lib/search';
+import { search, normalize, highlight, editDistanceWithin, type SearchEntry } from '~/lib/search';
 import { TOOLS } from '~/data/tools';
 import { CATEGORY_MAP } from '~/data/categories';
 
@@ -135,5 +135,64 @@ describe('highlight', () => {
 
   it('returns escaped text when there is no match', () => {
     expect(highlight('Word Counter', 'zzz')).toBe('Word Counter');
+  });
+});
+
+describe('typo tolerance', () => {
+  it.each([
+    ['jsno', /json/],
+    ['bas64', /base64/],
+    ['formater', /formatter|format/],
+    ['generater', /generator/],
+    ['timestmap', /timestamp/],
+    ['convertor', /converter/],
+    ['regexp tester', /regex/],
+  ])('"%s" still finds the right tool', (query, pattern) => {
+    const top = topSlug(query);
+    expect(top, `query "${query}" returned "${top}"`).toMatch(pattern);
+  });
+
+  it('does not let a corrected match outrank an exact one', () => {
+    // "css" is a real tool token; it must not be displaced by "csv".
+    expect(topSlug('css')).toContain('css');
+    expect(topSlug('csv')).toContain('csv');
+  });
+
+  it('refuses to correct very short tokens', () => {
+    // At three characters a single edit reaches too many unrelated words.
+    const hits = search('zzz', index, 5);
+    expect(hits).toHaveLength(0);
+  });
+
+  it('still returns nothing for genuine nonsense', () => {
+    expect(search('qwertyuiopasdf', index, 5)).toHaveLength(0);
+  });
+
+  it('exact results are never diluted by fuzzy ones', () => {
+    const hits = search('json', index, 10);
+    expect(hits.every((h) => h.entry.s.includes('json') || h.entry.k.includes('json'))).toBe(true);
+  });
+});
+
+describe('editDistanceWithin', () => {
+  it('returns 0 for identical strings', () => {
+    expect(editDistanceWithin('json', 'json', 2)).toBe(0);
+  });
+  it('counts a substitution, insertion and deletion as one each', () => {
+    expect(editDistanceWithin('json', 'jsan', 2)).toBe(1);
+    expect(editDistanceWithin('json', 'jsons', 2)).toBe(1);
+    expect(editDistanceWithin('json', 'jsn', 2)).toBe(1);
+  });
+  it('counts an adjacent transposition as a single edit', () => {
+    // Optimal string alignment, not plain Levenshtein: a neighbour swap is
+    // the commonest typo and must fit inside a short word's budget of one.
+    expect(editDistanceWithin('jsno', 'json', 2)).toBe(1);
+    expect(editDistanceWithin('teh', 'the', 2)).toBe(1);
+  });
+  it('bails out past the budget rather than computing the true distance', () => {
+    expect(editDistanceWithin('abcdefgh', 'zzzzzzzz', 2)).toBeGreaterThan(2);
+  });
+  it('rejects on length difference immediately', () => {
+    expect(editDistanceWithin('a', 'abcdefghij', 2)).toBeGreaterThan(2);
   });
 });

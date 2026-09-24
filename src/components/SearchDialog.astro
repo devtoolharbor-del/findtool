@@ -203,6 +203,12 @@
       } else if (e.key === 'Enter') {
         e.preventDefault();
         (links[active] as HTMLAnchorElement | undefined)?.click();
+      } else if (e.key === 'Escape') {
+        // `<input type="search">` swallows Escape to clear itself when it has
+        // a value, so the dialog's native close never fires and the key
+        // appears to do nothing. Closing explicitly keeps one press enough.
+        e.preventDefault();
+        close();
       }
     });
 

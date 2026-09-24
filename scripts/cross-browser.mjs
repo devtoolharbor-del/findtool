@@ -157,6 +157,41 @@ for (const [name, engine] of Object.entries(selected)) {
     console.log(`  ✓ search dialog opens`);
   }
 
+  /**
+   * Escape must close the dialog even with a query typed.
+   *
+   * `<input type="search">` consumes Escape to clear itself when it has a
+   * value, which suppressed the dialog's native close and made the key look
+   * dead — one press cleared the field, a second was needed to leave. Worth a
+   * permanent check because the behaviour differs by engine and by value.
+   */
+  const escapeCloses = await page
+    .evaluate(async () => {
+      const dialog = document.getElementById('bc-search');
+      const trigger = document.querySelector('[data-search-open]');
+      const input = document.getElementById('bc-search-input');
+      if (!dialog || !trigger || !input) return 'missing elements';
+
+      trigger.click();
+      await new Promise((r) => setTimeout(r, 250));
+      input.value = 'json';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 150));
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+      );
+      await new Promise((r) => setTimeout(r, 250));
+      return dialog.open ? 'stayed open with a query typed' : 'ok';
+    })
+    .catch((e) => `threw: ${e}`);
+
+  if (escapeCloses !== 'ok') {
+    failures.push({ engine: name, slug: '(search Escape)', note: escapeCloses });
+    console.log(`  ✗ Escape with a query typed: ${escapeCloses}`);
+  } else {
+    console.log(`  ✓ Escape closes search even with a query typed`);
+  }
+
   // Theme toggle relies on localStorage, which throws in some privacy modes.
   const themeWorks = await page
     .evaluate(async () => {
