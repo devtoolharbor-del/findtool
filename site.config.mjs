@@ -22,27 +22,32 @@ export const SITE_URL = `https://${SITE_DOMAIN}`;
 /**
  * Cloudflare Web Analytics beacon token.
  *
- * Deliberately EMPTY. findtool.dev is proxied through Cloudflare with
- * auto_install enabled, so Cloudflare injects the beacon at the edge with the
- * correct token and collection endpoint. Hardcoding our own beacon meant
- * Cloudflare skipped its injection and ours posted to an endpoint that
- * answered 404 — which the browser reports as a CORS failure, because a 404
- * carries no Access-Control-Allow-Origin header. The result was a beacon that
- * looked present in the HTML and recorded nothing.
+ * MUST STAY EMPTY for findtool.dev.
  *
- * Set this only for a deployment that is NOT proxied through Cloudflare, and
- * use the `site_token` field from the API — not `site_tag`, which sits beside
- * it and looks identical.
+ * Real User Measurements is enabled for the hostname on the proxied zone, so
+ * Cloudflare injects the beacon itself at the edge with the correct token and
+ * endpoint. A token here would add a SECOND beacon to the HTML and
+ * double-count every pageview.
  *
- * Public by design — it appears verbatim in every page's HTML and grants no
- * access; it only identifies which site a pageview belongs to. It lives here
- * rather than in a CI secret because a secret it is not, and because the
- * build must work for anyone who clones the repository.
+ * Two traps, both hit in practice and both silent:
  *
- * Cloudflare calls this the "site tag" for proxied domains and does not
- * present it as a snippet, which is why it has to be read from the API.
+ * 1. A site record created without a hostname does not recognise its own
+ *    token. Every collection POST answers 404, and because a 404 carries no
+ *    Access-Control-Allow-Origin header the browser reports it as a CORS
+ *    error. The beacon sits in the HTML looking perfectly correct and records
+ *    nothing at all. Enabling RUM for the hostname is what binds them.
  *
- * Empty string disables analytics entirely — which is what happens on local
- * builds and previews, so development traffic never reaches production stats.
+ * 2. The API exposes `site_tag` and `site_token` side by side and they look
+ *    identical. The beacon needs `site_token`.
+ *
+ * Verify any change by watching the POST to /cdn-cgi/rum in a real browser:
+ * 204 means accepted. The script tag being present proves nothing — that is
+ * precisely how a completely dead beacon went unnoticed.
+ *
+ * Note the edge injection only happens for browser-shaped requests. A bare
+ * `curl` sees no beacon and looks broken; add a browser User-Agent and
+ * `Accept: text/html` to see it.
+ *
+ * Set this only for a deployment NOT proxied through Cloudflare.
  */
 export const ANALYTICS_BEACON_TOKEN = '';
