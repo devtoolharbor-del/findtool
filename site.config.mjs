@@ -22,6 +22,18 @@ export const SITE_URL = `https://${SITE_DOMAIN}`;
 /**
  * Cloudflare Web Analytics beacon token.
  *
+ * Deliberately EMPTY. findtool.dev is proxied through Cloudflare with
+ * auto_install enabled, so Cloudflare injects the beacon at the edge with the
+ * correct token and collection endpoint. Hardcoding our own beacon meant
+ * Cloudflare skipped its injection and ours posted to an endpoint that
+ * answered 404 — which the browser reports as a CORS failure, because a 404
+ * carries no Access-Control-Allow-Origin header. The result was a beacon that
+ * looked present in the HTML and recorded nothing.
+ *
+ * Set this only for a deployment that is NOT proxied through Cloudflare, and
+ * use the `site_token` field from the API — not `site_tag`, which sits beside
+ * it and looks identical.
+ *
  * Public by design — it appears verbatim in every page's HTML and grants no
  * access; it only identifies which site a pageview belongs to. It lives here
  * rather than in a CI secret because a secret it is not, and because the
@@ -33,4 +45,4 @@ export const SITE_URL = `https://${SITE_DOMAIN}`;
  * Empty string disables analytics entirely — which is what happens on local
  * builds and previews, so development traffic never reaches production stats.
  */
-export const ANALYTICS_BEACON_TOKEN = '5ed785b444ed451b8753d8d279b545bd';
+export const ANALYTICS_BEACON_TOKEN = '';

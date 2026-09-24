@@ -71,10 +71,15 @@ const browser = await chromium.launch({ headless: true });
  * adding a new one is a deliberate edit to this file, reviewed alongside the
  * privacy policy it affects.
  *
- * Requests to them are ABORTED during the audit rather than merely tolerated.
- * Two reasons: the pages must be proven to work for visitors running an ad
- * blocker, and the audit serves from 127.0.0.1, which these endpoints reject
- * with a CORS error that would otherwise drown the console check in noise.
+ * Requests to them are ABORTED during the audit rather than merely tolerated,
+ * so the pages are proven to work for visitors running an ad blocker.
+ *
+ * A caution learned the hard way: when the Cloudflare beacon was misconfigured
+ * it failed with a CORS error here, and that was written off as an artefact of
+ * serving from 127.0.0.1. It was not — the same failure occurred in production
+ * and analytics recorded nothing for hours. Aborting these requests means this
+ * audit cannot detect a broken analytics endpoint, so do not treat a clean run
+ * as evidence that analytics works. Check the live site.
  */
 const ANALYTICS_HOSTS = [
   'static.cloudflareinsights.com', // Cloudflare Web Analytics beacon script
