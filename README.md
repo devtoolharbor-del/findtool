@@ -65,7 +65,11 @@ src/
   layouts/
     BaseLayout.astro     <head>, canonical, OG, theme bootstrap, chrome.
     ToolLayout.astro     The standard tool page + structured data.
-  tools/                 One .astro per tool. 50 of them.
+  tools/                 One .astro per tool. 52 of them.
+functions/
+  tools/
+    what-is-my-ip.js     The ONLY server-side code. A Pages Function that
+                         rewrites values into the statically built page.
   pages/
     index.astro          Homepage
     tools/index.astro    All tools, filterable
@@ -82,7 +86,7 @@ scripts/
   generate-assets.mjs    Favicons, PWA icons, OG image (run manually)
   verify-build.mjs       Static QA gate — links, metadata, schema, secrets
   audit-site.mjs         Browser audit — a11y, JS errors, network, tools
-  cross-browser.mjs      All 50 tools in Chromium, Firefox and WebKit
+  cross-browser.mjs      All 52 tools in Chromium, Firefox and WebKit
   security-check.mjs     XSS payloads, CSP, ReDoS, input limits
   edge-cases.mjs         Empty / malformed / oversized input, keyboard
   measure-perf.mjs       Core Web Vitals against a budget
@@ -96,6 +100,33 @@ docs/adding-a-tool.md    The full contract for a new tool
 would add ~45 KB gzipped to every page to manage a handful of inputs. The
 `mount()` helper in `toolkit.ts` scopes a tool's script to its own root
 element, which is all the isolation these need.
+
+**Why there is one Pages Function.** `/tools/what-is-my-ip` is the single route
+whose content depends on who is asking. A client-side version would have to ask
+a third-party API for the visitor's address — handing that address to someone
+else in order to be told what Cloudflare already put in the request. So the
+page is built statically like every other tool, and
+`functions/tools/what-is-my-ip.js` intercepts the route, fetches that built
+HTML with `next()`, and streams the values in with `HTMLRewriter`.
+
+Keeping the page static is what makes this cheap rather than a second
+architecture: the layout, prose, FAQ, structured data, sitemap entry, build
+verification and browser audit all work unchanged, and the function only fills
+placeholders. Three consequences are load-bearing:
+
+- **The response is `no-store`,** with `ETag` and `Last-Modified` stripped, and
+  conditional request headers removed before fetching the asset. A cached copy
+  of this page is somebody else's IP address.
+- **Only that path invokes a worker.** Pages routes requests to functions by
+  path, so every other page is still served as a pure static asset.
+- **The placeholder keys are a contract** between the `.astro` file and the
+  `.js` file, and `npm run verify` fails if either side renames one. Reverse
+  DNS is implemented in both (a Function cannot import from `src/lib`);
+  `tests/edge-ip.test.ts` runs the two against the same addresses so they
+  cannot drift.
+
+The `functions/` directory must be checked out in the deploy job —
+`wrangler pages deploy dist` compiles it from the repo root, not from `dist/`.
 
 **Why a hand-rolled sitemap.** `@astrojs/sitemap` cannot express per-tool
 `lastmod` from registry metadata, and it emits trailing-slash URLs that

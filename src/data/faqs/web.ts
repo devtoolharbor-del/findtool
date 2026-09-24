@@ -75,4 +75,40 @@ export const webFaqs: FaqMap = {
       a: 'Minification removes characters, never rules. A framework build ships every selector it defines whether a page uses eight of them or eight hundred, and that dead weight is usually most of the file. Chrome DevTools’ Coverage panel reports the unused share against a real page load, and content-aware tooling such as Tailwind’s build step or PurgeCSS is what actually deletes those rules — a far larger win than whitespace.',
     },
   ],
+  'subnet-calculator': [
+    {
+      q: 'How many hosts fit in a /26?',
+      a: 'Sixty-two. A /26 leaves six host bits, so the block holds 2<sup>6</sup> = 64 addresses, and the all-zeros and all-ones addresses are reserved for the network identifier and the directed broadcast. The general form is 2<sup>(32 − prefix)</sup> − 2. The subtraction stops applying at the two ends: a /31 carries two usable addresses under RFC 3021 because a point-to-point link needs no broadcast, and a /32 is one host.',
+    },
+    {
+      q: 'What is a wildcard mask and why is it inverted?',
+      a: 'It is the bitwise complement of the subnet mask, so a /24 whose mask is <code>255.255.255.0</code> has the wildcard <code>0.0.0.255</code>. Cisco IOS access lists and OSPF <code>network</code> statements take this form: a 0 bit means the bit must match and a 1 bit means ignore it. Because the bits are only ever tested individually, a wildcard mask is allowed to be non-contiguous — <code>0.0.0.254</code> matches every even final octet — which is something no subnet mask can do.',
+    },
+    {
+      q: 'Can a /24 start on any address?',
+      a: 'No. A prefix has to begin on a multiple of its own size, so a /24 starts on a whole final octet, a /26 on 0, 64, 128 or 192, and a /20 on a multiple of 16 in the third octet. <code>192.168.1.130/24</code> is a perfectly valid way to describe a host and its mask, but the range it names is <code>192.168.1.0/24</code> — this tool masks the host bits off and shows both, because writing the interface address and reading it back as the network is a common source of an off-by-one subnet.',
+    },
+    {
+      q: 'Should an IPv6 subnet ever be smaller than a /64?',
+      a: 'Rarely, and never on a LAN. SLAAC — the mechanism by which hosts configure their own addresses under RFC 4862 — requires exactly 64 interface identifier bits, so a /65 or longer breaks autoconfiguration outright. The usual practice is a /64 per link no matter how few hosts are on it, a /56 or /48 delegated to a site, and longer prefixes reserved for point-to-point links and loopbacks where nothing autoconfigures. Address exhaustion is not a concern: a single /64 holds more addresses than the entire IPv4 internet, squared.',
+    },
+  ],
+  'what-is-my-ip': [
+    {
+      q: 'Why does the city shown not match where I am?',
+      a: 'Because it was never measured. The location comes from a registry mapping address blocks to the network operator that holds them, and the coordinates attached to a block describe where the operator registered it — often a regional exchange or a head office rather than your street. Country accuracy is high; city accuracy is commonly quoted around 50–80% within 50 km and is far worse on mobile networks, where a single block can cover a whole country. Nothing on this page reads your device’s location, and no site can without a permission prompt.',
+    },
+    {
+      q: 'Why is my IP different on my phone and my laptop on the same wifi?',
+      a: 'On IPv4 it should not be — everything behind one router shares its public address through NAT, and the difference usually means the phone dropped to mobile data. On IPv6 it is expected: each device holds its own globally routable address from the same prefix, and privacy extensions (RFC 8981) rotate the second half of it, typically once a day, so even one device sees its address change. A site reachable over both protocols will also show you a different address depending on which your browser chose.',
+    },
+    {
+      q: 'Can I find someone’s physical address from their IP?',
+      a: 'No. The best a public database gives is a city-level guess that is often wrong, and the operator’s own records — which do link an address to a subscriber — are disclosed only to a legal request. Carrier-grade NAT makes it worse still: a mobile operator may put thousands of subscribers behind one address, so even the operator needs the exact timestamp and source port to identify which. Services claiming to locate a person from an IP are selling the same registry guess you can see here.',
+    },
+    {
+      q: 'Does hiding my IP with a VPN make me anonymous?',
+      a: 'It moves the problem rather than removing it. Sites then see the VPN’s exit address instead of yours, and your provider sees the destination instead. But an IP is only one of many ways to recognise a browser: cookies, logins, and fingerprinting from fonts, canvas rendering and screen metrics all survive a change of address. A VPN is useful for hiding your traffic from the local network and your address from a site — it is not anonymity, and a provider that keeps logs simply relocates the record.',
+    },
+  ],
 };

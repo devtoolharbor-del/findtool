@@ -921,6 +921,61 @@ export const TOOLS: Tool[] = [
     serverProcessing: false,
     addedAt: LAUNCH_DATE,
   },
+  {
+    slug: 'subnet-calculator',
+    name: 'Subnet Calculator',
+    category: 'web',
+    order: 6,
+    description:
+      'Work out network, broadcast, host range, masks and splits for any IPv4 or IPv6 CIDR.',
+    seoTitle: 'Subnet Calculator — IPv4 and IPv6 CIDR Ranges',
+    seoDescription:
+      'Calculate the network address, broadcast, first and last usable host, subnet mask, wildcard mask and host count for any CIDR range. Splits subnets and checks containment.',
+    keywords: [
+      'subnet calculator',
+      'cidr calculator',
+      'ip subnet calculator',
+      'ipv6 subnet calculator',
+      'netmask calculator',
+    ],
+    aliases: ['cidr', 'netmask', 'subnet mask', 'wildcard', 'vlsm', 'slash 24', 'prefix', 'ipv6'],
+    related: ['what-is-my-ip', 'http-status-codes', 'user-agent-parser', 'text-to-hex'],
+    component: 'SubnetCalculator',
+    icon: 'server',
+    serverProcessing: false,
+    addedAt: '2026-09-25',
+  },
+  {
+    slug: 'what-is-my-ip',
+    name: 'What Is My IP',
+    category: 'web',
+    order: 7,
+    description:
+      'See the public IP address your traffic arrives from, and what it reveals about you.',
+    seoTitle: 'What Is My IP Address?',
+    seoDescription:
+      'See the public IP address your traffic arrives from, plus the country, network operator and connection details it reveals. No lookup, no third party.',
+    keywords: [
+      'what is my ip',
+      'my ip address',
+      'find my ip',
+      'check my ip',
+      'public ip address',
+    ],
+    aliases: ['ip', 'my ip', 'ipv4', 'ipv6', 'ip address', 'whatismyip', 'whats my ip'],
+    related: ['subnet-calculator', 'user-agent-parser', 'http-status-codes', 'url-decoder'],
+    component: 'WhatIsMyIp',
+    icon: 'globe',
+    /*
+      The only true entry on the site. This page is rendered at the edge, so
+      the standard local-processing claim does not apply and must not appear
+      — see privacyNoteOverride below and functions/tools/what-is-my-ip.js.
+    */
+    serverProcessing: true,
+    privacyNoteOverride:
+      'This page is built from the request your browser already made, so nothing is looked up and no request goes to a third party. FindTool keeps no record of your address. It is necessarily visible to Cloudflare, which serves this site — as it is to every website you visit.',
+    addedAt: '2026-09-25',
+  },
 ];
 
 // ─── Derived lookups ──────────────────────────────────────────────────────

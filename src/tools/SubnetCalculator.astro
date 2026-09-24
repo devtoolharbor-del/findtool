@@ -1,0 +1,572 @@
+---
+/**
+ * Subnet / CIDR Calculator.
+ *
+ * One text field is the source of truth. The prefix slider writes back into
+ * it rather than holding separate state, because two inputs that can disagree
+ * about the same number is how a subnet calculator starts lying.
+ *
+ * Everything below the input is derived: results, alternate representations,
+ * a containment check and an equal split. All of the maths is in
+ * src/lib/ip.ts and unit-tested, including the IPv6 BigInt paths.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+/** Left column of the results table. Order is the order people read them in. */
+const rows = [
+  { key: 'cidr', label: 'Network (CIDR)' },
+  { key: 'network', label: 'Network address' },
+  { key: 'firstHost', label: 'First usable host' },
+  { key: 'lastHost', label: 'Last usable host' },
+  { key: 'broadcast', label: 'Broadcast address' },
+  { key: 'mask', label: 'Subnet mask' },
+  { key: 'wildcard', label: 'Wildcard mask' },
+  { key: 'scope', label: 'Address range' },
+];
+
+const repRows = [
+  { key: 'expanded', label: 'Expanded' },
+  { key: 'hex', label: 'Hexadecimal' },
+  { key: 'integer', label: 'Integer' },
+  { key: 'binary', label: 'Binary' },
+  { key: 'reverseDns', label: 'Reverse DNS name' },
+];
+
+const presets = [
+  '192.168.1.0/24',
+  '10.0.0.0/8',
+  '172.16.0.0/12',
+  '10.0.0.0/30',
+  '203.0.113.5/31',
+  '2001:db8::/64',
+];
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="subnet-calculator" class="space-y-4">
+    {/* ── Input ── */}
+    <div>
+      <label for="subnet-input" class="bc-label">IP address or CIDR range</label>
+      <input
+        id="subnet-input"
+        type="text"
+        class="bc-input font-mono"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        autocomplete="off"
+        autocapitalize="off"
+        placeholder="192.168.1.0/24"
+        aria-describedby="subnet-status subnet-hint"
+      />
+      <p id="subnet-hint" class="mt-1.5 text-xs text-muted">
+        Accepts <code>10.0.0.0/8</code>, <code>10.0.0.0 255.0.0.0</code>,
+        <code>2001:db8::/32</code>, or a bare address.
+      </p>
+    </div>
+
+    {/* ── Prefix slider ── */}
+    <div class="bc-panel p-3" data-prefix-panel hidden>
+      <div class="flex items-center gap-3">
+        <label for="subnet-prefix" class="bc-label mb-0 shrink-0">Prefix length</label>
+        <input
+          id="subnet-prefix"
+          type="range"
+          class="min-w-0 flex-1 accent-[var(--color-accent)]"
+          min="0"
+          max="32"
+          value="24"
+          data-prefix
+        />
+        <output
+          class="w-14 shrink-0 text-right font-mono text-sm font-medium"
+          for="subnet-prefix"
+          data-prefix-label>/24</output
+        >
+      </div>
+    </div>
+
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example="192.168.1.130/24"
+        >Example</button
+      >
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      <button
+        type="button"
+        class="bc-btn bc-btn-secondary bc-btn-sm ml-auto"
+        data-copy="[data-output]"
+      >
+        <span data-label>Copy result</span>
+      </button>
+    </div>
+
+    <div id="subnet-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Results ── */}
+    <div data-result hidden class="space-y-4">
+      <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div class="bc-stat">
+          <span class="bc-stat-value" data-stat="total">—</span>
+          <span class="bc-stat-label">Total addresses</span>
+        </div>
+        <div class="bc-stat">
+          <span class="bc-stat-value" data-stat="usable">—</span>
+          <span class="bc-stat-label">Usable hosts</span>
+        </div>
+        <div class="bc-stat">
+          <span class="bc-stat-value" data-stat="version">—</span>
+          <span class="bc-stat-label">Protocol</span>
+        </div>
+      </div>
+
+      <table class="w-full border-collapse text-sm">
+        <caption class="sr-only">Subnet details</caption>
+        <tbody>
+          {
+            rows.map((row) => (
+              <tr class="border-b border-line last:border-b-0" data-row={row.key} hidden>
+                <th scope="row" class="w-44 py-2 pr-3 text-left align-top font-medium text-muted">
+                  {row.label}
+                </th>
+                <td class="py-2 align-top font-mono break-all" data-value={row.key} />
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+
+      {/* ── Alternate representations ── */}
+      <details class="bc-panel">
+        <summary class="cursor-pointer px-3 py-2.5 text-sm font-medium">
+          Other representations of the network address
+        </summary>
+        <div class="border-t border-line px-3 py-2">
+          <table class="w-full border-collapse text-sm">
+            <tbody>
+              {
+                repRows.map((row) => (
+                  <tr class="border-b border-line last:border-b-0" data-rep-row={row.key} hidden>
+                    <th
+                      scope="row"
+                      class="w-44 py-2 pr-3 text-left align-top font-medium text-muted"
+                    >
+                      {row.label}
+                    </th>
+                    <td class="py-2 align-top font-mono text-xs break-all" data-rep={row.key} />
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      {/* ── Containment ── */}
+      <div>
+        <label for="subnet-contains" class="bc-label">Is an address inside this range?</label>
+        <div class="flex flex-wrap items-start gap-2">
+          <input
+            id="subnet-contains"
+            type="text"
+            class="bc-input min-w-0 flex-1 font-mono"
+            data-clear-target
+            spellcheck="false"
+            autocomplete="off"
+            autocapitalize="off"
+            placeholder="10.1.2.3"
+            data-contains-input
+          />
+        </div>
+        <p class="mt-2 text-sm" data-contains-result role="status" aria-live="polite"></p>
+      </div>
+
+      {/* ── Split ── */}
+      <div>
+        <label for="subnet-split" class="bc-label">Split into equal subnets</label>
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="subnet-split" class="bc-select min-w-0 flex-1" data-split-select>
+            <option value="">Choose a smaller prefix…</option>
+          </select>
+        </div>
+        <div data-split-result hidden class="mt-2">
+          <p class="mb-1.5 text-sm text-muted" data-split-summary></p>
+          <ul
+            class="max-h-64 overflow-y-auto rounded-lg border border-line bg-surface-2 p-2 font-mono text-xs"
+            data-split-list
+          >
+          </ul>
+        </div>
+      </div>
+
+      <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1" readonly></textarea>
+    </div>
+
+    {/* ── Presets ── */}
+    <div>
+      <span class="bc-label">Try a common range</span>
+      <div class="bc-toolbar">
+        {
+          presets.map((preset) => (
+            <button
+              type="button"
+              class="bc-btn bc-btn-secondary bc-btn-sm font-mono"
+              data-preset={preset}
+            >
+              {preset}
+            </button>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Type a range such as <code>192.168.1.130/24</code> and this page works out the network and
+      broadcast addresses, the first and last host you can actually assign, how many of them there
+      are, the subnet mask in every notation, and which reserved block the range belongs to. It
+      handles IPv4 and IPv6 in the same field.
+    </p>
+    <p>
+      Below the table you can check whether a particular address falls inside the range, and split
+      the range into equal subnets — the two things people usually open a calculator for after the
+      first answer.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Carving a VPC or VNet address space into per-subnet blocks without overlapping.</li>
+      <li>
+        Checking whether an address a firewall logged is inside the range a rule was meant to
+        cover.
+      </li>
+      <li>Converting between a prefix length and a dotted mask when a device only accepts one.</li>
+      <li>
+        Producing a wildcard mask for a Cisco ACL or an OSPF <code>network</code> statement, which
+        are the inverse of a subnet mask.
+      </li>
+      <li>Sizing a subnet before you request it — deciding between a /26 and a /27.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <pre><code>Input   192.168.1.130/24
+
+Network       192.168.1.0
+First host    192.168.1.1
+Last host     192.168.1.254
+Broadcast     192.168.1.255
+Mask          255.255.255.0
+Wildcard      0.0.0.255
+Usable hosts  254</code></pre>
+    <p>
+      Note that the address you typed is not the network address. A /24 has 24 network bits, so the
+      final octet is host space and gets masked off. <code>192.168.1.130</code> is one host inside
+      the range, not the range itself.
+    </p>
+
+    <h2>Why a /24 has 254 hosts and not 256</h2>
+    <p>
+      Two addresses in every IPv4 subnet are unusable. The all-zeros host address is the network
+      itself and the all-ones address is the directed broadcast, so a block of 2<sup>n</sup>
+      addresses gives 2<sup>n</sup> − 2 hosts. That is why a /30 — four addresses — is the smallest
+      subnet that will carry an ordinary router link, and it wastes half of itself doing it.
+    </p>
+    <p>
+      There are two exceptions, and this tool applies both. A <strong>/31</strong> is a
+      point-to-point link under RFC 3021: with only two addresses there is no room for a network
+      and a broadcast, so both addresses are usable and the subtraction is skipped. A
+      <strong>/32</strong> is a single host — a loopback interface, a host route, a firewall rule
+      for one machine.
+    </p>
+    <p>
+      IPv6 has no broadcast address at all, so none of this applies. Every address in an IPv6
+      prefix is usable, and the answer for a /64 is 18,446,744,073,709,551,616 — which is also why
+      this page does the arithmetic in arbitrary-precision integers. JavaScript numbers lose
+      integer accuracy above 2<sup>53</sup>, so a calculator using them silently returns a rounded
+      host count for anything shorter than a /75.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      A subnet mask must be a contiguous run of 1 bits followed by 0 bits —
+      <code>255.255.255.0</code> is valid, <code>255.0.255.0</code> is not, and this tool rejects
+      the second rather than quietly reinterpreting it. Addresses with a leading zero in an octet
+      are also rejected: <code>192.168.01.1</code> is read as decimal by some tools and as octal by
+      others, which makes it genuinely ambiguous rather than merely untidy. Written as
+      <code>192.168.1.1</code> it means one thing everywhere.
+    </p>
+    <p>
+      Finally, the private ranges are a convention, not a property of the numbers. RFC 1918 sets
+      aside <code>10.0.0.0/8</code>, <code>172.16.0.0/12</code> and <code>192.168.0.0/16</code>;
+      routers on the public internet drop traffic for them, but nothing stops you using public
+      space internally, and plenty of networks have painfully discovered they did.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    wireStandardActions,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import {
+    parseCidr,
+    subnetInfo,
+    cidrContains,
+    splitSubnet,
+    representations,
+    formatCount,
+    IpError,
+  } from '~/lib/ip';
+  import type { Cidr } from '~/lib/ip';
+
+  const MAX_SPLIT_ROWS = 256;
+
+  mount('subnet-calculator', (root) => {
+    const input = q<HTMLInputElement>('[data-primary-input]', root)!;
+    const result = q('[data-result]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const prefixPanel = q('[data-prefix-panel]', root)!;
+    const prefixSlider = q<HTMLInputElement>('[data-prefix]', root)!;
+    const prefixLabel = q('[data-prefix-label]', root)!;
+    const containsInput = q<HTMLInputElement>('[data-contains-input]', root)!;
+    const containsResult = q('[data-contains-result]', root)!;
+    const splitSelect = q<HTMLSelectElement>('[data-split-select]', root)!;
+    const splitResult = q('[data-split-result]', root)!;
+    const splitSummary = q('[data-split-summary]', root)!;
+    const splitList = q('[data-split-list]', root)!;
+
+    /** The last successfully parsed range, shared by the two sub-tools. */
+    let current: Cidr | null = null;
+
+    const setRow = (attr: string, key: string, value: string | null) => {
+      const row = q(`[data-${attr}-row="${key}"]`, root) ?? q(`[data-row="${key}"]`, root);
+      const cell = q(`[data-${attr}="${key}"]`, root);
+      if (!row || !cell) return;
+      if (value === null || value === '') {
+        row.setAttribute('hidden', '');
+        cell.textContent = '';
+        return;
+      }
+      row.removeAttribute('hidden');
+      cell.textContent = value;
+    };
+
+    const setStat = (key: string, value: string) => {
+      const el = q(`[data-stat="${key}"]`, root);
+      if (el) el.textContent = value;
+    };
+
+    const hide = () => {
+      current = null;
+      result.setAttribute('hidden', '');
+      prefixPanel.setAttribute('hidden', '');
+      mirror.value = '';
+    };
+
+    /** Rebuild the split dropdown for the current prefix. */
+    const fillSplitOptions = (cidr: Cidr) => {
+      const bits = cidr.version === 4 ? 32 : 128;
+      const previous = splitSelect.value;
+      splitSelect.textContent = '';
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Choose a smaller prefix…';
+      splitSelect.appendChild(placeholder);
+
+      // Beyond 4096 pieces the count is the only useful answer, so the list
+      // stops where the rows stop being worth rendering.
+      for (let p = cidr.prefix + 1; p <= bits; p++) {
+        const count = 2 ** Math.min(p - cidr.prefix, 32);
+        const option = document.createElement('option');
+        option.value = String(p);
+        option.textContent =
+          p - cidr.prefix > 32
+            ? `/${p} — more than 4 billion subnets`
+            : `/${p} — ${count.toLocaleString()} subnet${count === 1 ? '' : 's'}`;
+        splitSelect.appendChild(option);
+        if (p - cidr.prefix >= 16) break;
+      }
+      splitSelect.value = previous;
+      if (splitSelect.value !== previous) {
+        splitResult.setAttribute('hidden', '');
+      }
+    };
+
+    const renderSplit = () => {
+      const value = splitSelect.value;
+      if (!current || !value) {
+        splitResult.setAttribute('hidden', '');
+        return;
+      }
+      try {
+        const { subnets, total, truncated } = splitSubnet(current, Number(value), MAX_SPLIT_ROWS);
+        splitList.textContent = '';
+        for (const subnet of subnets) {
+          const li = document.createElement('li');
+          li.className = 'px-1 py-0.5';
+          li.textContent = subnet;
+          splitList.appendChild(li);
+        }
+        splitSummary.textContent = truncated
+          ? `${formatCount(total)} subnets in total — showing the first ${subnets.length}.`
+          : `${formatCount(total)} subnet${total === 1n ? '' : 's'}.`;
+        splitResult.removeAttribute('hidden');
+      } catch (error) {
+        splitResult.setAttribute('hidden', '');
+        setStatus(root, error instanceof IpError ? error.message : String(error), 'error');
+      }
+    };
+
+    const renderContains = () => {
+      const text = containsInput.value.trim();
+      containsResult.className = 'mt-2 text-sm';
+      if (!current || !text) {
+        containsResult.textContent = '';
+        return;
+      }
+      let probe;
+      try {
+        probe = parseCidr(text);
+      } catch (error) {
+        containsResult.textContent = error instanceof IpError ? error.message : String(error);
+        containsResult.className = 'mt-2 text-sm text-muted';
+        return;
+      }
+      if (probe.version !== current.version) {
+        containsResult.textContent = `That is an IPv${probe.version} address and the range is IPv${current.version}, so it cannot be inside it.`;
+        containsResult.className = 'mt-2 text-sm text-muted';
+        return;
+      }
+      const inside = cidrContains(current, probe.address, probe.version);
+      const info = subnetInfo(current);
+      containsResult.textContent = inside
+        ? `Yes — ${text} is inside ${info.cidr}.`
+        : `No — ${text} is outside ${info.cidr}.`;
+      containsResult.className = `mt-2 text-sm font-medium ${inside ? 'text-accent' : 'text-ink-soft'}`;
+    };
+
+    const render = (cidr: Cidr) => {
+      const info = subnetInfo(cidr);
+      current = cidr;
+
+      // The slider tracks the parsed prefix; max depends on the family.
+      prefixPanel.removeAttribute('hidden');
+      prefixSlider.max = String(cidr.version === 4 ? 32 : 128);
+      prefixSlider.value = String(cidr.prefix);
+      prefixLabel.textContent = `/${cidr.prefix}`;
+
+      setStat('total', formatCount(info.totalAddresses));
+      setStat('usable', formatCount(info.usableHosts));
+      setStat('version', `IPv${info.version}`);
+
+      setRow('value', 'cidr', info.cidr);
+      setRow('value', 'network', info.network);
+      setRow('value', 'firstHost', info.firstHost);
+      setRow('value', 'lastHost', info.lastHost);
+      setRow('value', 'broadcast', info.broadcast);
+      setRow('value', 'mask', info.mask);
+      setRow('value', 'wildcard', info.wildcard);
+      setRow('value', 'scope', info.scope);
+
+      const network = cidr.address & (((1n << BigInt(cidr.prefix)) - 1n) << BigInt((cidr.version === 4 ? 32 : 128) - cidr.prefix));
+      const reps = representations(cidr.version, network);
+      setRow('rep', 'expanded', reps.expanded);
+      setRow('rep', 'hex', reps.hex);
+      setRow('rep', 'integer', reps.integer);
+      setRow('rep', 'binary', reps.binary);
+      setRow('rep', 'reverseDns', reps.reverseDns);
+
+      const lines = [
+        `Range          ${info.cidr}`,
+        `Network        ${info.network}`,
+        info.firstHost && `First host     ${info.firstHost}`,
+        info.lastHost && `Last host      ${info.lastHost}`,
+        info.broadcast && `Broadcast      ${info.broadcast}`,
+        info.mask && `Subnet mask    ${info.mask}`,
+        info.wildcard && `Wildcard mask  ${info.wildcard}`,
+        `Total          ${formatCount(info.totalAddresses)}`,
+        `Usable hosts   ${formatCount(info.usableHosts)}`,
+        `Scope          ${info.scope}`,
+      ].filter(Boolean);
+      mirror.value = lines.join('\n');
+
+      result.removeAttribute('hidden');
+      fillSplitOptions(cidr);
+      renderContains();
+      renderSplit();
+
+      if (info.isPointToPoint) {
+        setStatus(
+          root,
+          'A /31 is a point-to-point link (RFC 3021). It has no network or broadcast address, so both addresses are usable.',
+          'ok',
+        );
+      } else if (info.isSingleHost) {
+        setStatus(root, `A /${info.prefix} is a single host, not a range.`, 'ok');
+      } else {
+        clearStatus(root);
+      }
+      markUsed();
+    };
+
+    const parse = () => {
+      const text = input.value.trim();
+      if (!text) {
+        clearStatus(root);
+        hide();
+        containsResult.textContent = '';
+        splitResult.setAttribute('hidden', '');
+        return;
+      }
+      try {
+        render(parseCidr(text));
+      } catch (error) {
+        hide();
+        setStatus(root, error instanceof IpError ? error.message : String(error), 'error');
+      }
+    };
+
+    on(input, 'input', debounce(parse, 120));
+
+    // The slider rewrites the text field, which is the single source of truth.
+    on(prefixSlider, 'input', () => {
+      prefixLabel.textContent = `/${prefixSlider.value}`;
+      if (!current) return;
+      const address = input.value.trim().split(/[\s/]/)[0];
+      input.value = `${address}/${prefixSlider.value}`;
+      parse();
+    });
+
+    on(containsInput, 'input', debounce(renderContains, 120));
+    on(splitSelect, 'change', renderSplit);
+
+    for (const button of qa<HTMLButtonElement>('[data-preset]', root)) {
+      on(button, 'click', () => {
+        input.value = button.dataset.preset ?? '';
+        parse();
+        input.focus();
+      });
+    }
+
+    // Clear empties every [data-clear-target] and then calls onChange, so the
+    // empty branch of parse() is what resets the panels.
+    wireStandardActions(root, { onChange: parse });
+  });
+</script>

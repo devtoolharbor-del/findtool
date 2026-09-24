@@ -40,6 +40,41 @@ const componentNames = [...toolsSrc.matchAll(/^\s{4}component: '([A-Za-z0-9]+)',
 );
 const categorySlugs = [...categoriesSrc.matchAll(/^\s{4}slug: '([a-z0-9-]+)',/gm)].map((m) => m[1]);
 
+/**
+ * Which tools declare `serverProcessing: true`, and which carry their own
+ * privacy wording.
+ *
+ * The registry is split into entries first so each flag is read from the same
+ * block as its slug — a file-wide regex would happily pair a slug with the
+ * next tool's flag and report the wrong page.
+ */
+const serverProcessingSlugs = new Set();
+/** slug → the first clause of its bespoke privacy wording, to look for in the HTML. */
+const privacyOverrides = new Map();
+
+for (const block of toolsSrc.split(/\n {2}\{\n/).slice(1)) {
+  const slug = block.match(/^\s{4}slug: '([a-z0-9-]+)',/m)?.[1];
+  if (!slug) continue;
+  const isServer = /^\s{4}serverProcessing: true,/m.test(block);
+  if (isServer) serverProcessingSlugs.add(slug);
+
+  const override = block.match(/^\s{4}privacyNoteOverride:\s*\n?\s*'((?:[^'\\]|\\.)*)'/m);
+  if (override) {
+    // A leading slice is enough to prove the right string reached the page,
+    // and short enough to survive a wording change mid-sentence.
+    privacyOverrides.set(slug, override[1].slice(0, 48));
+  } else if (/^\s{4}privacyNoteOverride:/m.test(block)) {
+    fail(`${slug}: privacyNoteOverride is present but could not be parsed as a single-quoted string`);
+  }
+  // `privacyNote` is appended to the standard claim, which a server-processing
+  // tool never shows. Attaching one there means the sentence silently vanishes.
+  if (isServer && /^\s{4}privacyNote:/m.test(block)) {
+    fail(
+      `${slug}: has serverProcessing: true and privacyNote. Use privacyNoteOverride — privacyNote is only appended to the local-processing claim, which this tool does not show.`,
+    );
+  }
+}
+
 if (toolSlugs.length === 0) fail('Could not parse any tool slugs from src/data/tools.ts');
 if (categorySlugs.length === 0) fail('Could not parse any category slugs');
 
@@ -160,8 +195,19 @@ for (const page of expected) {
     if (!html.includes('What this tool does')) {
       warn(`${page}: no "What this tool does" section — explainer prose may be missing`);
     }
-    // The privacy claim must appear on locally-processed tools.
-    if (!html.includes('processed locally in your browser')) {
+    // The privacy claim must appear on locally-processed tools — and must
+    // never appear on one that admits to using a server.
+    if (serverProcessingSlugs.has(slug)) {
+      if (html.includes('processed locally in your browser')) {
+        fail(
+          `${page}: declares serverProcessing: true but still renders the local-processing claim`,
+        );
+      }
+      const override = privacyOverrides.get(slug);
+      if (override && !html.includes(override)) {
+        fail(`${page}: privacyNoteOverride is set in the registry but did not render`);
+      }
+    } else if (!html.includes('processed locally in your browser')) {
       warn(`${page}: local-processing note not rendered`);
     }
     // Every tool carries at least two FAQ entries. This is a content standard
@@ -384,6 +430,76 @@ for (const file of htmlFiles) {
   for (const [pattern, label] of SECRET_PATTERNS) {
     if (pattern.test(content)) {
       fail(`Possible ${label} found in ${relative(DIST, file)}`);
+    }
+  }
+}
+
+// ─── Cloudflare Pages Functions ──────────────────────────────────────────
+//
+// Functions on this site are decorators, not routes: each one fetches the
+// statically built page for its own path and rewrites placeholders into it.
+// That buys back the layout, the prose, the structured data and the sitemap
+// entry — but it creates two couplings that break in silence.
+//
+//   1. The function's path must match a page that the build actually
+//      produced. Rename the page and the function serves a 404 body.
+//   2. The placeholder keys the function writes must exist in that page.
+//      Rename a key on one side and the cell is quietly left blank, which
+//      looks like a working page with a missing value.
+//
+// Both are checked here because neither shows up in a browser audit: the
+// audit serves dist/ directly and never runs the function at all.
+
+const functionsDir = join(ROOT, 'functions');
+if (existsSync(functionsDir)) {
+  const walk = async (dir) => {
+    const out = [];
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) out.push(...(await walk(full)));
+      else if (entry.name.endsWith('.js')) out.push(full);
+    }
+    return out;
+  };
+
+  for (const file of await walk(functionsDir)) {
+    const rel = relative(functionsDir, file).replace(/\.js$/, '');
+    const routePath = `/${rel}`;
+    const pageFile = join(DIST, `${rel}.html`);
+
+    if (!existsSync(pageFile)) {
+      fail(
+        `functions/${rel}.js handles ${routePath}, but the build produced no ${rel}.html for it to rewrite`,
+      );
+      continue;
+    }
+
+    const source = await readFile(file, 'utf8');
+    const html = await readFile(pageFile, 'utf8');
+
+    // Keys the function writes into, taken from the LABELS table it uses to
+    // build the plain-text summary.
+    const labels = source.match(/const LABELS = \{([\s\S]*?)\n\};/);
+    if (!labels) continue;
+
+    const keys = [...labels[1].matchAll(/^\s*([A-Za-z0-9_]+):/gm)].map((m) => m[1]);
+    const present = new Set(
+      [...html.matchAll(/data-ip="([A-Za-z0-9_-]+)"/g)].map((m) => m[1]),
+    );
+
+    for (const key of keys) {
+      if (!present.has(key)) {
+        fail(
+          `functions/${rel}.js writes the key "${key}", but ${rel}.html has no [data-ip="${key}"] to receive it`,
+        );
+      }
+    }
+    for (const key of present) {
+      if (!keys.includes(key)) {
+        fail(
+          `${rel}.html has a placeholder [data-ip="${key}"] that functions/${rel}.js never fills`,
+        );
+      }
     }
   }
 }

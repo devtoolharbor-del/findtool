@@ -110,7 +110,18 @@ const schema = [appSchema, ...(faqSchema ? [faqSchema] : [])];
       <slot />
     </section>
 
-    {!tool.serverProcessing && <PrivacyNote extra={tool.privacyNote} />}
+    {
+      /*
+        A tool that processes on a server never gets the standard claim. It
+        may supply its own wording, which replaces it outright rather than
+        being appended to something untrue.
+      */
+      tool.privacyNoteOverride ? (
+        <PrivacyNote headline={tool.privacyNoteOverride} />
+      ) : (
+        !tool.serverProcessing && <PrivacyNote extra={tool.privacyNote} />
+      )
+    }
 
     <AdSlot placement="after-tool" />
 
