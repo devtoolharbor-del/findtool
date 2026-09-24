@@ -21,7 +21,10 @@ const isActive = (href: string) => path === href || path.startsWith(href + '/');
       <span class="text-[0.95rem] font-semibold tracking-tight">{SITE.name}</span>
     </a>
 
-    <nav aria-label="Categories" class="ml-2 hidden lg:block">
+    {/* Two navs exist so desktop and mobile can differ structurally. They need
+        distinct accessible names, or they collapse into one ambiguous landmark
+        for screen-reader users (axe: landmark-unique). */}
+    <nav aria-label="Tool categories" class="ml-2 hidden lg:block">
       <ul class="flex items-center gap-0.5">
         <li>
           <a
@@ -73,7 +76,7 @@ const isActive = (href: string) => path === href || path.startsWith(href + '/');
           </svg>
         </summary>
         <nav
-          aria-label="Categories"
+          aria-label="Tool categories, mobile menu"
           class="absolute right-0 mt-2 w-56 rounded-xl border border-line bg-surface p-1.5 shadow-lg"
         >
           <a

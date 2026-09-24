@@ -29,12 +29,17 @@ const DARK = '#0c0a09';
 const SURFACE = '#1c1917';
 const MUTED = '#a8a29e';
 
-/** The cabin mark, as a path group scaled to a 0–32 viewBox. */
-const MARK = (stroke, width = 2.3) => `
+/**
+ * The cabin mark, as a path group on a 0–32 grid.
+ * Roof plus two log lines of unequal length — cabin walls and code lines at
+ * once. Kept in sync with src/components/Logo.astro and public/favicon.svg.
+ */
+const MARK = (stroke, width = 2.4) => `
   <g fill="none" stroke="${stroke}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M6 14.5 16 6.5l10 8"/>
-    <path d="M8.8 16.6v7.2a1.2 1.2 0 0 0 1.2 1.2h12a1.2 1.2 0 0 0 1.2-1.2v-7.2"/>
-    <path d="M13.4 25v-4.4a2.6 2.6 0 0 1 5.2 0V25"/>
+    <path d="M5.2 14.4 16 6.2l10.8 8.2"/>
+    <path d="M8.6 16.4v9.4h14.8v-9.4"/>
+    <path d="M11.8 19.8h8.4"/>
+    <path d="M11.8 23h5"/>
   </g>`;
 
 /** Square app icon: accent tile, white mark. */

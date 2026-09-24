@@ -45,7 +45,7 @@ const schema = [
   schema={schema}
 >
   {/* ── Hero ───────────────────────────────────────────────────────────── */}
-  <section class="py-14 text-center sm:py-20">
+  <section class="py-12 text-center sm:py-16">
     <h1 class="mx-auto max-w-3xl text-3xl font-semibold tracking-tight sm:text-5xl">
       Developer tools that run in your browser
     </h1>
@@ -79,8 +79,12 @@ const schema = [
           >⌘K</kbd
         >
       </button>
+    </div>
 
-      <ul class="mt-3 flex flex-wrap justify-center gap-1.5">
+    {/* Deliberately outside the max-w-lg wrapper above: constrained to the
+        search field's width, the sixth shortcut orphans onto its own row. */}
+    <div class="mx-auto mt-3 max-w-2xl">
+      <ul class="flex flex-wrap justify-center gap-1.5">
         {
           [
             ['JSON Formatter', 'json-formatter'],
@@ -108,7 +112,7 @@ const schema = [
   <section aria-labelledby="popular-heading" class="pb-14">
     <div class="mb-4 flex items-baseline justify-between gap-4">
       <h2 id="popular-heading" class="text-lg font-semibold">Most used</h2>
-      <a href="/tools" class="text-sm font-medium text-accent hover:underline">
+      <a href="/tools" class="bc-tap text-sm font-medium text-accent hover:underline">
         All {count} tools →
       </a>
     </div>

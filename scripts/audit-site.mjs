@@ -1,0 +1,398 @@
+#!/usr/bin/env node
+/**
+ * Full-site browser audit.
+ *
+ * Serves dist/ with the same URL semantics Cloudflare Pages uses, then drives
+ * a real browser over every page to check what static analysis cannot:
+ *
+ *   - JavaScript errors and failed network requests
+ *   - accessibility violations (axe-core, WCAG 2.2 AA)
+ *   - that each tool actually produces output when used
+ *   - that nothing leaks to the network while a tool runs
+ *   - colour-contrast and focus behaviour in both themes
+ *
+ * The browser is Playwright's own bundled Chromium running headless with a
+ * throwaway profile. It never touches an installed browser or its data.
+ *
+ * Usage:
+ *   node scripts/audit-site.mjs              # everything
+ *   node scripts/audit-site.mjs --shots      # also write screenshots
+ *   node scripts/audit-site.mjs --only=json-formatter
+ */
+
+import { createServer } from 'node:http';
+import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { join, extname, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { chromium } from 'playwright';
+import { AxeBuilder } from '@axe-core/playwright';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const DIST = join(ROOT, 'dist');
+const SHOTS = join(ROOT, '.audit-screenshots');
+
+const args = process.argv.slice(2);
+const wantShots = args.includes('--shots');
+const only = args.find((a) => a.startsWith('--only='))?.split('=')[1];
+
+if (!existsSync(DIST)) {
+  console.error('dist/ not found — run `npm run build` first.');
+  process.exit(1);
+}
+
+// ─── Static server matching Cloudflare Pages URL handling ────────────────
+
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
+  '.webmanifest': 'application/manifest+json',
+};
+
+/** Resolve a request path the way Pages does: /x → x.html, then x/index.html. */
+function resolveFile(urlPath) {
+  const clean = decodeURIComponent(urlPath.split('?')[0]);
+  if (clean === '/') return join(DIST, 'index.html');
+  const noSlash = clean.replace(/\/$/, '');
+  for (const candidate of [
+    join(DIST, noSlash),
+    join(DIST, `${noSlash}.html`),
+    join(DIST, noSlash, 'index.html'),
+  ]) {
+    if (existsSync(candidate) && extname(candidate)) return candidate;
+    if (existsSync(candidate) && !extname(candidate)) continue;
+  }
+  return null;
+}
+
+const server = createServer(async (req, res) => {
+  const file = resolveFile(req.url);
+  if (!file) {
+    const notFound = join(DIST, '404.html');
+    const body = existsSync(notFound) ? await readFile(notFound) : 'Not found';
+    res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
+    return res.end(body);
+  }
+  try {
+    const body = await readFile(file);
+    res.writeHead(200, { 'Content-Type': MIME[extname(file)] ?? 'application/octet-stream' });
+    res.end(body);
+  } catch {
+    res.writeHead(500);
+    res.end('error');
+  }
+});
+
+await new Promise((r) => server.listen(0, '127.0.0.1', r));
+const BASE = `http://127.0.0.1:${server.address().port}`;
+
+// ─── Which pages to visit ────────────────────────────────────────────────
+
+const toolsSrc = await readFile(join(ROOT, 'src/data/tools.ts'), 'utf8');
+const categoriesSrc = await readFile(join(ROOT, 'src/data/categories.ts'), 'utf8');
+const toolSlugs = [...toolsSrc.matchAll(/^\s{4}slug: '([a-z0-9-]+)',/gm)].map((m) => m[1]);
+const categorySlugs = [...categoriesSrc.matchAll(/^\s{4}slug: '([a-z0-9-]+)',/gm)].map((m) => m[1]);
+
+const staticPages = ['/', '/tools', '/about', '/contact', '/privacy', '/terms', '/404'];
+const allPages = only
+  ? [`/tools/${only}`]
+  : [...staticPages, ...categorySlugs.map((s) => `/${s}`), ...toolSlugs.map((s) => `/tools/${s}`)];
+
+// ─── Results ─────────────────────────────────────────────────────────────
+
+const problems = [];
+const toolResults = [];
+const record = (page, kind, detail) => problems.push({ page, kind, detail });
+
+// ─── Browser ─────────────────────────────────────────────────────────────
+
+const browser = await chromium.launch({ headless: true });
+
+/** Requests to any origin other than our local server are a privacy failure. */
+function watchNetwork(page, pagePath) {
+  page.on('request', (req) => {
+    const url = req.url();
+    if (!url.startsWith(BASE) && !url.startsWith('data:') && !url.startsWith('blob:')) {
+      record(pagePath, 'network', `Outbound request to ${url}`);
+    }
+  });
+  page.on('requestfailed', (req) => {
+    if (req.url().startsWith(BASE)) {
+      record(pagePath, 'network', `Failed: ${req.url()} (${req.failure()?.errorText})`);
+    }
+  });
+}
+
+function watchConsole(page, pagePath) {
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') record(pagePath, 'console', msg.text().slice(0, 200));
+  });
+  page.on('pageerror', (err) => record(pagePath, 'jserror', String(err).slice(0, 200)));
+}
+
+console.log(`Auditing ${allPages.length} pages at ${BASE}\n`);
+
+const context = await browser.newContext({
+  viewport: { width: 1280, height: 900 },
+  colorScheme: 'light',
+});
+
+for (const pagePath of allPages) {
+  const page = await context.newPage();
+  watchConsole(page, pagePath);
+  watchNetwork(page, pagePath);
+
+  const response = await page.goto(`${BASE}${pagePath}`, { waitUntil: 'networkidle' });
+  const status = response?.status();
+  if (pagePath !== '/404' && status !== 200) {
+    record(pagePath, 'http', `Status ${status}`);
+  }
+
+  // ── Accessibility ──
+  // `[data-sample-text]` is the Color Converter's contrast preview: it renders
+  // the user's chosen colour on black and on white precisely so they can see a
+  // failing combination. Low contrast there is the feature being demonstrated,
+  // and the measured ratio is stated numerically beside it, so the element is
+  // excluded rather than "fixed".
+  const axe = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'])
+    .exclude('[data-sample-text]')
+    .analyze();
+
+  for (const v of axe.violations) {
+    // Report once per rule per page, with the first offending selector.
+    record(
+      pagePath,
+      `a11y:${v.impact}`,
+      `${v.id} — ${v.help} (${v.nodes.length}×, e.g. ${v.nodes[0]?.target?.join(' ')})`,
+    );
+  }
+
+  // ── Functional smoke test for tool pages ──
+  if (pagePath.startsWith('/tools/') && pagePath !== '/tools') {
+    const slug = pagePath.slice('/tools/'.length);
+    const result = { slug, ok: false, note: '' };
+
+    try {
+      const root = page.locator(`[data-tool="${slug}"]`);
+      if ((await root.count()) === 0) {
+        result.note = 'no [data-tool] root';
+      } else {
+        // Load the example if the tool offers one.
+        const example = root.locator('[data-example]').first();
+        if ((await example.count()) > 0 && (await example.isVisible())) {
+          await example.click({ timeout: 4000 }).catch(() => {});
+          await page.waitForTimeout(150);
+        }
+
+        // Trigger the primary action if there is one.
+        const primary = root.locator('.bc-btn-primary:visible').first();
+        if ((await primary.count()) > 0) {
+          await primary.click({ timeout: 4000 }).catch(() => {});
+          await page.waitForTimeout(400);
+        } else {
+          await page.waitForTimeout(250);
+        }
+
+        // Did anything appear anywhere that counts as output?
+        //
+        // Conventional output slots are checked first, then we fall back to
+        // the rendered text of the tool itself. The fallback matters for tools
+        // that legitimately have no output field: a live clock writes into its
+        // own spans, and a reference table renders its content server-side.
+        const produced = await root.evaluate((el) => {
+          const sel = [
+            '[data-output]',
+            '[data-output-code]',
+            '[data-output-tree]',
+            '.bc-output',
+            '[data-stats]',
+            'output',
+          ];
+          let text = '';
+          for (const s of sel) {
+            for (const n of el.querySelectorAll(s)) {
+              text += 'value' in n ? n.value : (n.textContent ?? '');
+            }
+          }
+          if (text.trim().length > 0) return text.trim().length;
+          // Fallback: substantive visible content in the tool itself.
+          return (el.innerText ?? '').replace(/\s+/g, ' ').trim().length > 120
+            ? (el.innerText ?? '').trim().length
+            : 0;
+        });
+
+        const statusText = (await root.locator('[data-status]').innerText().catch(() => '')).trim();
+
+        if (produced > 0) {
+          result.ok = true;
+          result.note = `${produced} chars of output`;
+        } else if (statusText) {
+          result.ok = false;
+          result.note = `no output; status said: ${statusText.slice(0, 90)}`;
+        } else {
+          result.ok = false;
+          result.note = 'no output and no status message';
+        }
+      }
+    } catch (err) {
+      result.note = `threw: ${String(err).slice(0, 120)}`;
+    }
+
+    toolResults.push(result);
+    if (!result.ok) record(pagePath, 'tool', result.note);
+  }
+
+  await page.close();
+}
+
+// ─── Dark mode + mobile pass on representative pages ─────────────────────
+
+const sample = ['/', '/tools', '/json', '/tools/json-formatter', '/tools/regex-tester', '/tools/password-generator'];
+
+for (const scheme of ['dark']) {
+  const ctx = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    colorScheme: scheme,
+  });
+  for (const pagePath of sample) {
+    const page = await ctx.newPage();
+    watchConsole(page, `${pagePath} [${scheme}]`);
+    await page.goto(`${BASE}${pagePath}`, { waitUntil: 'networkidle' });
+    const axe = await new AxeBuilder({ page })
+      .withTags(['wcag2aa', 'wcag21aa'])
+      .analyze();
+    for (const v of axe.violations) {
+      record(`${pagePath} [${scheme}]`, `a11y:${v.impact}`, `${v.id} — ${v.help}`);
+    }
+    await page.close();
+  }
+  await ctx.close();
+}
+
+// Mobile viewport pass — catches horizontal overflow, the classic mobile bug.
+const mobile = await browser.newContext({
+  viewport: { width: 390, height: 844 },
+  deviceScaleFactor: 3,
+  isMobile: true,
+  hasTouch: true,
+});
+for (const pagePath of sample) {
+  const page = await mobile.newPage();
+  await page.goto(`${BASE}${pagePath}`, { waitUntil: 'networkidle' });
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  if (overflow > 1) record(`${pagePath} [mobile]`, 'layout', `Horizontal overflow of ${overflow}px`);
+
+  // Tap targets should be at least 24px (WCAG 2.2 AA minimum).
+  const small = await page.evaluate(() => {
+    const out = [];
+    for (const el of document.querySelectorAll('a, button, input, select, [role="button"]')) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 && r.height === 0) continue;
+      // Skip-links are 1×1 until focused, by design.
+      if (el.classList.contains('sr-only')) continue;
+      // WCAG 2.2 2.5.8 exempts links that sit inline within a block of text.
+      if (el.closest('p, li.prose-item, .bc-prose')) continue;
+      // A control wrapped in a <label> is activated by the label, so the
+      // label's box is the real target, not the 16px checkbox inside it.
+      if (el.closest('label')) continue;
+      if (r.height < 24 || r.width < 24) {
+        out.push(`${el.tagName.toLowerCase()}${el.className ? '.' + String(el.className).split(' ')[0] : ''} ${Math.round(r.width)}×${Math.round(r.height)}`);
+      }
+    }
+    return out.slice(0, 4);
+  });
+  for (const s of small) record(`${pagePath} [mobile]`, 'tap-target', s);
+  await page.close();
+}
+await mobile.close();
+
+// ─── Screenshots ─────────────────────────────────────────────────────────
+
+if (wantShots) {
+  await mkdir(SHOTS, { recursive: true });
+  for (const scheme of ['light', 'dark']) {
+    for (const [label, width, height] of [
+      ['desktop', 1280, 900],
+      ['mobile', 390, 844],
+    ]) {
+      const ctx = await browser.newContext({
+        viewport: { width, height },
+        colorScheme: scheme,
+      });
+      for (const pagePath of sample) {
+        const page = await ctx.newPage();
+        await page.goto(`${BASE}${pagePath}`, { waitUntil: 'networkidle' });
+        const name = (pagePath === '/' ? 'home' : pagePath.replace(/\//g, '-').slice(1))
+          + `-${scheme}-${label}.png`;
+        await page.screenshot({ path: join(SHOTS, name), fullPage: false });
+        await page.close();
+      }
+      await ctx.close();
+    }
+  }
+  console.log(`Screenshots written to ${SHOTS}\n`);
+}
+
+await context.close();
+await browser.close();
+server.close();
+
+// ─── Report ──────────────────────────────────────────────────────────────
+
+const failedTools = toolResults.filter((t) => !t.ok);
+console.log(`Tools exercised: ${toolResults.length}`);
+console.log(`  working: ${toolResults.length - failedTools.length}`);
+console.log(`  needs attention: ${failedTools.length}`);
+if (failedTools.length) {
+  for (const t of failedTools) console.log(`    ✗ ${t.slug}: ${t.note}`);
+}
+
+const byKind = new Map();
+for (const p of problems) {
+  const key = p.kind;
+  if (!byKind.has(key)) byKind.set(key, []);
+  byKind.get(key).push(p);
+}
+
+console.log(`\nIssues by kind:`);
+for (const [kind, items] of [...byKind.entries()].sort((a, b) => b[1].length - a[1].length)) {
+  console.log(`  ${kind}: ${items.length}`);
+}
+
+// Group a11y and other issues by the detail string so repeats collapse.
+console.log('\nDetail (deduplicated):');
+const seen = new Map();
+for (const p of problems) {
+  const key = `${p.kind}|${p.detail}`;
+  if (!seen.has(key)) seen.set(key, { ...p, count: 0, pages: [] });
+  const entry = seen.get(key);
+  entry.count++;
+  if (entry.pages.length < 3) entry.pages.push(p.page);
+}
+for (const e of [...seen.values()].sort((a, b) => b.count - a.count)) {
+  console.log(`  [${e.kind}] ×${e.count}  ${e.detail}`);
+  console.log(`      e.g. ${e.pages.join(', ')}`);
+}
+
+await writeFile(
+  join(ROOT, '.audit-report.json'),
+  JSON.stringify({ problems, toolResults }, null, 2),
+);
+console.log(`\nFull report: .audit-report.json`);
+
+const blocking = problems.filter(
+  (p) => p.kind.startsWith('a11y:critical') || p.kind.startsWith('a11y:serious') ||
+         p.kind === 'jserror' || p.kind === 'network' || p.kind === 'tool',
+);
+process.exit(blocking.length > 0 ? 1 : 0);

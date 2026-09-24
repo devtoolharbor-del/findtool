@@ -109,10 +109,15 @@ const schema = [breadcrumbSchema, appSchema, ...(faqSchema ? [faqSchema] : [])];
 
     <AdSlot placement="below-header" />
 
-    {/* ── The tool itself. Always the visual priority on the page. ── */}
-    <div class="bc-panel p-4 sm:p-5">
+    {/* ── The tool itself. Always the visual priority on the page. ──
+         The heading is visually hidden but keeps the document outline valid:
+         tools use <h3> for their internal sections, and jumping h1 → h3 is a
+         WCAG heading-order violation. It also gives screen-reader users a
+         landmark to jump to. */}
+    <section aria-labelledby="tool-heading" class="bc-panel p-4 sm:p-5">
+      <h2 id="tool-heading" class="sr-only">{tool.name} tool</h2>
       <slot />
-    </div>
+    </section>
 
     {!tool.serverProcessing && <PrivacyNote extra={tool.privacyNote} />}
 

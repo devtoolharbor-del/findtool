@@ -46,7 +46,10 @@ const categories = sortedCategories();
       </div>
     </section>
 
-    <nav aria-label="Categories" class="mt-10 flex flex-wrap justify-center gap-2">
+    {/* The footer's category nav takes its accessible name from its heading,
+        which is also "Categories" — so this one needs a distinct label or the
+        two landmarks become ambiguous (axe: landmark-unique). */}
+    <nav aria-label="Browse tool categories" class="mt-10 flex flex-wrap justify-center gap-2">
       {
         categories.map((c) => (
           <a

@@ -21,7 +21,11 @@
   --bc-line-strong: #d6d3d1;
   --bc-ink: #1c1917;
   --bc-ink-soft: #44403c;
-  --bc-muted: #78716c;
+  /* Contrast-checked: 5.3:1 on --bc-surface-2, higher on white and canvas.
+     The obvious stone-500 (#78716c) measures 4.40:1 on surface-2 — under the
+     4.5:1 AA threshold, which matters because muted text is used at 12–13px
+     for stat labels and field labels. Verified by axe in scripts/audit-site.mjs. */
+  --bc-muted: #6b6560;
   --bc-accent: #0f766e;
   --bc-accent-hover: #115e59;
   --bc-accent-ink: #ffffff;
@@ -171,9 +175,12 @@
    ─────────────────────────────────────────────────────────────────────────── */
 @layer components {
   /* --- Buttons --- */
+  /* min-h-9 guarantees a comfortable target even for icon-only variants that
+     zero out padding (e.g. `bc-btn p-0 w-9`), which would otherwise collapse
+     to the 20px line box. */
   .bc-btn {
-    @apply inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border
-      px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors
+    @apply inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg
+      border px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors
       disabled:pointer-events-none disabled:opacity-45;
   }
   .bc-btn-primary {
@@ -202,8 +209,10 @@
     background-color: var(--color-surface-2);
     color: var(--color-ink);
   }
+  /* py-1.5 rather than py-1 so the control clears the 24×24 minimum target
+     size in WCAG 2.2 AA (2.5.8) on touch screens. */
   .bc-btn-sm {
-    @apply gap-1 rounded-md px-2 py-1 text-xs;
+    @apply min-h-6 gap-1 rounded-md px-2 py-1.5 text-xs;
   }
 
   /* --- Form controls --- */
@@ -225,17 +234,46 @@
     font-size: 0.8125rem;
     tab-size: 2;
   }
+  /* Native select chrome varies wildly across platforms and looks wrong beside
+     our own controls, so the arrow is drawn as a background image. The stroke
+     colour is baked into the data URI (background-image cannot read
+     currentColor), hence the separate dark-mode rule below. */
   .bc-select {
-    @apply cursor-pointer pr-8;
+    @apply cursor-pointer bg-no-repeat pr-9;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b6560' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 0.625rem center;
+    background-size: 1rem;
+  }
+  .dark .bc-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a8a29e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
   .bc-label {
     @apply mb-1.5 block text-xs font-medium tracking-wide uppercase;
     color: var(--color-muted);
   }
+  /* Drawn rather than relying on accent-color: accent-color tints the checked
+     state but leaves the unchecked box to the OS, which renders a pale square
+     that looks broken on our dark surface. */
   .bc-checkbox {
-    @apply size-4 shrink-0 cursor-pointer rounded border;
-    accent-color: var(--color-accent);
+    @apply size-4 shrink-0 cursor-pointer rounded border bg-no-repeat transition-colors;
+    appearance: none;
+    background-color: var(--color-surface);
     border-color: var(--color-line-strong);
+    background-position: center;
+    background-size: 0.75rem;
+  }
+  .bc-checkbox:hover {
+    border-color: var(--color-accent);
+  }
+  .bc-checkbox:checked {
+    background-color: var(--color-accent);
+    border-color: var(--color-accent);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 5 5 9-10'/%3E%3C/svg%3E");
+  }
+  /* In dark mode the accent is light, so the tick must be dark to stay legible. */
+  .dark .bc-checkbox:checked {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23042f2e' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 5 5 9-10'/%3E%3C/svg%3E");
   }
   .bc-check-label {
     @apply inline-flex cursor-pointer items-center gap-2 text-sm select-none;
@@ -414,4 +452,30 @@ mark.bc-match {
 /* Utility: hide until the island hydrates, avoids a flash of broken UI. */
 [data-cloak] {
   visibility: hidden;
+}
+
+/*
+  WCAG 2.2 AA (2.5.8) asks for a 24×24 CSS-pixel minimum target size. Applied
+  only on coarse pointers so mouse layouts keep their tighter rhythm, and only
+  to navigational links — links inline in a sentence are explicitly exempt
+  under the "inline" exception, and stretching them would break text flow.
+*/
+@media (pointer: coarse) {
+  nav a,
+  footer a,
+  .bc-tap {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+  }
+
+  /* A checkbox is 16px, but the label wraps it and is the real target, so the
+     minimum is enforced on the label rather than by inflating the control. */
+  .bc-check-label {
+    min-height: 24px;
+  }
+
+  input[type='range'] {
+    min-height: 24px;
+  }
 }

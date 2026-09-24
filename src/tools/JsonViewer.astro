@@ -107,9 +107,12 @@ const { tool } = Astro.props;
           <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>Download</button>
         </div>
       </div>
+      {/* role="region" because aria-label is not permitted on a generic div
+          (axe: aria-prohibited-attr), and the panel is focusable and scrollable. */}
       <div
         class="bc-output max-h-[36rem] min-h-40"
         data-tree
+        role="region"
         tabindex="0"
         aria-label="JSON tree. Every row has a button that copies its path."></div>
       <p class="mt-1.5 text-xs text-muted">
