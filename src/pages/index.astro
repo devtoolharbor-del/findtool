@@ -88,7 +88,17 @@ const schema = [
         visitor's own recent tools. It reuses this row rather than adding a
         section so the swap costs nothing in layout shift. */}
     <div class="mx-auto mt-3 max-w-2xl">
-      <p class="sr-only" data-shortcut-label>Popular tools</p>
+      <p class="mb-2 flex items-center justify-center gap-2 text-xs text-muted">
+        <span data-shortcut-label>Popular tools</span>
+        <button
+          type="button"
+          data-shortcut-reset
+          hidden
+          class="rounded underline underline-offset-2 hover:text-accent"
+        >
+          Show popular instead
+        </button>
+      </p>
       <ul class="flex flex-wrap justify-center gap-1.5" data-shortcuts>
         {
           /*
@@ -161,7 +171,20 @@ const schema = [
             li.appendChild(a);
             list.appendChild(li);
           }
-          if (label) label.textContent = 'Tools you used recently';
+          if (label) label.textContent = 'Recently used';
+
+          // Without a visible explanation the shortcuts appear to change at
+          // random on the third visit. The reset also doubles as the only way
+          // to clear the stored history from the UI.
+          const reset = document.querySelector('[data-shortcut-reset]');
+          if (reset) {
+            reset.hidden = false;
+            reset.addEventListener('click', async () => {
+              const { clearRecent } = await import('~/lib/recent');
+              clearRecent();
+              location.reload();
+            });
+          }
         })
         .catch(() => {
           /* keep the default shortcuts */
