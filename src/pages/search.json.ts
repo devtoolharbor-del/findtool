@@ -8,7 +8,7 @@ import type { SearchEntry } from '~/lib/search';
  * The search index, fetched once by the search dialog on first use.
  *
  * Field names are single letters because this file is downloaded by every
- * visitor who searches; at 50 tools it is roughly 8 KB before compression,
+ * visitor who searches; at 50 tools it was roughly 8 KB before compression,
  * and it stays practical into the thousands. Popular tools come first so the
  * empty-query state can simply take the first six.
  */

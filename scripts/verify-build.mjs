@@ -434,6 +434,38 @@ for (const file of htmlFiles) {
   }
 }
 
+// ─── Tool counts written into copy ───────────────────────────────────────
+//
+// "Search 50 tools" sat in the search dialog for two tools after the count
+// changed, next to a "52 tools" heading derived from the registry. A number
+// in a string is a number that goes stale, so any count in rendered text has
+// to be the real one.
+
+// Category pages legitimately quote their own size ("10 tools in this
+// category"), so rather than guess which count a sentence means, any number
+// that matches the catalogue or one of the categories is accepted. A stale
+// literal matches neither.
+const perCategoryCounts = new Set();
+for (const id of new Set([...toolsSrc.matchAll(/^\s{4}category: '([a-z-]+)',/gm)].map((m) => m[1]))) {
+  perCategoryCounts.add(
+    [...toolsSrc.matchAll(new RegExp(`^\\s{4}category: '${id}',`, 'gm'))].length,
+  );
+}
+
+const allowedCounts = new Set([toolSlugs.length, ...perCategoryCounts]);
+
+for (const file of htmlFiles) {
+  const html = await readFile(file, 'utf8');
+  const text = html.replace(/<script[\s\S]*?<\/script>/g, '');
+  for (const match of text.matchAll(/\b(\d{2,4}) (tools|utilities)\b/g)) {
+    if (!allowedCounts.has(Number(match[1]))) {
+      fail(
+        `${relative(DIST, file)}: says "${match[0]}", which is neither the catalogue size (${toolSlugs.length}) nor any category's`,
+      );
+    }
+  }
+}
+
 // ─── Cloudflare Pages Functions ──────────────────────────────────────────
 //
 // Functions on this site are decorators, not routes: each one fetches the

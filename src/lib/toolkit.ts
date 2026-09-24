@@ -2,7 +2,7 @@
  * FindTool client toolkit.
  *
  * Shared browser-side helpers used by every tool. Keeping this common makes
- * 50 tools behave identically for copy, download, upload, errors and limits —
+ * Every tool behaves identically for copy, download, upload, errors and limits —
  * and keeps each tool's own script down to wiring plus its actual logic.
  *
  * Rules for this file:
