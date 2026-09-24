@@ -11,10 +11,10 @@
  * addresses, the verifier's expected origin — follows from them.
  */
 
-export const SITE_NAME = 'ByteCabin';
+export const SITE_NAME = 'FindTool';
 
 /** Bare hostname, no scheme. Used for email addresses and display. */
-export const SITE_DOMAIN = 'bytecabin.dev';
+export const SITE_DOMAIN = 'findtool.dev';
 
 /** Canonical production origin. Every other host redirects here. */
 export const SITE_URL = `https://${SITE_DOMAIN}`;

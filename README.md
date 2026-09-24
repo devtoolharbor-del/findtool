@@ -1,4 +1,4 @@
-# ByteCabin
+# FindTool
 
 Fast, private developer tools that run entirely in the browser.
 Production: **https://bytecabin.dev**
@@ -445,4 +445,4 @@ Enabling AdSense also requires widening the CSP in `public/_headers` to allow
 ---
 
 Licensed for personal and commercial use of the tools themselves. The
-ByteCabin name, logo and written page content are not licensed for reuse.
+FindTool name, logo and written page content are not licensed for reuse.

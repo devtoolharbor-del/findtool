@@ -340,4 +340,4 @@ export const SAMPLE_PLAIN =
   'search?q=café & crème brûlée&tags=coffee/dessert&note=100% "worth it"';
 
 export const SAMPLE_ENCODED =
-  'https://bytecabin.dev/search?q=caf%C3%A9%20%26%20cr%C3%A8me&redirect=https%3A%2F%2Fexample.com%2Fnext%3Fid%3D42&note=100%25%20%22worth%20it%22&tag=a&tag=b';
+  'https://findtool.dev/search?q=caf%C3%A9%20%26%20cr%C3%A8me&redirect=https%3A%2F%2Fexample.com%2Fnext%3Fid%3D42&note=100%25%20%22worth%20it%22&tag=a&tag=b';

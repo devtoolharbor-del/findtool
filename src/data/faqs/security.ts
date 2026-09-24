@@ -12,7 +12,7 @@ export const securityFaqs: FaqMap = {
     },
     {
       q: 'Does hashing a large file upload it?',
-      a: 'No. The file is read with the FileReader API and hashed in this tab. Nothing is sent to ByteCabin, which is also why hashing a multi-gigabyte file depends on your own machine’s speed.',
+      a: 'No. The file is read with the FileReader API and hashed in this tab. Nothing is sent to FindTool, which is also why hashing a multi-gigabyte file depends on your own machine’s speed.',
     },
   ],
   'sha1-generator': [

@@ -538,7 +538,7 @@ export function minifyCss(source: string, options: MinifyOptions = {}): MinifyRe
   };
 }
 
-export const SAMPLE_CSS = `/*! ByteCabin demo stylesheet v1.0 | MIT licence */
+export const SAMPLE_CSS = `/*! FindTool demo stylesheet v1.0 | MIT licence */
 
 /* This comment is removed. The one above is not. */
 :root {

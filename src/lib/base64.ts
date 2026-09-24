@@ -339,7 +339,7 @@ export function decodedLength(base64: string): number {
   return Math.floor(((text.length - padding) * 6) / 8);
 }
 
-export const SAMPLE_TEXT = 'ByteCabin — encode this, including an emoji 🛠 and an accent: café.';
+export const SAMPLE_TEXT = 'FindTool — encode this, including an emoji 🛠 and an accent: café.';
 
 export const SAMPLE_BASE64 =
-  'Qnl0ZUNhYmluIOKAlCBkZWNvZGVkIGZyb20gQmFzZTY0LCBlbW9qaSBpbnRhY3Q6IPCfm6Au';
+  'RmluZFRvb2wg4oCUIGRlY29kZWQgZnJvbSBCYXNlNjQsIGVtb2ppIGludGFjdDog8J+boC4=';

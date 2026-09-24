@@ -2,7 +2,7 @@
 /**
  * Per-page Open Graph images.
  *
- * A shared preview card means every ByteCabin link pasted into Slack, Discord
+ * A shared preview card means every FindTool link pasted into Slack, Discord
  * or a pull request looks identical. Naming the actual tool is the difference
  * between a link someone clicks and one they scroll past.
  *
@@ -98,11 +98,10 @@ function wrap(text, size, maxWidth, maxLines) {
 }
 
 const MARK = `
-  <g fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M5.2 14.4 16 6.2l10.8 8.2"/>
-    <path d="M8.6 16.4v9.4h14.8v-9.4"/>
-    <path d="M11.8 19.8h8.4"/>
-    <path d="M11.8 23h5"/>
+  <g fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="14" cy="14" r="8"/>
+    <path d="M20.1 20.1 26.5 26.5"/>
+    <path d="M11.9 10.9 14.9 14 11.9 17.1"/>
   </g>`;
 
 function card({ title, description, badge }) {

@@ -799,8 +799,8 @@ export function xmlStats(element: XmlLikeNode): {
 // ─── Samples ──────────────────────────────────────────────────────────────
 
 export const SAMPLE_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>ByteCabin Changelog</title>
-<link>https://bytecabin.dev/changelog</link><atom:link href="https://bytecabin.dev/feed.xml" rel="self"/>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>FindTool Changelog</title>
+<link>https://findtool.dev/changelog</link><atom:link href="https://findtool.dev/feed.xml" rel="self"/>
 <!-- newest first --><item><guid isPermaLink="false">bc-2026-09-24</guid><title>Ten JSON tools</title>
 <pubDate>Thu, 24 Sep 2026 09:00:00 GMT</pubDate><category>release</category><category>json</category>
 <description><![CDATA[Added the <b>viewer</b> and CSV converters.]]></description></item>

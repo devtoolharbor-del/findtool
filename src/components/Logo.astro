@@ -1,12 +1,10 @@
 ---
 /**
- * The ByteCabin mark.
+ * The FindTool mark.
  *
- * A pitched roof over a body carrying two horizontal lines of unequal length.
- * They read as the logs of a cabin wall and as lines of code at the same time,
- * which is the whole idea behind the name. The earlier version was a plain
- * house outline that people read as a generic "home" icon — the log lines and
- * the overhanging eaves are what make this one specific.
+ * A magnifier whose lens holds a terminal chevron: "find" and "developer" in
+ * one shape. The chevron is what stops it reading as a generic search icon —
+ * at 24px the lens and the prompt are still distinguishable.
  *
  * Geometric, monochrome, and legible down to 16px.
  */
@@ -30,8 +28,7 @@ const { size = 26, class: className = '' } = Astro.props;
   class={className}
   aria-hidden="true"
 >
-  <path d="M2.2 10.6 12 3.2l9.8 7.4" />
-  <path d="M5.4 12.4v8.4h13.2v-8.4" />
-  <path d="M8.2 15.4h7.6" />
-  <path d="M8.2 18.2h4.6" />
+  <circle cx="10.5" cy="10.5" r="6.8" />
+  <path d="M15.6 15.6 20.9 20.9" />
+  <path d="M8.9 8.1 11.4 10.5 8.9 12.9" />
 </svg>

@@ -1,5 +1,5 @@
 /**
- * ByteCabin client toolkit.
+ * FindTool client toolkit.
  *
  * Shared browser-side helpers used by every tool. Keeping this common makes
  * 50 tools behave identically for copy, download, upload, errors and limits —
@@ -58,7 +58,7 @@ export function mount(slug: string, setup: (root: HTMLElement) => void): void {
     try {
       setup(root);
     } catch (err) {
-      console.error(`[bytecabin] tool "${slug}" failed to start`, err);
+      console.error(`[findtool] tool "${slug}" failed to start`, err);
       showError(root, 'This tool failed to start. Reloading the page usually fixes it.');
     }
   });

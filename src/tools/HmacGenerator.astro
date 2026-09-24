@@ -190,7 +190,7 @@ const EXAMPLE_MESSAGE = '1737039600.{"id":"evt_1PrLq2","type":"payment_intent.su
 
     <h2>Verifying a Stripe webhook signature</h2>
     <p>Stripe sends a header that looks like this:</p>
-    <pre><code>Stripe-Signature: t=1737039600,v1=1645a1c344a819b182ea947d58eade27937e5fc74066a65bd7b81b8fd0c9a480</code></pre>
+    <pre><code>Stripe-Signature: t=1737039600,v1=692bee8484f34eb73c69635675896b98780a40c108235a39cdeb44d86a57e5ad</code></pre>
     <p>
       <code>t</code> is the Unix timestamp of the attempt and <code>v1</code> is an HMAC-SHA-256.
       What gets signed is not the request body on its own but the timestamp, a literal full stop
@@ -199,7 +199,7 @@ const EXAMPLE_MESSAGE = '1737039600.{"id":"evt_1PrLq2","type":"payment_intent.su
     <pre><code>{'1737039600.{"id":"evt_1PrLq2","type":"payment_intent.succeeded"}'}</code></pre>
     <p>
       Put that string in the message box, put the endpoint's signing secret
-      (<code>whsec_ByteCabinExampleSecret</code> for this example) in the key box, and the
+      (<code>whsec_FindToolExampleSecret</code> for this example) in the key box, and the
       signature above appears. Press Example to load all three fields at once.
     </p>
     <p>Three details account for almost every failed verification:</p>
@@ -269,9 +269,9 @@ const EXAMPLE_MESSAGE = '1737039600.{"id":"evt_1PrLq2","type":"payment_intent.su
 
   const EXAMPLE = {
     message: '1737039600.{"id":"evt_1PrLq2","type":"payment_intent.succeeded"}',
-    key: 'whsec_ByteCabinExampleSecret',
+    key: 'whsec_FindToolExampleSecret',
     signature:
-      't=1737039600,v1=1645a1c344a819b182ea947d58eade27937e5fc74066a65bd7b81b8fd0c9a480',
+      't=1737039600,v1=692bee8484f34eb73c69635675896b98780a40c108235a39cdeb44d86a57e5ad',
   };
 
   mount('hmac-generator', (root) => {

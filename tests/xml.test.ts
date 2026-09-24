@@ -206,7 +206,7 @@ describe('formatXml', () => {
   it('expands the minified RSS sample into indented lines', () => {
     const out = formatXml(SAMPLE_XML);
     expect(out).toContain('\n  <channel>');
-    expect(out).toContain('<title>ByteCabin Changelog</title>');
+    expect(out).toContain('<title>FindTool Changelog</title>');
     expect(out.split('\n').length).toBeGreaterThan(15);
   });
 

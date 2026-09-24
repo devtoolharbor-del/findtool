@@ -148,11 +148,11 @@ describe('matching', () => {
 
 describe('capture groups', () => {
   it('reports numbered groups with their offsets', () => {
-    const result = run('(\\w+)@(\\w+)', 'g', 'ada@bytecabin');
+    const result = run('(\\w+)@(\\w+)', 'g', 'ada@findtool');
     const [match] = result.matches;
     expect(match!.groups).toHaveLength(2);
     expect(match!.groups[0]).toMatchObject({ number: 1, value: 'ada', start: 0, end: 3 });
-    expect(match!.groups[1]).toMatchObject({ number: 2, value: 'bytecabin', start: 4, end: 13 });
+    expect(match!.groups[1]).toMatchObject({ number: 2, value: 'findtool', start: 4, end: 12 });
   });
 
   it('reports named groups by name as well as by number', () => {
@@ -191,7 +191,7 @@ describe('capture groups', () => {
 
 describe('replace preview', () => {
   it('supports numbered references', () => {
-    expect(run('(\\w+)@(\\w+)', 'g', 'ada@bytecabin', '$2/$1').replaced).toBe('bytecabin/ada');
+    expect(run('(\\w+)@(\\w+)', 'g', 'ada@findtool', '$2/$1').replaced).toBe('findtool/ada');
   });
 
   it('supports named references', () => {
@@ -306,7 +306,7 @@ describe('the pattern library', () => {
   it('matches the addresses in the email sample and not the broken ones', () => {
     const email = COMMON_PATTERNS.find((p) => p.id === 'email')!;
     const values = run(email.pattern, email.flags, email.sample).matches.map((m) => m.value);
-    expect(values).toContain('ada@bytecabin.dev');
+    expect(values).toContain('ada@findtool.dev');
     expect(values).toContain('support+billing@example.co.uk');
     expect(values).not.toContain('not.an.email@');
   });

@@ -2,7 +2,7 @@ import type { Tool } from '~/types';
 import { LAUNCH_DATE } from '~/consts';
 
 /**
- * The ByteCabin tool registry.
+ * The FindTool tool registry.
  *
  * This array is the single source of truth. Routing, navigation, search,
  * category pages, related-tool blocks, the sitemap and all metadata are
@@ -529,7 +529,7 @@ export const TOOLS: Tool[] = [
     icon: 'shield',
     serverProcessing: false,
     privacyNote:
-      'Your secret key is used only inside this tab via the Web Crypto API. It is never transmitted to ByteCabin, stored, or written to analytics.',
+      'Your secret key is used only inside this tab via the Web Crypto API. It is never transmitted to FindTool, stored, or written to analytics.',
     addedAt: LAUNCH_DATE,
   },
 

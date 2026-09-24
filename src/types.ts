@@ -1,4 +1,4 @@
-/** Shared types for the ByteCabin tool registry. */
+/** Shared types for the FindTool tool registry. */
 
 export type CategoryId =
   | 'json'

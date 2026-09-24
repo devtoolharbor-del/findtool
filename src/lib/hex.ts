@@ -297,7 +297,7 @@ export function analyseBytes(bytes: Uint8Array): ByteAnalysis {
   return { count: bytes.length, printableAscii: printable, nullBytes: nulls, highBytes: high, validUtf8, looksLike };
 }
 
-export const SAMPLE_TEXT = 'ByteCabin: 0x48 says hi.';
+export const SAMPLE_TEXT = 'FindTool: 0x48 says hi.';
 
 /** "Hello, hex!" plus a multi-byte character, spaced the way a dump shows it. */
 export const SAMPLE_HEX = '48 65 6c 6c 6f 2c 20 68 65 78 21 20 c3 a9 20 f0 9f 9b a0';

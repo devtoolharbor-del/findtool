@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Generates ByteCabin's raster brand assets from inline SVG sources.
+ * Generates FindTool's raster brand assets from inline SVG sources.
  *
  * Run via `npm run assets`. Output lands in public/ and is committed, so a
  * normal build never depends on sharp being installed or on this script
@@ -35,12 +35,15 @@ const MUTED = '#a8a29e';
  * Roof plus two log lines of unequal length — cabin walls and code lines at
  * once. Kept in sync with src/components/Logo.astro and public/favicon.svg.
  */
-const MARK = (stroke, width = 2.4) => `
+/**
+ * The FindTool mark, on a 0–32 grid: a magnifier lens holding a terminal
+ * chevron. Kept in sync with src/components/Logo.astro and public/favicon.svg.
+ */
+const MARK = (stroke, width = 2.5) => `
   <g fill="none" stroke="${stroke}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M5.2 14.4 16 6.2l10.8 8.2"/>
-    <path d="M8.6 16.4v9.4h14.8v-9.4"/>
-    <path d="M11.8 19.8h8.4"/>
-    <path d="M11.8 23h5"/>
+    <circle cx="14" cy="14" r="8"/>
+    <path d="M20.1 20.1 26.5 26.5"/>
+    <path d="M11.9 10.9 14.9 14 11.9 17.1"/>
   </g>`;
 
 /** Square app icon: accent tile, white mark. */

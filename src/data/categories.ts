@@ -1,7 +1,7 @@
 import type { Category } from '~/types';
 
 /**
- * The ByteCabin taxonomy. Seven top-level categories, each mounted at the
+ * The FindTool taxonomy. Seven top-level categories, each mounted at the
  * root (e.g. /json) to keep URLs short. Adding a category here automatically
  * creates its page, nav entry, sitemap entry and homepage card.
  *

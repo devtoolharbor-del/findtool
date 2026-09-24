@@ -19,8 +19,8 @@ describe('whitespace and comments', () => {
   });
 
   it('keeps /*! licence banners by default', () => {
-    const result = minifyCss('/*! (c) 2026 ByteCabin */\na{color:red}');
-    expect(result.css).toContain('/*! (c) 2026 ByteCabin */');
+    const result = minifyCss('/*! (c) 2026 FindTool */\na{color:red}');
+    expect(result.css).toContain('/*! (c) 2026 FindTool */');
     expect(result.licencesKept).toBe(1);
   });
 
@@ -272,7 +272,7 @@ describe('statistics', () => {
 describe('the bundled example', () => {
   it('minifies without error and keeps every hazard intact', () => {
     const result = minifyCss(SAMPLE_CSS);
-    expect(result.css).toContain('/*! ByteCabin demo stylesheet v1.0 | MIT licence */');
+    expect(result.css).toContain('/*! FindTool demo stylesheet v1.0 | MIT licence */');
     expect(result.css).not.toContain('This comment is removed');
     expect(result.css).toContain('"a; b { c } /* not a comment */"');
     expect(result.css).toContain('url(images/hero(1).png)');

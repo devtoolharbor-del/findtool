@@ -747,9 +747,9 @@ export async function signToken(
  * A sample token: HS256, signed with the secret below, deliberately already
  * expired so the badge has something real to show.
  */
-export const SAMPLE_SECRET = 'bytecabin-demo-secret';
+export const SAMPLE_SECRET = 'findtool-demo-secret';
 
 export const SAMPLE_JWT =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImRlbW8tMjAyNiJ9.' +
   'eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJzdWIiOiJ1c2VyXzg0MjEiLCJhdWQiOlsiYXBpLmV4YW1wbGUuY29tIl0sImlhdCI6MTc1ODY3MjAwMCwibmJmIjoxNzU4NjcyMDAwLCJleHAiOjE3NTg2NzU2MDAsImp0aSI6ImM0ZDgtNGJiMS05ZjJlIiwicm9sZXMiOlsiZWRpdG9yIl0sImVtYWlsIjoiZGV2QGV4YW1wbGUuY29tIn0.' +
-  'g927yhl_qr3Bh4E3bKz06L92qA3M0Y1YtY55Nu8LL4A';
+  '38vkTXlUtT-IBhC6FvPNetxCy-pqUgYkyX42ahwyRgI';

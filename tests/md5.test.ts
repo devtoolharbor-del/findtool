@@ -103,7 +103,7 @@ describe('md5 — byte-oriented API', () => {
   });
 
   it('is deterministic across repeated calls', () => {
-    const input = new TextEncoder().encode('ByteCabin');
+    const input = new TextEncoder().encode('FindTool');
     expect(md5Hex(input)).toBe(md5Hex(input));
   });
 });

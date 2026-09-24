@@ -1,5 +1,5 @@
 /**
- * Global, build-time site configuration for ByteCabin.
+ * Global, build-time site configuration for FindTool.
  *
  * Nothing secret belongs in this file — it is compiled into the public bundle.
  * Secrets live in environment variables / GitHub Actions secrets (see README).
@@ -29,7 +29,7 @@ export const CONTACT = {
   privacy: `privacy@${SITE_DOMAIN}`,
 } as const;
 
-export const REPO_URL = 'https://github.com/devtoolharbor-del/bytecabin';
+export const REPO_URL = 'https://github.com/devtoolharbor-del/findtool';
 
 /**
  * Launch date, used as the default `lastmod` and for "recently added" logic.
@@ -41,7 +41,7 @@ export const LAUNCH_DATE = '2026-09-24';
  * i.e. only where the statement is literally true.
  */
 export const LOCAL_PROCESSING_NOTE =
-  'Your data is processed locally in your browser and is not uploaded to ByteCabin servers.';
+  'Your data is processed locally in your browser and is not uploaded to FindTool servers.';
 
 /**
  * Advertising configuration.

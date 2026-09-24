@@ -1,6 +1,6 @@
 ---
 /**
- * The single HTML shell for every ByteCabin page.
+ * The single HTML shell for every FindTool page.
  *
  * Owns: document head, canonical URL, Open Graph, theme bootstrap, skip link,
  * header and footer. Pages supply only their own metadata and content.
@@ -24,7 +24,7 @@ interface Props {
   description: string;
   /** Path-only canonical override, e.g. "/tools/json-formatter". */
   canonical?: string;
-  /** Appends " — ByteCabin" unless false (the homepage sets its own full title). */
+  /** Appends " — FindTool" unless false (the homepage sets its own full title). */
   appendBrand?: boolean;
   noindex?: boolean;
   /** JSON-LD objects injected as <script type="application/ld+json">. */

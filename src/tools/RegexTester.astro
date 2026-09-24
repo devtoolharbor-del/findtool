@@ -212,13 +212,13 @@ const emailExample = COMMON_PATTERNS[0]!;
 
     <h2>A short example</h2>
     <p>The pattern <code>{'(?<user>[\\w.]+)@(?<host>[\\w.]+)'}</code> against:</p>
-    <pre><code>Contact ada@bytecabin.dev or grace@example.org</code></pre>
+    <pre><code>Contact ada@findtool.dev or grace@example.org</code></pre>
     <p>
       finds two matches. The first starts at offset 8, is 17 characters long, and has
-      <code>user = "ada"</code> and <code>host = "bytecabin.dev"</code>. With the replacement
+      <code>user = "ada"</code> and <code>host = "findtool.dev"</code>. With the replacement
       <code>{'$<host>'}</code> the preview becomes:
     </p>
-    <pre><code>Contact bytecabin.dev or example.org</code></pre>
+    <pre><code>Contact findtool.dev or example.org</code></pre>
 
     <h2>Catastrophic backtracking, and why this page cannot hang</h2>
     <p>

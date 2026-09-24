@@ -76,7 +76,7 @@ describe('encodeBase64', () => {
 describe('decodeBase64', () => {
   it('decodes the shipped sample, emoji intact', () => {
     const decoded = decodeBase64(SAMPLE_BASE64);
-    expect(decoded).toContain('ByteCabin');
+    expect(decoded).toContain('FindTool');
     expect(decoded).toContain(String.fromCodePoint(0x1f6e0));
   });
 

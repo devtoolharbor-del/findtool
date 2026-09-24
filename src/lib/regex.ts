@@ -511,7 +511,7 @@ export const COMMON_PATTERNS: PatternExample[] = [
     pattern: String.raw`[\w.+-]+@[\w-]+(?:\.[\w-]+)+`,
     flags: 'g',
     sample:
-      'Contact ada@bytecabin.dev or the team at support+billing@example.co.uk.\nBroken: not.an.email@, @nope.com',
+      'Contact ada@findtool.dev or the team at support+billing@example.co.uk.\nBroken: not.an.email@, @nope.com',
     note: 'Deliberately permissive. RFC 5322 allows quoted local parts and comments that no practical pattern should try to cover — validate by sending mail, not by regex.',
   },
   {
@@ -520,7 +520,7 @@ export const COMMON_PATTERNS: PatternExample[] = [
     pattern: String.raw`https?://[^\s<>"']+`,
     flags: 'g',
     sample:
-      'See https://bytecabin.dev/tools/regex-tester and http://example.com:8080/path?q=1#top for details.',
+      'See https://findtool.dev/tools/regex-tester and http://example.com:8080/path?q=1#top for details.',
     note: 'Matches http and https only, and stops at whitespace or a quote. Trailing punctuation such as a full stop at the end of a sentence will be captured.',
   },
   {

@@ -1,4 +1,4 @@
-# Adding a tool to ByteCabin
+# Adding a tool to FindTool
 
 This is the contract every tool follows. It exists so that tool #500 looks,
 behaves and performs like tool #1, and so a new tool needs no changes to
@@ -189,7 +189,7 @@ actually types: `b64`, `epoch`, `guid`, `regexp`, `crontab`, `nbsp`.
 `serverProcessing: false` causes the page to state:
 
 > Your data is processed locally in your browser and is not uploaded to
-> ByteCabin servers.
+> FindTool servers.
 
 Only set it to `false` if that is **literally true** — no `fetch`, no beacon,
 no third-party script touching the input. If a tool ever needs a server, set
