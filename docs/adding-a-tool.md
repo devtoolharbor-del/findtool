@@ -105,6 +105,7 @@ The toolkit wires these for free via `wireStandardActions(root)`:
 | `data-clear-target`   | Fields emptied by the Clear button                         |
 | `data-clear`          | The Clear button                                           |
 | `data-example="…"`    | Example button; the attribute value is the sample input     |
+| `data-load-example`   | Example button for a tool with **two** inputs, wired by hand — the shared handler only fills `[data-primary-input]`. See `TextDiff.astro`. |
 | `data-copy="<sel>"`   | Copy button; the selector points at what to copy            |
 | `data-upload`         | Upload button, paired with `data-file-input`                |
 | `data-file-input`     | Hidden `<input type="file">`                               |

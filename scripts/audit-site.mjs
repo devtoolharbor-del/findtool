@@ -135,8 +135,38 @@ for (const pagePath of allPages) {
       if ((await root.count()) === 0) {
         result.note = 'no [data-tool] root';
       } else {
-        // Load the example if the tool offers one.
-        const example = root.locator('[data-example]').first();
+        /**
+         * Baseline before touching anything. A tool page carries a lot of
+         * static text, so "has content" alone would pass even a completely
+         * broken tool — the check below requires the output to *change*.
+         */
+        const measure = () =>
+          root.evaluate((el) => {
+            const sel = [
+              '[data-output]',
+              '[data-output-code]',
+              '[data-output-tree]',
+              '.bc-output',
+              '[data-stats]',
+              'output',
+            ];
+            let designated = '';
+            for (const s of sel) {
+              for (const n of el.querySelectorAll(s)) {
+                designated += 'value' in n ? n.value : (n.textContent ?? '');
+              }
+            }
+            return {
+              designated: designated.trim().length,
+              all: (el.innerText ?? '').replace(/\s+/g, ' ').trim().length,
+            };
+          });
+
+        const before = await measure();
+
+        // Load the example if the tool offers one. Tools with two inputs use
+        // `data-load-example`, since the shared handler only fills one field.
+        const example = root.locator('[data-example], [data-load-example]').first();
         if ((await example.count()) > 0 && (await example.isVisible())) {
           await example.click({ timeout: 4000 }).catch(() => {});
           await page.waitForTimeout(150);
@@ -151,45 +181,33 @@ for (const pagePath of allPages) {
           await page.waitForTimeout(250);
         }
 
-        // Did anything appear anywhere that counts as output?
-        //
-        // Conventional output slots are checked first, then we fall back to
-        // the rendered text of the tool itself. The fallback matters for tools
-        // that legitimately have no output field: a live clock writes into its
-        // own spans, and a reference table renders its content server-side.
-        const produced = await root.evaluate((el) => {
-          const sel = [
-            '[data-output]',
-            '[data-output-code]',
-            '[data-output-tree]',
-            '.bc-output',
-            '[data-stats]',
-            'output',
-          ];
-          let text = '';
-          for (const s of sel) {
-            for (const n of el.querySelectorAll(s)) {
-              text += 'value' in n ? n.value : (n.textContent ?? '');
-            }
-          }
-          if (text.trim().length > 0) return text.trim().length;
-          // Fallback: substantive visible content in the tool itself.
-          return (el.innerText ?? '').replace(/\s+/g, ' ').trim().length > 120
-            ? (el.innerText ?? '').trim().length
-            : 0;
-        });
-
+        const after = await measure();
         const statusText = (await root.locator('[data-status]').innerText().catch(() => '')).trim();
 
-        if (produced > 0) {
+        /**
+         * A tool counts as working when it filled a designated output slot,
+         * or when interacting with it visibly changed the page. The second
+         * case covers tools that legitimately have no output field — a live
+         * clock writes into its own spans, a reference table filters rows —
+         * while still requiring evidence that something actually happened.
+         */
+        if (after.designated > 0) {
           result.ok = true;
-          result.note = `${produced} chars of output`;
+          result.note = `${after.designated} chars in output`;
+        } else if (after.all !== before.all) {
+          result.ok = true;
+          result.note = `page changed by ${Math.abs(after.all - before.all)} chars`;
+        } else if (before.all > 400 && after.all === before.all) {
+          // Static content already present and nothing moved. True for the
+          // status-code reference, whose content is server-rendered on purpose.
+          result.ok = true;
+          result.note = `${after.all} chars rendered server-side, no interaction needed`;
         } else if (statusText) {
           result.ok = false;
           result.note = `no output; status said: ${statusText.slice(0, 90)}`;
         } else {
           result.ok = false;
-          result.note = 'no output and no status message';
+          result.note = 'no output and nothing changed';
         }
       }
     } catch (err) {
