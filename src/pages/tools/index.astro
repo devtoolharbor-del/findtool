@@ -9,7 +9,6 @@ import { TOOLS, toolsInCategory } from '~/data/tools';
 import { sortedCategories } from '~/data/categories';
 
 const categories = sortedCategories();
-const count = TOOLS.length;
 
 const crumbs: Crumb[] = [{ label: 'Home', href: '/' }, { label: 'All tools' }];
 
@@ -19,7 +18,7 @@ const schema = [
     '@context': 'https://schema.org',
     '@type': 'ItemList',
     name: `All ${SITE.name} developer tools`,
-    numberOfItems: count,
+    numberOfItems: TOOLS.length,
     itemListElement: TOOLS.map((t, i) => ({
       '@type': 'ListItem',
       position: i + 1,
@@ -31,8 +30,8 @@ const schema = [
 ---
 
 <BaseLayout
-  title={`All ${count} Developer Tools`}
-  description={`Browse all ${count} FindTool developer tools across JSON, encoding, generators, hashing, date and time, text and web development. Every tool runs locally in your browser.`}
+  title="All Developer Tools"
+  description="Browse every FindTool developer tool across JSON, encoding, generators, hashing, date and time, text and web development. Every tool runs locally in your browser."
   canonical="/tools"
   wide
   schema={schema}
@@ -43,7 +42,7 @@ const schema = [
     <header class="mb-6">
       <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">All tools</h1>
       <p class="mt-2 max-w-2xl text-[0.9375rem] leading-relaxed text-muted">
-        Every FindTool utility, grouped by category. {count} tools, all free, all running entirely
+        Every FindTool utility, grouped by category. All free, all running entirely
         in your browser. Start typing to filter the list.
       </p>
     </header>
@@ -74,9 +73,8 @@ const schema = [
                     {c.name}
                   </a>
                 </h2>
-                <span class="text-sm text-muted">{tools.length} tools</span>
               </div>
-              <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div class="bc-tool-grid">
                 {tools.map((tool) => (
                   <div data-tool-item data-name={`${tool.name} ${tool.keywords.join(' ')} ${tool.aliases.join(' ')}`.toLowerCase()}>
                     <ToolCard tool={tool} showCategory={false} />

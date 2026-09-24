@@ -123,8 +123,8 @@ The result:
 | CLS | 0.001 |
 
 The shared runtime is one small module — copy, download, upload, error
-display, input size guards — so fifty tools behave identically without
-fifty implementations.
+display, input size guards — so every tool behaves identically without
+a reimplementation each time.
 
 ## The thing that actually caught bugs
 

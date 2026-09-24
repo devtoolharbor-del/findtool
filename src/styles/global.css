@@ -297,6 +297,24 @@
     border-color: var(--color-line-strong);
   }
 
+  /*
+    The grid every list of tool cards uses.
+
+    `grid-auto-rows: 1fr` is the load-bearing part. Without it each row is
+    sized independently, so a row whose longest description wraps to three
+    lines is 129px tall while the row under it is 106px — the same card in
+    two different sizes depending on what happens to sit beside it. Adding a
+    single tool reshuffles which descriptions share a row and silently
+    resizes boxes halfway down an unrelated page.
+
+    One class rather than the same five utilities repeated at each call site,
+    so a new listing page cannot quietly opt out of it.
+  */
+  .bc-tool-grid {
+    @apply grid gap-3 sm:grid-cols-2 lg:grid-cols-3;
+    grid-auto-rows: 1fr;
+  }
+
   /* --- Output areas --- */
   .bc-output {
     @apply overflow-auto rounded-lg border p-3 text-[0.8125rem] leading-relaxed;

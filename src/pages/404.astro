@@ -22,7 +22,7 @@ const categories = sortedCategories();
         That page doesn't exist
       </h1>
       <p class="mt-3 text-[0.9375rem] leading-relaxed text-muted">
-        The link may be out of date, or the tool may have been renamed. All {TOOLS.length} tools are
+        The link may be out of date, or the tool may have been renamed. Everything else is
         still here — search for what you need, or browse the categories below.
       </p>
 
@@ -41,7 +41,7 @@ const categories = sortedCategories();
       <h2 id="popular-404" class="mb-4 text-center text-sm font-semibold text-muted">
         Popular tools
       </h2>
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="bc-tool-grid">
         {popular.map((tool) => <ToolCard tool={tool} />)}
       </div>
     </section>

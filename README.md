@@ -3,7 +3,7 @@
 Fast, private developer tools that run entirely in the browser.
 Production: **https://findtool.dev**
 
-52 utilities for JSON, encoding, hashing, dates, text and web development.
+Utilities for JSON, encoding, hashing, dates, text and web development.
 No accounts, no uploads, no backend.
 
 ---
@@ -65,7 +65,7 @@ src/
   layouts/
     BaseLayout.astro     <head>, canonical, OG, theme bootstrap, chrome.
     ToolLayout.astro     The standard tool page + structured data.
-  tools/                 One .astro per tool. 52 of them.
+  tools/                 One .astro per tool.
 functions/
   tools/
     what-is-my-ip.js     The ONLY server-side code. A Pages Function that
@@ -86,7 +86,7 @@ scripts/
   generate-assets.mjs    Favicons, PWA icons, OG image (run manually)
   verify-build.mjs       Static QA gate — links, metadata, schema, secrets
   audit-site.mjs         Browser audit — a11y, JS errors, network, tools
-  cross-browser.mjs      All 52 tools in Chromium, Firefox and WebKit
+  cross-browser.mjs      Every tool in Chromium, Firefox and WebKit
   security-check.mjs     XSS payloads, CSP, ReDoS, input limits
   edge-cases.mjs         Empty / malformed / oversized input, keyboard
   measure-perf.mjs       Core Web Vitals against a budget
@@ -159,7 +159,7 @@ npm run dev          # http://localhost:4321
 | `npm run verify`   | Post-build QA (links, canonicals, sitemap, metadata) |
 | `npm run audit`    | Real-browser audit of every page (a11y, JS, tools)   |
 | `npm run audit:shots` | The same, plus screenshots in `.audit-screenshots/` |
-| `npm run cross-browser` | All 52 tools in Chromium, Firefox and WebKit    |
+| `npm run cross-browser` | Every tool in Chromium, Firefox and WebKit      |
 | `npm run security` | XSS payloads, CSP checks, ReDoS and input limits     |
 | `npm run edge`     | Empty / malformed / 2.1 MB input, plus keyboard use  |
 | `npm run perf`     | Core Web Vitals against a budget, throttled          |
@@ -396,7 +396,7 @@ Fails the build on:
 
 ### Cross-browser suite (`scripts/cross-browser.mjs`)
 
-Drives all 50 tools through Chromium, Firefox and WebKit, plus the search
+Drives every tool through Chromium, Firefox and WebKit, plus the search
 dialog and theme toggle. WebKit is Safari's engine and the usual source of
 divergence — clipboard permissions, `<dialog>`, `Intl.Segmenter` and regex
 lookbehind all shipped there later than elsewhere. Run a single engine with
@@ -429,7 +429,7 @@ looks broken even when the input was at fault, and no screenshot reveals it.
 Also checks the skip link is the first Tab stop and becomes visible, that
 every interactive element has a focus indicator, and that Ctrl-K opens search.
 
-Current result: 44 of 50 tools take text input and all 44 pass; 35 refuse the
+Current result: every tool that takes text input passes; 35 refuse the
 oversized input by name and the rest process it fast enough that refusing
 would be wrong.
 

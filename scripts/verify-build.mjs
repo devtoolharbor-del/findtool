@@ -434,35 +434,24 @@ for (const file of htmlFiles) {
   }
 }
 
-// ─── Tool counts written into copy ───────────────────────────────────────
+// ─── No tool counts in copy ──────────────────────────────────────────────
 //
-// "Search 50 tools" sat in the search dialog for two tools after the count
-// changed, next to a "52 tools" heading derived from the registry. A number
-// in a string is a number that goes stale, so any count in rendered text has
-// to be the real one.
-
-// Category pages legitimately quote their own size ("10 tools in this
-// category"), so rather than guess which count a sentence means, any number
-// that matches the catalogue or one of the categories is accepted. A stale
-// literal matches neither.
-const perCategoryCounts = new Set();
-for (const id of new Set([...toolsSrc.matchAll(/^\s{4}category: '([a-z-]+)',/gm)].map((m) => m[1]))) {
-  perCategoryCounts.add(
-    [...toolsSrc.matchAll(new RegExp(`^\\s{4}category: '${id}',`, 'gm'))].length,
-  );
-}
-
-const allowedCounts = new Set([toolSlugs.length, ...perCategoryCounts]);
+// The site deliberately does not advertise how many tools it has. The number
+// is not interesting to a visitor, and every mention of it is one more thing
+// that goes stale the moment a tool is added — which it did, leaving "Search
+// 50 tools" sitting under a "52 tools" heading.
+//
+// So the rule is simply that no rendered text states a count. Small numbers
+// are left alone ("2 spaces", "4 columns"); this looks only for a number
+// immediately followed by "tools" or "utilities".
 
 for (const file of htmlFiles) {
   const html = await readFile(file, 'utf8');
   const text = html.replace(/<script[\s\S]*?<\/script>/g, '');
-  for (const match of text.matchAll(/\b(\d{2,4}) (tools|utilities)\b/g)) {
-    if (!allowedCounts.has(Number(match[1]))) {
-      fail(
-        `${relative(DIST, file)}: says "${match[0]}", which is neither the catalogue size (${toolSlugs.length}) nor any category's`,
-      );
-    }
+  for (const match of text.matchAll(/\b(\d+) (tools|utilities)\b/g)) {
+    fail(
+      `${relative(DIST, file)}: says "${match[0]}". The site does not state tool counts — they go stale and nobody needs them.`,
+    );
   }
 }
 

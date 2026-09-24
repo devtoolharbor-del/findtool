@@ -1,5 +1,7 @@
 import type { Tool } from '~/types';
 import { LAUNCH_DATE } from '~/consts';
+// featured.ts deliberately imports nothing from here, so this stays acyclic.
+import { featuredRank } from '~/data/featured';
 
 /**
  * The FindTool tool registry.
@@ -834,7 +836,7 @@ export const TOOLS: Tool[] = [
     slug: 'regex-tester',
     name: 'Regex Tester',
     category: 'web',
-    order: 1,
+    order: 3,
     description:
       'Test regular expressions with highlighted matches, capture groups and a safety timeout.',
     seoTitle: 'Regex Tester — Test Regular Expressions Live',
@@ -855,7 +857,7 @@ export const TOOLS: Tool[] = [
     slug: 'http-status-codes',
     name: 'HTTP Status Code Lookup',
     category: 'web',
-    order: 3,
+    order: 5,
     description: 'Search every HTTP status code with its meaning, typical cause and correct usage.',
     seoTitle: 'HTTP Status Codes — Complete Searchable Reference',
     seoDescription:
@@ -872,7 +874,7 @@ export const TOOLS: Tool[] = [
     slug: 'user-agent-parser',
     name: 'User Agent Parser',
     category: 'web',
-    order: 4,
+    order: 6,
     description: 'Break a user agent string into browser, engine, operating system and device.',
     seoTitle: 'User Agent Parser — Decode Browser and Device Strings',
     seoDescription:
@@ -889,7 +891,7 @@ export const TOOLS: Tool[] = [
     slug: 'color-converter',
     name: 'Color Converter',
     category: 'web',
-    order: 2,
+    order: 4,
     description:
       'Convert colors between HEX, RGB, HSL, HWB, OKLCH and CMYK with a live contrast check.',
     seoTitle: 'Color Converter — HEX, RGB, HSL, OKLCH and CMYK',
@@ -908,7 +910,7 @@ export const TOOLS: Tool[] = [
     slug: 'css-minifier',
     name: 'CSS Minifier',
     category: 'web',
-    order: 5,
+    order: 7,
     description: 'Minify CSS safely, preserving strings, custom properties and licence comments.',
     seoTitle: 'CSS Minifier — Compress and Minify CSS Online',
     seoDescription:
@@ -925,7 +927,7 @@ export const TOOLS: Tool[] = [
     slug: 'subnet-calculator',
     name: 'Subnet Calculator',
     category: 'web',
-    order: 6,
+    order: 2,
     description:
       'Work out network, broadcast, host range, masks and splits for any IPv4 or IPv6 CIDR.',
     seoTitle: 'Subnet Calculator — IPv4 and IPv6 CIDR Ranges',
@@ -949,7 +951,7 @@ export const TOOLS: Tool[] = [
     slug: 'what-is-my-ip',
     name: 'What Is My IP',
     category: 'web',
-    order: 7,
+    order: 1,
     description:
       'See the public IP address your traffic arrives from, and what it reveals about you.',
     seoTitle: 'What Is My IP Address?',
@@ -972,6 +974,7 @@ export const TOOLS: Tool[] = [
       — see privacyNoteOverride below and functions/tools/what-is-my-ip.js.
     */
     serverProcessing: true,
+    popular: true,
     privacyNoteOverride:
       'This page is built from the request your browser already made, so nothing is looked up and no request goes to a third party. FindTool keeps no record of your address. It is necessarily visible to Cloudflare, which serves this site — as it is to every website you visit.',
     addedAt: '2026-09-25',
@@ -1003,8 +1006,24 @@ export function toolsInCategory(categoryId: string): Tool[] {
   );
 }
 
+/**
+ * Tools for the "Most used" grid and the footer list.
+ *
+ * Sorted by the curated list in src/data/featured.ts first, then by registry
+ * order. Without that this returned whatever order the array happened to be
+ * in, so the homepage shortcut row and the grid directly beneath it could
+ * disagree about what matters most — which is the same drift featured.ts was
+ * written to end.
+ */
 export function popularTools(limit = 8): Tool[] {
-  return TOOLS.filter((t) => t.popular).slice(0, limit);
+  return TOOLS.filter((t) => t.popular)
+    .map((tool, index) => ({ tool, index }))
+    .sort(
+      (a, b) =>
+        featuredRank(a.tool.slug) - featuredRank(b.tool.slug) || a.index - b.index,
+    )
+    .map(({ tool }) => tool)
+    .slice(0, limit);
 }
 
 export function allToolsSorted(): Tool[] {

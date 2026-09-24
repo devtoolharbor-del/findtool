@@ -26,6 +26,7 @@ export interface FeaturedTool {
 }
 
 export const FEATURED: FeaturedTool[] = [
+  { slug: 'what-is-my-ip', label: 'My IP' },
   { slug: 'json-formatter', label: 'JSON Formatter' },
   { slug: 'base64-encoder', label: 'Base64' },
   { slug: 'unix-timestamp-converter', label: 'Timestamp' },

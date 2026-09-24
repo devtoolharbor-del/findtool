@@ -11,7 +11,6 @@ import { toolsInCategory } from '~/data/tools';
 const popular = popularTools(8);
 const categories = sortedCategories();
 const recent = recentlyAdded();
-const count = TOOLS.length;
 
 const schema = [
   {
@@ -51,7 +50,7 @@ const schema = [
       Developer tools that run in your browser
     </h1>
     <p class="mx-auto mt-4 max-w-xl text-base leading-relaxed text-muted sm:text-lg">
-      {count} fast, focused utilities for JSON, encoding, hashing, dates and text. No accounts,
+      Fast, focused utilities for JSON, encoding, hashing, dates and text. No accounts,
       no uploads, nothing to install.
     </p>
 
@@ -154,10 +153,10 @@ const schema = [
     <div class="mb-4 flex items-baseline justify-between gap-4">
       <h2 id="popular-heading" class="text-lg font-semibold">Most used</h2>
       <a href="/tools" class="bc-tap text-sm font-medium text-accent hover:underline">
-        All {count} tools →
+        All tools →
       </a>
     </div>
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div class="bc-tool-grid">
       {popular.map((tool) => <ToolCard tool={tool} />)}
     </div>
   </section>
@@ -165,7 +164,7 @@ const schema = [
   {/* ── Categories ─────────────────────────────────────────────────────── */}
   <section aria-labelledby="cats-heading" class="pb-14">
     <h2 id="cats-heading" class="mb-4 text-lg font-semibold">Browse by category</h2>
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div class="bc-tool-grid">
       {
         categories.map((c) => (
           <a href={`/${c.slug}`} class="bc-card group flex gap-3 hover:border-line-strong">
@@ -177,7 +176,6 @@ const schema = [
                 <span class="text-[0.9375rem] font-medium text-ink group-hover:text-accent">
                   {c.name}
                 </span>
-                <span class="text-xs text-muted">{toolsInCategory(c.id).length}</span>
               </span>
               <span class="mt-1 block text-sm leading-relaxed text-muted">{c.tagline}</span>
             </span>
@@ -194,7 +192,7 @@ const schema = [
         <h2 id="recent-heading" class="mb-4 text-lg font-semibold">
           Recently added
         </h2>
-        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="bc-tool-grid">
           {recent.map((tool) => (
             <ToolCard tool={tool} />
           ))}

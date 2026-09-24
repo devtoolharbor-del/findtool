@@ -27,7 +27,7 @@ built the version I wanted: every tool is client-side, there is no backend to
 send anything to, and you can verify that in the network tab or by turning off
 your wifi after the page loads.
 
-50 tools — JSON, encoding, hashing, dates, text, regex. A few details that
+JSON, encoding, hashing, dates, text, regex. A few details that
 might interest people here:
 
 - No UI framework. The homepage is 6.2 KB over the wire; tool pages are
