@@ -92,6 +92,8 @@ console.log(`Auditing ${allPages.length} pages at ${BASE}\n`);
 const context = await browser.newContext({
   viewport: { width: 1280, height: 900 },
   colorScheme: 'light',
+  // Needed so the copy check below can read back what a button wrote.
+  permissions: ['clipboard-read', 'clipboard-write'],
 });
 
 for (const pagePath of allPages) {
@@ -183,6 +185,54 @@ for (const pagePath of allPages) {
 
         const after = await measure();
         const statusText = (await root.locator('[data-status]').innerText().catch(() => '')).trim();
+
+        /**
+         * Clipboard check.
+         *
+         * Copy is the action people actually came for, and a silently broken
+         * one is invisible in a screenshot. Only a *visible* button whose
+         * target currently holds text is exercised — several tools carry copy
+         * controls for outputs that are legitimately empty until configured
+         * (the regex replace preview), and the reference table has one per
+         * row, hidden until the row is expanded.
+         */
+        await page.evaluate(() => navigator.clipboard.writeText('__bc_sentinel__'));
+
+        // The button is found and clicked inside the page rather than through
+        // a Playwright locator: a data-copy value is itself a CSS selector
+        // containing quotes, so composing `[data-copy="[data-out="unit"]"]`
+        // produces nested quotes and silently matches nothing.
+        const copyTarget = await root.evaluate((el) => {
+          for (const btn of el.querySelectorAll('[data-copy]')) {
+            if (!btn.offsetParent) continue;
+            const selector = btn.getAttribute('data-copy') ?? '';
+            let src = null;
+            try {
+              src = el.querySelector(selector);
+            } catch {
+              continue; // malformed selector in the markup
+            }
+            if (!src) continue;
+            const value = 'value' in src ? src.value : (src.textContent ?? '');
+            if (value.trim().length > 0) {
+              btn.click();
+              return selector;
+            }
+          }
+          return null;
+        });
+
+        if (copyTarget) {
+          await page.waitForTimeout(250);
+          const clip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => '');
+          if (!clip || clip === '__bc_sentinel__') {
+            record(
+              pagePath,
+              'clipboard',
+              `Copy button for ${copyTarget} did not write to the clipboard`,
+            );
+          }
+        }
 
         /**
          * A tool counts as working when it filled a designated output slot,
@@ -408,6 +458,7 @@ const blocking = problems.filter(
     p.kind === 'jserror' ||
     p.kind === 'network' ||
     p.kind === 'tool' ||
-    p.kind === 'nojs',
+    p.kind === 'nojs' ||
+    p.kind === 'clipboard',
 );
 process.exit(blocking.length > 0 ? 1 : 0);
