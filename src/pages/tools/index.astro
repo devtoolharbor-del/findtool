@@ -13,15 +13,8 @@ const count = TOOLS.length;
 
 const crumbs: Crumb[] = [{ label: 'Home', href: '/' }, { label: 'All tools' }];
 
+// BreadcrumbList comes from the Breadcrumbs component.
 const schema = [
-  {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: SITE.url },
-      { '@type': 'ListItem', position: 2, name: 'All tools', item: `${SITE.url}/tools` },
-    ],
-  },
   {
     '@context': 'https://schema.org',
     '@type': 'ItemList',

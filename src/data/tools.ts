@@ -34,20 +34,6 @@ export const TOOLS: Tool[] = [
     serverProcessing: false,
     popular: true,
     addedAt: LAUNCH_DATE,
-    faq: [
-      {
-        q: 'Why does my JSON fail to parse when it looks correct?',
-        a: 'The three most common causes are trailing commas after the last element, single quotes instead of double quotes around keys and strings, and unescaped newlines inside string values. JSON is stricter than JavaScript object literals — none of those are legal.',
-      },
-      {
-        q: 'Does formatting change my data?',
-        a: 'No. Formatting only changes whitespace. Key order is preserved, and numeric values are re-serialised exactly as parsed, so nothing is rounded or reordered.',
-      },
-      {
-        q: 'Is there a size limit?',
-        a: 'Documents up to roughly 2 MB format instantly. Larger inputs still work but syntax highlighting is disabled above 300 KB to keep the page responsive.',
-      },
-    ],
   },
   {
     slug: 'json-validator',
@@ -368,16 +354,6 @@ export const TOOLS: Tool[] = [
     privacyNote:
       'Tokens often grant access to real accounts. Decoding and signature verification both happen entirely in this tab — the token and any key you paste are never sent anywhere.',
     addedAt: LAUNCH_DATE,
-    faq: [
-      {
-        q: 'Is decoding a JWT the same as verifying it?',
-        a: 'No. The header and payload are only Base64url-encoded, not encrypted, so anyone holding the token can read them. Verification is a separate cryptographic check against a secret or public key, which this tool performs only when you supply that key.',
-      },
-      {
-        q: 'Can I trust a token just because it decodes cleanly?',
-        a: 'Never. An attacker can craft a token with any claims they like. Only a successful signature verification — plus checks on the issuer, audience and expiry — tells you a token is genuine.',
-      },
-    ],
   },
 
   // ─── Generators ─────────────────────────────────────────────────────────
@@ -500,16 +476,6 @@ export const TOOLS: Tool[] = [
     serverProcessing: false,
     popular: true,
     addedAt: LAUNCH_DATE,
-    faq: [
-      {
-        q: 'Can I use SHA-256 to store passwords?',
-        a: 'No. SHA-256 is designed to be fast, which is exactly wrong for password storage — commodity hardware can test billions of guesses per second. Use a deliberately slow, salted algorithm such as Argon2id, scrypt or bcrypt.',
-      },
-      {
-        q: 'Does hashing a large file upload it?',
-        a: 'No. The file is read with the FileReader API and hashed in this tab. Nothing is sent to ByteCabin, which is also why hashing a multi-gigabyte file depends on your own machine’s speed.',
-      },
-    ],
   },
   {
     slug: 'sha1-generator',
@@ -585,16 +551,6 @@ export const TOOLS: Tool[] = [
     serverProcessing: false,
     popular: true,
     addedAt: LAUNCH_DATE,
-    faq: [
-      {
-        q: 'How do I tell seconds from milliseconds?',
-        a: 'A present-day timestamp in seconds has 10 digits; in milliseconds it has 13. This tool detects the likely unit automatically and tells you which one it used, so a millisecond value is never silently read as the year 56000.',
-      },
-      {
-        q: 'What is the year 2038 problem?',
-        a: 'Systems that store Unix time in a signed 32-bit integer overflow on 19 January 2038. Any modern language using 64-bit integers is unaffected, but legacy C code and some embedded databases still are.',
-      },
-    ],
   },
   {
     slug: 'current-unix-timestamp',
@@ -691,12 +647,6 @@ export const TOOLS: Tool[] = [
     icon: 'timer',
     serverProcessing: false,
     addedAt: LAUNCH_DATE,
-    faq: [
-      {
-        q: 'Why does my schedule run more often than expected?',
-        a: 'When both day-of-month and day-of-week are restricted (neither is <code>*</code>), cron treats them as OR, not AND. <code>0 0 1 * 1</code> runs on the 1st of the month <em>and</em> every Monday, which surprises almost everyone the first time.',
-      },
-    ],
   },
 
   // ─── Text Tools ─────────────────────────────────────────────────────────
@@ -854,16 +804,6 @@ export const TOOLS: Tool[] = [
     privacyNote:
       'Patterns run inside a Web Worker with a hard timeout, so a catastrophically backtracking expression cannot freeze this page. Your pattern and test text stay in the browser.',
     addedAt: LAUNCH_DATE,
-    faq: [
-      {
-        q: 'What is catastrophic backtracking?',
-        a: 'Certain patterns — typically nested quantifiers like <code>(a+)+$</code> — can take exponential time on inputs that nearly match. On a server this is a denial-of-service vector known as ReDoS. This tester runs your pattern in a worker and aborts it after 1.5 seconds so the tab stays responsive.',
-      },
-      {
-        q: 'Do these patterns work in other languages?',
-        a: 'This tester uses the JavaScript engine. Core syntax is portable, but lookbehind, named groups and Unicode property escapes differ between JavaScript, PCRE, Python and Go. Always re-test in your target language.',
-      },
-    ],
   },
   {
     slug: 'http-status-codes',

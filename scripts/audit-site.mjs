@@ -20,13 +20,13 @@
  *   node scripts/audit-site.mjs --only=json-formatter
  */
 
-import { createServer } from 'node:http';
-import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises';
+import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join, extname, dirname } from 'node:path';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { AxeBuilder } from '@axe-core/playwright';
+import { serveDist } from './lib/serve-dist.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
@@ -41,58 +41,7 @@ if (!existsSync(DIST)) {
   process.exit(1);
 }
 
-// ─── Static server matching Cloudflare Pages URL handling ────────────────
-
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.xml': 'application/xml; charset=utf-8',
-  '.txt': 'text/plain; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.ico': 'image/x-icon',
-  '.woff2': 'font/woff2',
-  '.webmanifest': 'application/manifest+json',
-};
-
-/** Resolve a request path the way Pages does: /x → x.html, then x/index.html. */
-function resolveFile(urlPath) {
-  const clean = decodeURIComponent(urlPath.split('?')[0]);
-  if (clean === '/') return join(DIST, 'index.html');
-  const noSlash = clean.replace(/\/$/, '');
-  for (const candidate of [
-    join(DIST, noSlash),
-    join(DIST, `${noSlash}.html`),
-    join(DIST, noSlash, 'index.html'),
-  ]) {
-    if (existsSync(candidate) && extname(candidate)) return candidate;
-    if (existsSync(candidate) && !extname(candidate)) continue;
-  }
-  return null;
-}
-
-const server = createServer(async (req, res) => {
-  const file = resolveFile(req.url);
-  if (!file) {
-    const notFound = join(DIST, '404.html');
-    const body = existsSync(notFound) ? await readFile(notFound) : 'Not found';
-    res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
-    return res.end(body);
-  }
-  try {
-    const body = await readFile(file);
-    res.writeHead(200, { 'Content-Type': MIME[extname(file)] ?? 'application/octet-stream' });
-    res.end(body);
-  } catch {
-    res.writeHead(500);
-    res.end('error');
-  }
-});
-
-await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const BASE = `http://127.0.0.1:${server.address().port}`;
+const { base: BASE, close: closeServer } = await serveDist(DIST);
 
 // ─── Which pages to visit ────────────────────────────────────────────────
 
@@ -346,7 +295,7 @@ if (wantShots) {
 
 await context.close();
 await browser.close();
-server.close();
+closeServer();
 
 // ─── Report ──────────────────────────────────────────────────────────────
 

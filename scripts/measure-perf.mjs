@@ -12,13 +12,11 @@
  * Usage: node scripts/measure-perf.mjs [--no-throttle]
  */
 
-import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join, extname, dirname } from 'node:path';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { gzipSync } from 'node:zlib';
 import { chromium } from 'playwright';
+import { serveDist } from './lib/serve-dist.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
@@ -37,52 +35,13 @@ const BUDGET = {
   transferKb: 120,
 };
 
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.ico': 'image/x-icon',
-  '.woff2': 'font/woff2',
-  '.webmanifest': 'application/manifest+json',
-  '.xml': 'application/xml',
-  '.txt': 'text/plain',
-};
+if (!existsSync(DIST)) {
+  console.error('dist/ not found — run `npm run build` first.');
+  process.exit(1);
+}
 
-const server = createServer(async (req, res) => {
-  let p = decodeURIComponent(req.url.split('?')[0]);
-  if (p === '/') p = '/index.html';
-  for (const candidate of [join(DIST, p), join(DIST, `${p}.html`)]) {
-    if (existsSync(candidate) && extname(candidate)) {
-      const raw = await readFile(candidate);
-      const ext = extname(candidate);
-
-      /**
-       * Compress text responses, because Cloudflare does. Measuring raw bytes
-       * would overstate real transfer by roughly 4x for HTML and JS and make
-       * the budget meaningless. woff2 and png are already compressed, so they
-       * are served as-is — exactly how a CDN treats them.
-       */
-      const compressible = ['.html', '.js', '.css', '.json', '.svg', '.xml', '.txt', '.webmanifest'].includes(ext);
-      const accepts = (req.headers['accept-encoding'] ?? '').includes('gzip');
-      const body = compressible && accepts ? gzipSync(raw, { level: 9 }) : raw;
-
-      res.writeHead(200, {
-        'Content-Type': MIME[ext] ?? 'application/octet-stream',
-        'Content-Length': body.length,
-        ...(body !== raw ? { 'Content-Encoding': 'gzip' } : {}),
-      });
-      return res.end(body);
-    }
-  }
-  res.writeHead(404, { 'Content-Type': 'text/html' });
-  res.end('not found');
-});
-
-await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const BASE = `http://127.0.0.1:${server.address().port}`;
+// compress: true so the transfer figure reflects what a CDN actually sends.
+const { base: BASE, close: closeServer } = await serveDist(DIST, { compress: true });
 
 const PAGES = [
   '/',
@@ -165,7 +124,7 @@ for (const path of PAGES) {
 }
 
 await browser.close();
-server.close();
+closeServer();
 
 // ─── Report ──────────────────────────────────────────────────────────────
 

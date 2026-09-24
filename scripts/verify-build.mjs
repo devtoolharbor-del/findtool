@@ -159,6 +159,92 @@ for (const page of expected) {
   }
 }
 
+// ─── Structured data validity ────────────────────────────────────────────
+//
+// Emitting JSON-LD that does not parse, or that omits a property Google
+// requires, is worse than emitting none: it can suppress a rich result
+// silently. Checked per type against the properties each one actually needs.
+
+const REQUIRED_PROPS = {
+  SoftwareApplication: ['name', 'url', 'applicationCategory', 'offers'],
+  BreadcrumbList: ['itemListElement'],
+  FAQPage: ['mainEntity'],
+  WebSite: ['name', 'url'],
+  Organization: ['name', 'url'],
+  ItemList: ['itemListElement'],
+};
+
+for (const page of expected) {
+  const file = resolvePath(page);
+  if (!file) continue;
+  const html = await readFile(file, 'utf8');
+
+  const blocks = [...html.matchAll(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)];
+  if (blocks.length === 0) {
+    warn(`${page}: no structured data`);
+    continue;
+  }
+
+  for (const [, raw] of blocks) {
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch (err) {
+      fail(`${page}: structured data is not valid JSON — ${err.message}`);
+      continue;
+    }
+
+    const nodes = Array.isArray(data) ? data : [data];
+    for (const node of nodes) {
+      if (!node['@context']) fail(`${page}: JSON-LD node missing @context`);
+      const type = node['@type'];
+      if (!type) {
+        fail(`${page}: JSON-LD node missing @type`);
+        continue;
+      }
+      for (const prop of REQUIRED_PROPS[type] ?? []) {
+        if (node[prop] === undefined || node[prop] === '') {
+          fail(`${page}: ${type} is missing required property "${prop}"`);
+        }
+      }
+
+      // Breadcrumb positions must be present and sequential from 1.
+      if (type === 'BreadcrumbList') {
+        const items = node.itemListElement ?? [];
+        items.forEach((item, i) => {
+          if (item.position !== i + 1) {
+            fail(`${page}: BreadcrumbList position ${item.position} should be ${i + 1}`);
+          }
+          if (!item.name || !item.item) {
+            fail(`${page}: BreadcrumbList entry ${i + 1} is missing name or item`);
+          }
+          // URLs here must match the canonical form. Astro.url.pathname
+          // reports the emitted filename under build.format 'file', which
+          // silently produces "/about.html" and contradicts the canonical tag.
+          if (typeof item.item === 'string' && /\.html(\?|#|$)/.test(item.item)) {
+            fail(`${page}: BreadcrumbList URL is not canonical — ${item.item}`);
+          }
+          if (typeof item.item === 'string' && !item.item.startsWith(ORIGIN)) {
+            fail(`${page}: BreadcrumbList URL is not on the canonical origin — ${item.item}`);
+          }
+        });
+      }
+
+      // A FAQ answer containing markup is a common cause of rejection.
+      if (type === 'FAQPage') {
+        for (const q of node.mainEntity ?? []) {
+          if (!q.name || !q.acceptedAnswer?.text) {
+            fail(`${page}: FAQPage entry missing question name or answer text`);
+          }
+          if (/<[a-z][\s\S]*>/i.test(q.name ?? '')) {
+            fail(`${page}: FAQPage question contains HTML markup`);
+          }
+        }
+      }
+    }
+  }
+}
+
 // ─── Internal link integrity across every generated HTML file ────────────
 async function walk(dir) {
   const out = [];

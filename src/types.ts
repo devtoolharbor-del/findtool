@@ -110,6 +110,9 @@ export interface Tool {
   popular?: boolean;
   /** ISO date (YYYY-MM-DD). Drives sitemap lastmod and "recently added". */
   addedAt: string;
-  /** Optional per-tool FAQ, rendered as static HTML and as FAQPage JSON-LD. */
-  faq?: FaqItem[];
+  /**
+   * FAQ content is NOT stored here. It lives in src/data/faqs/<category>.ts
+   * and is looked up with `faqFor(slug)`, so this registry stays metadata
+   * rather than prose. See src/data/faqs/index.ts.
+   */
 }

@@ -21,7 +21,8 @@
     "audit": "node scripts/audit-site.mjs",
     "audit:shots": "node scripts/audit-site.mjs --shots",
     "perf": "node scripts/measure-perf.mjs",
-    "ci": "npm run check && npm run test && npm run build && npm run verify && npm run audit && npm run perf"
+    "cross-browser": "node scripts/cross-browser.mjs",
+    "ci": "npm run check && npm run test && npm run build && npm run verify && npm run audit && npm run cross-browser && npm run perf"
   },
   "dependencies": {
     "astro": "^7.3.5",

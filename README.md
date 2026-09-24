@@ -52,6 +52,7 @@ src/
   data/
     tools.ts             THE REGISTRY — one entry per tool.
     categories.ts        The 7 categories.
+    faqs/                Per-tool FAQ prose, one module per category.
   lib/
     toolkit.ts           Shared browser helpers (copy, download, upload,
                          status, size guards, analytics). Used by every tool.
@@ -76,8 +77,14 @@ src/
     robots.txt.ts
     search.json.ts       Search index, fetched lazily by the dialog
 scripts/
+  lib/serve-dist.mjs     Static server mirroring Cloudflare Pages URL rules,
+                         shared by the three browser-driven scripts.
   generate-assets.mjs    Favicons, PWA icons, OG image (run manually)
-  verify-build.mjs       Post-build QA gate (runs in CI)
+  verify-build.mjs       Static QA gate — links, metadata, schema, secrets
+  audit-site.mjs         Browser audit — a11y, JS errors, network, tools
+  cross-browser.mjs      All 50 tools in Chromium, Firefox and WebKit
+  measure-perf.mjs       Core Web Vitals against a budget
+  submit-indexnow.mjs    Ping Bing/Yandex when URLs change
 tests/                   Vitest unit tests for every lib module
 docs/adding-a-tool.md    The full contract for a new tool
 ```
@@ -111,6 +118,7 @@ npm run dev          # http://localhost:4321
 | `npm run verify`   | Post-build QA (links, canonicals, sitemap, metadata) |
 | `npm run audit`    | Real-browser audit of every page (a11y, JS, tools)   |
 | `npm run audit:shots` | The same, plus screenshots in `.audit-screenshots/` |
+| `npm run cross-browser` | All 50 tools in Chromium, Firefox and WebKit    |
 | `npm run perf`     | Core Web Vitals against a budget, throttled          |
 | `npm run assets`   | Regenerate favicons / PWA icons / OG image           |
 | `npm run ci`       | Everything above in order — what CI runs              |
@@ -157,9 +165,13 @@ title or description is duplicated.
   privacyNote: '…',              // optional extra privacy wording
   popular: true,                 // optional: surfaces on the homepage
   addedAt: '2026-09-24',         // drives sitemap lastmod + "recently added"
-  faq: [{ q, a }],               // optional: renders as HTML + FAQPage schema
 }
 ```
+
+**FAQs are not stored here.** They live in `src/data/faqs/<category>.ts` and
+are looked up by slug, so the registry stays metadata rather than prose. See
+`src/data/faqs/index.ts` for the rules an entry has to meet — in short, only
+questions people actually ask, and every answer has to carry a concrete fact.
 
 **`related` is metadata-driven.** `relatedTools()` takes the explicit slugs in
 order, then tops up from the same category so a block is never short. Adding a
@@ -330,13 +342,20 @@ Fails the build on:
 - missing `SoftwareApplication` / `BreadcrumbList` structured data
 - a token-shaped string appearing in build output
 
+### Cross-browser suite (`scripts/cross-browser.mjs`)
+
+Drives all 50 tools through Chromium, Firefox and WebKit, plus the search
+dialog and theme toggle. WebKit is Safari's engine and the usual source of
+divergence — clipboard permissions, `<dialog>`, `Intl.Segmenter` and regex
+lookbehind all shipped there later than elsewhere. Run a single engine with
+`node scripts/cross-browser.mjs --engine=webkit`.
+
 ### Manual QA before a release
 
-The automated layers cover Chromium only. Before a significant release, check
-Safari and Firefox by hand — clipboard permissions, `<dialog>` behaviour and
-`Intl.Segmenter` support are the three areas where they have differed. Also
-worth a pass: keyboard-only navigation end to end, and for a sample of tools,
-empty input, deliberately invalid input, and a multi-megabyte paste.
+The automated layers are thorough but headless. Before a significant release
+it is still worth a human pass: keyboard-only navigation end to end, a
+real-device check on iOS Safari and Android Chrome, and for a sample of tools
+— empty input, deliberately invalid input, and a multi-megabyte paste.
 
 ## Advertising
 

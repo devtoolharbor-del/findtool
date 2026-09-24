@@ -4,14 +4,52 @@
  * the page that renders this, so the two can never drift apart — both read the
  * same `items` array.
  */
+/**
+ * Breadcrumb trail, visible and machine-readable from one source.
+ *
+ * The component emits its own BreadcrumbList JSON-LD so the two can never
+ * disagree — previously each page hand-wrote a second copy of the same trail,
+ * which is exactly the kind of duplication that rots. Any page rendering this
+ * component gets valid structured data for free.
+ */
 import type { Crumb } from '~/types';
+import { SITE } from '~/consts';
 
 interface Props {
   items: Crumb[];
 }
 
 const { items } = Astro.props;
+
+/**
+ * Build the canonical absolute URL for a crumb.
+ *
+ * `build.format: 'file'` makes Astro.url.pathname report the emitted file
+ * ("/about.html"), not the URL the page is served at ("/about"). Structured
+ * data must match the canonical form or it disagrees with the <link rel=
+ * "canonical"> on the same page, so the extension and any index segment are
+ * stripped here.
+ */
+const canonicalPath = (path: string) =>
+  path.replace(/\/index\.html$/, '/').replace(/\.html$/, '');
+
+const absolute = (href: string) =>
+  new URL(canonicalPath(href), SITE.url).href.replace(/\/$/, '') || SITE.url;
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: items.map((item, i) => ({
+    '@type': 'ListItem',
+    position: i + 1,
+    name: item.label,
+    // The final crumb has no href — it is the current page.
+    item: absolute(item.href ?? Astro.url.pathname),
+  })),
+};
 ---
+
+<script type="application/ld+json" is:inline set:html={JSON.stringify(schema)} />
 
 <nav aria-label="Breadcrumb" class="mb-4">
   <ol class="flex flex-wrap items-center gap-1.5 text-sm text-muted">

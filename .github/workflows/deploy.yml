@@ -56,11 +56,17 @@ jobs:
       # Drives a real browser over every page: catches JS errors, outbound
       # requests (which would break the privacy guarantee), accessibility
       # regressions, mobile overflow, and any tool that stops producing output.
-      - name: Install browser for audit
-        run: npx playwright install --with-deps chromium
+      - name: Install browsers
+        run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Browser audit
         run: npm run audit
+
+      # WebKit is Safari's engine, where client-side tools break most often:
+      # clipboard permissions, <dialog>, Intl.Segmenter and regex lookbehind
+      # all landed there later than in Chromium.
+      - name: Cross-browser tool suite
+        run: npm run cross-browser
 
       # Fails the build if Core Web Vitals or the transfer budget regress.
       - name: Core Web Vitals budget
