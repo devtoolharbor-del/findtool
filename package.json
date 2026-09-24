@@ -18,7 +18,10 @@
     "test:watch": "vitest",
     "assets": "node scripts/generate-assets.mjs",
     "verify": "node scripts/verify-build.mjs",
-    "ci": "npm run check && npm run test && npm run build && npm run verify"
+    "audit": "node scripts/audit-site.mjs",
+    "audit:shots": "node scripts/audit-site.mjs --shots",
+    "perf": "node scripts/measure-perf.mjs",
+    "ci": "npm run check && npm run test && npm run build && npm run verify && npm run audit && npm run perf"
   },
   "dependencies": {
     "astro": "^7.3.5",

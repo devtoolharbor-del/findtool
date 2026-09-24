@@ -6,6 +6,15 @@
  * header and footer. Pages supply only their own metadata and content.
  */
 import '~/styles/global.css';
+/**
+ * The Latin subset is imported for its hashed URL so it can be preloaded.
+ *
+ * Without this the browser only discovers the font after it has downloaded
+ * and parsed the stylesheet, which delays first text paint. The other six
+ * subsets stay lazy — their `unicode-range` descriptors mean a Latin-script
+ * visitor never requests them.
+ */
+import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
 import { SITE } from '~/consts';
 import Header from '~/components/Header.astro';
 import Footer from '~/components/Footer.astro';
@@ -68,6 +77,14 @@ const themeBootstrap = `(function(){try{var s=localStorage.getItem('bc-theme');v
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <script is:inline set:html={themeBootstrap} />
+
+    <link
+      rel="preload"
+      href={interLatin}
+      as="font"
+      type="font/woff2"
+      crossorigin="anonymous"
+    />
 
     <title>{fullTitle}</title>
     <meta name="description" content={description} />

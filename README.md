@@ -109,8 +109,11 @@ npm run dev          # http://localhost:4321
 | `npm test`         | Vitest unit tests                                    |
 | `npm run check`    | `astro check` — TypeScript + template diagnostics     |
 | `npm run verify`   | Post-build QA (links, canonicals, sitemap, metadata) |
+| `npm run audit`    | Real-browser audit of every page (a11y, JS, tools)   |
+| `npm run audit:shots` | The same, plus screenshots in `.audit-screenshots/` |
+| `npm run perf`     | Core Web Vitals against a budget, throttled          |
 | `npm run assets`   | Regenerate favicons / PWA icons / OG image           |
-| `npm run ci`       | check + test + build + verify — what CI runs          |
+| `npm run ci`       | Everything above in order — what CI runs              |
 
 No environment variables are needed for local development. Every tool works
 offline once the page has loaded.
@@ -277,13 +280,45 @@ Required GitHub repository secrets:
 
 ## Testing
 
+Four layers, all gating CI:
+
 ```bash
 npm test          # unit tests for every lib module
 npm run check     # TypeScript + Astro template diagnostics
-npm run verify    # post-build QA — run after npm run build
+npm run verify    # static QA of dist/ — run after npm run build
+npm run audit     # real browser over all 64 pages
+npm run perf      # Core Web Vitals budget
 ```
 
-`scripts/verify-build.mjs` fails the build on:
+### Browser audit (`scripts/audit-site.mjs`)
+
+Serves `dist/` with the same URL semantics Cloudflare Pages uses, then drives
+a headless Chromium — Playwright's own bundled browser with a throwaway
+profile, never an installed one — over every page. It fails on:
+
+- any JavaScript error or failed request
+- **any outbound request to a non-local origin**, which would break the
+  privacy guarantee the tool pages make
+- axe-core violations (WCAG 2.2 AA, plus best-practice rules)
+- horizontal overflow at a 390px viewport
+- tap targets under 24px, excluding cases WCAG exempts
+- any tool that produces no output when exercised
+
+It clicks each tool's Example button, triggers the primary action, and checks
+that something appeared. This is what caught a muted-text contrast ratio of
+4.40:1 against our own surface colour — under the 4.5:1 AA threshold, and
+invisible to static analysis.
+
+### Performance budget (`scripts/measure-perf.mjs`)
+
+Measures LCP, CLS and FCP under Slow 4G with a 4× CPU slowdown, serving
+gzipped so the transfer figure reflects what a CDN actually sends. Budgets:
+LCP < 2500ms, CLS < 0.1, FCP < 1800ms, transfer < 120 KB. Current worst
+case is LCP 788ms, CLS 0.001, 90 KB.
+
+### Static build verification (`scripts/verify-build.mjs`)
+
+Fails the build on:
 
 - a missing page, or a registry entry pointing at a non-existent component
 - a broken internal link anywhere in the output
@@ -295,9 +330,13 @@ npm run verify    # post-build QA — run after npm run build
 - missing `SoftwareApplication` / `BreadcrumbList` structured data
 - a token-shaped string appearing in build output
 
-Manual QA before a release: Chrome, Safari and Firefox; mobile and desktop
-widths; light and dark; keyboard-only navigation; and for each tool — empty
-input, invalid input, very large input, copy, download.
+### Manual QA before a release
+
+The automated layers cover Chromium only. Before a significant release, check
+Safari and Firefox by hand — clipboard permissions, `<dialog>` behaviour and
+`Intl.Segmenter` support are the three areas where they have differed. Also
+worth a pass: keyboard-only navigation end to end, and for a sample of tools,
+empty input, deliberately invalid input, and a multi-megabyte paste.
 
 ## Advertising
 

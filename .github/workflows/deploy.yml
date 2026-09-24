@@ -53,6 +53,19 @@ jobs:
       - name: Verify build output
         run: npm run verify
 
+      # Drives a real browser over every page: catches JS errors, outbound
+      # requests (which would break the privacy guarantee), accessibility
+      # regressions, mobile overflow, and any tool that stops producing output.
+      - name: Install browser for audit
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser audit
+        run: npm run audit
+
+      # Fails the build if Core Web Vitals or the transfer budget regress.
+      - name: Core Web Vitals budget
+        run: npm run perf
+
       # Secrets cannot be referenced in a job-level `if`, so the token is
       # surfaced as an env var and the step skips itself when it is absent.
       # This keeps CI green before Cloudflare is wired up, and on pull
