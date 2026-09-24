@@ -239,7 +239,9 @@
      colour is baked into the data URI (background-image cannot read
      currentColor), hence the separate dark-mode rule below. */
   .bc-select {
-    @apply cursor-pointer bg-no-repeat pr-9;
+    /* max-w-full: a select is sized by its longest option, which can exceed a
+       narrow viewport even when its container does not. */
+    @apply max-w-full cursor-pointer bg-no-repeat pr-9;
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b6560' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-position: right 0.625rem center;
@@ -343,7 +345,17 @@
 
   /* --- Toolbar row above/below a field --- */
   .bc-toolbar {
-    @apply flex flex-wrap items-center gap-2;
+    @apply flex max-w-full flex-wrap items-center gap-2;
+  }
+  /* A flex item will not shrink below its content width unless min-width is
+     cleared. Without this a <select> sized by its longest option — an IANA
+     timezone name, say — pushes the whole page wider than a phone viewport.
+     Applied to every descendant, not just direct children, because toolbars
+     nest a label and its control inside a wrapper. `min-width: auto` is only
+     the default for flex and grid items, so this is inert everywhere else. */
+  .bc-toolbar *,
+  .bc-toolbar {
+    min-width: 0;
   }
 
   /* --- Prose used for the SEO explainer sections --- */
@@ -380,10 +392,15 @@
   .bc-prose a:hover {
     color: var(--color-accent-hover);
   }
+  /* Inline code often holds a long unbroken token — a cron expression, a
+     percent-encoded URL — which pushes the whole page wider than the viewport
+     on a phone. `anywhere` lets it break mid-token rather than overflowing;
+     block code keeps its own horizontal scroll instead. */
   .bc-prose code {
     @apply rounded px-1 py-0.5 text-[0.85em];
     background-color: var(--color-surface-2);
     border: 1px solid var(--color-line);
+    overflow-wrap: anywhere;
   }
   .bc-prose pre {
     @apply mb-4 overflow-x-auto rounded-lg border p-3 text-[0.8125rem];

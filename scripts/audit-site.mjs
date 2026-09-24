@@ -339,19 +339,59 @@ for (const scheme of ['dark']) {
 }
 
 // Mobile viewport pass — catches horizontal overflow, the classic mobile bug.
+//
+// Runs across every page rather than a sample: overflow is caused by one
+// stubborn element (a long unbroken token, a wide table, a fixed-width
+// control), so it appears on the one page nobody sampled.
 const mobile = await browser.newContext({
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: 3,
   isMobile: true,
   hasTouch: true,
 });
-for (const pagePath of sample) {
+for (const pagePath of allPages) {
   const page = await mobile.newPage();
   await page.goto(`${BASE}${pagePath}`, { waitUntil: 'networkidle' });
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  if (overflow > 1) record(`${pagePath} [mobile]`, 'layout', `Horizontal overflow of ${overflow}px`);
+  const overflow = await page.evaluate(() => {
+    const doc = document.documentElement;
+    const amount = doc.scrollWidth - doc.clientWidth;
+    if (amount <= 1) return null;
+    // Name the widest offender, otherwise the finding is unactionable.
+    // Content inside a horizontally scrollable box is meant to be wider than
+    // its container — a <pre> with overflow-x:auto is doing its job, not
+    // breaking the layout. Reporting those made the finding unactionable.
+    const inScroller = (el) => {
+      for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+        const o = getComputedStyle(p).overflowX;
+        if (o === 'auto' || o === 'scroll') return true;
+      }
+      return false;
+    };
+
+    let worst = null;
+    for (const el of document.body.querySelectorAll('*')) {
+      const r = el.getBoundingClientRect();
+      if (r.right > doc.clientWidth + 1 && r.width > 0 && !inScroller(el)) {
+        if (!worst || r.right > worst.right) {
+          worst = {
+            right: Math.round(r.right),
+            tag: el.tagName.toLowerCase(),
+            cls: String(el.className ?? '').split(' ')[0],
+          };
+        }
+      }
+    }
+    return { amount, worst };
+  });
+  if (overflow) {
+    const w = overflow.worst;
+    record(
+      `${pagePath} [mobile]`,
+      'layout',
+      `Horizontal overflow of ${overflow.amount}px` +
+        (w ? ` — widest is <${w.tag}${w.cls ? '.' + w.cls : ''}> reaching ${w.right}px` : ''),
+    );
+  }
 
   // Tap targets should be at least 24px (WCAG 2.2 AA minimum).
   const small = await page.evaluate(() => {
