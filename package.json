@@ -1,0 +1,35 @@
+{
+  "name": "bytecabin",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ByteCabin — fast, private, browser-based developer tools.",
+  "engines": {
+    "node": ">=20.3.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "check": "astro check",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "assets": "node scripts/generate-assets.mjs",
+    "verify": "node scripts/verify-build.mjs",
+    "ci": "npm run check && npm run test && npm run build && npm run verify"
+  },
+  "dependencies": {
+    "astro": "^5.6.1",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@fontsource-variable/inter": "^5.2.5",
+    "@tailwindcss/vite": "^4.1.4",
+    "@types/js-yaml": "^4.0.9",
+    "tailwindcss": "^4.1.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.1"
+  }
+}

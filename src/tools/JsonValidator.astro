@@ -1,0 +1,370 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_JSON_INVALID } from '~/lib/json';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="json-validator" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-live checked />
+        Check as I type
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-dupes checked />
+        Warn about duplicate keys
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button
+          type="button"
+          class="bc-btn bc-btn-secondary bc-btn-sm"
+          data-example={SAMPLE_JSON_INVALID}
+        >
+          Broken example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>
+          Upload file
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input
+          type="file"
+          accept=".json,.txt,.jsonc,application/json,text/plain"
+          class="hidden"
+          data-file-input
+        />
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="jv-input" class="bc-label">JSON to check</label>
+      <textarea
+        id="jv-input"
+        class="bc-textarea min-h-56"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste JSON here…"
+        aria-describedby="jv-status"></textarea>
+    </div>
+
+    {/* ── Verdict ── */}
+    <div id="jv-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── The offending line, with a caret under the exact character ── */}
+    <pre class="bc-output text-xs" data-caret hidden aria-label="Location of the error" tabindex="0"></pre>
+
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-action="validate">Validate</button>
+      <div class="ml-auto flex gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-report>
+          <span data-label>Copy report</span>
+        </button>
+      </div>
+    </div>
+
+    {/* ── Structure report ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-type>—</div>
+        <div class="bc-stat-label">Root type</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-keys>—</div>
+        <div class="bc-stat-label">Keys</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-objects>—</div>
+        <div class="bc-stat-label">Objects</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-arrays>—</div>
+        <div class="bc-stat-label">Arrays</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-depth>—</div>
+        <div class="bc-stat-label">Max depth</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-size>—</div>
+        <div class="bc-stat-label">Size</div>
+      </div>
+    </div>
+
+    {/* ── Duplicate keys, which JSON.parse accepts silently ── */}
+    <div class="bc-panel p-3" data-dupe-panel hidden>
+      <p class="mb-2 text-xs font-medium tracking-wide text-muted uppercase">Duplicate keys</p>
+      <ul class="space-y-1 text-sm text-ink-soft" data-dupe-list></ul>
+    </div>
+
+    {/* Plain-text report, used by Copy. */}
+    <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      This validator answers one question — is this document valid JSON? — and when the answer is
+      no, it tells you which character is at fault. You get the line, the column, the line itself
+      reprinted with a caret under the offending character, and a sentence explaining what the
+      parser expected there instead.
+    </p>
+    <p>
+      When the answer is yes, it reports the document's shape: the type of the root value, how many
+      keys, objects and arrays it holds, how deeply it nests, and its size in bytes. It also flags
+      duplicate keys, which parse without complaint but quietly discard a value.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Proving a config file is the problem — or proving it is not — before you restart a service
+        that refuses to boot.
+      </li>
+      <li>
+        Checking a hand-edited fixture or seed file after a merge conflict has been resolved by
+        hand.
+      </li>
+      <li>
+        Confirming that a webhook body or log line captured from production is intact and not
+        truncated mid-transfer.
+      </li>
+      <li>
+        Spotting a duplicate key in a large object where two branches both added the same field.
+      </li>
+      <li>Measuring nesting depth before feeding a document to a parser with a depth limit.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>Given this input:</p>
+    <pre><code>{`{
+  "replicas": 3,
+  "flags": ['beta', 'canary']
+}`}</code></pre>
+    <p>the report reads:</p>
+    <pre><code>{`Single quotes are not valid in JSON — strings and keys
+both require double quotes. (line 3, column 13)
+
+  "flags": ['beta', 'canary']
+            ^`}</code></pre>
+
+    <h2>Valid JSON is not the same as correct JSON</h2>
+    <p>
+      RFC 8259 defines syntax, not meaning. A document can pass every check here and still be
+      rejected by the service you are sending it to, because that service also cares about which
+      fields exist and what they contain. Three distinctions are worth keeping straight:
+    </p>
+    <ul>
+      <li>
+        <strong>Duplicate names.</strong> Section 4 says object names "SHOULD be unique" and calls
+        behaviour with duplicates unpredictable. JavaScript keeps the last one, Python's
+        <code>json</code> module keeps the last one, Go's <code>encoding/json</code> keeps the last
+        one for maps but the first for some struct paths. That is a data-loss bug waiting to
+        happen, which is why it is reported here as a warning rather than ignored.
+      </li>
+      <li>
+        <strong>Top-level scalars.</strong> Since RFC 7159 a bare <code>42</code>,
+        <code>"text"</code> or <code>null</code> is a complete, valid JSON document. Older tools
+        built against RFC 4627 insist on an object or array at the root.
+      </li>
+      <li>
+        <strong>Schema.</strong> Types, required fields and value ranges belong to JSON Schema, a
+        separate specification. This tool does not check them.
+      </li>
+    </ul>
+
+    <h2>Worth knowing</h2>
+    <p>
+      A byte order mark at the start of a file is not part of JSON. RFC 8259 §8.1 says
+      implementations must not add one and may ignore one on input — but many parsers do not, so a
+      file that looks identical to a working one can still fail. If a document validates here and
+      fails in your pipeline, check the first three bytes for <code>EF BB BF</code> and check the
+      encoding: JSON text exchanged between systems must be UTF-8.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    wireStandardActions,
+    wireFileInput,
+    readFileText,
+    formatBytes,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { parseJson, jsonStats, findDuplicateKeys, jsonTypeOf, JsonParseError } from '~/lib/json';
+
+  mount('json-validator', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const report = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const caret = q<HTMLPreElement>('[data-caret]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const dupePanel = q('[data-dupe-panel]', root)!;
+    const dupeList = q('[data-dupe-list]', root)!;
+    const liveToggle = q<HTMLInputElement>('[data-live]', root)!;
+    const dupeToggle = q<HTMLInputElement>('[data-dupes]', root)!;
+
+    const reset = () => {
+      clearStatus(root);
+      caret.setAttribute('hidden', '');
+      caret.textContent = '';
+      stats.setAttribute('hidden', '');
+      dupePanel.setAttribute('hidden', '');
+      dupeList.textContent = '';
+      report.value = '';
+    };
+
+    /** Reprint the failing line with a caret under the exact character. */
+    const showCaret = (excerpt: string | undefined, column: number | undefined) => {
+      if (excerpt === undefined || column === undefined) return;
+      // Tabs must be preserved in the pointer row or the caret drifts.
+      const prefix = Array.from(excerpt.slice(0, column - 1))
+        .map((ch) => (ch === '\t' ? '\t' : ' '))
+        .join('');
+      caret.textContent = `${excerpt}\n${prefix}^`;
+      caret.removeAttribute('hidden');
+    };
+
+    const validate = (quiet = false) => {
+      const text = input.value;
+      if (!text.trim()) {
+        reset();
+        return;
+      }
+
+      try {
+        guardSize(text);
+        const value = parseJson(text);
+        const s = jsonStats(value, text);
+
+        caret.setAttribute('hidden', '');
+        caret.textContent = '';
+
+        const rootType = jsonTypeOf(value);
+        const duplicates = dupeToggle.checked ? findDuplicateKeys(text) : [];
+
+        stats.removeAttribute('hidden');
+        q('[data-stat-type]', root)!.textContent = rootType;
+        q('[data-stat-keys]', root)!.textContent = s.keys.toLocaleString();
+        q('[data-stat-objects]', root)!.textContent = s.objects.toLocaleString();
+        q('[data-stat-arrays]', root)!.textContent = s.arrays.toLocaleString();
+        q('[data-stat-depth]', root)!.textContent = String(s.depth);
+        q('[data-stat-size]', root)!.textContent = formatBytes(s.bytes);
+
+        dupeList.textContent = '';
+        if (duplicates.length > 0) {
+          for (const dupe of duplicates.slice(0, 50)) {
+            const li = document.createElement('li');
+            const code = document.createElement('code');
+            code.textContent = dupe.key; // never innerHTML: the key is user data
+            li.append(code, document.createTextNode(` — second occurrence on line ${dupe.line}`));
+            dupeList.appendChild(li);
+          }
+          if (duplicates.length > 50) {
+            const li = document.createElement('li');
+            li.textContent = `…and ${duplicates.length - 50} more.`;
+            dupeList.appendChild(li);
+          }
+          dupePanel.removeAttribute('hidden');
+          setStatus(
+            root,
+            `Valid JSON, but ${duplicates.length} duplicate key${duplicates.length === 1 ? '' : 's'} ` +
+              `will be silently overwritten by the last value.`,
+            'warn',
+          );
+        } else {
+          dupePanel.setAttribute('hidden', '');
+          setStatus(
+            root,
+            `Valid JSON — a ${rootType} with ${s.keys.toLocaleString()} keys, ` +
+              `${s.objects.toLocaleString()} objects, ${s.arrays.toLocaleString()} arrays, max depth ${s.depth}.`,
+            'ok',
+          );
+        }
+
+        report.value = [
+          duplicates.length ? 'Valid JSON (with warnings)' : 'Valid JSON',
+          `Root type: ${rootType}`,
+          `Keys: ${s.keys}`,
+          `Objects: ${s.objects}`,
+          `Arrays: ${s.arrays}`,
+          `Max depth: ${s.depth}`,
+          `Size: ${formatBytes(s.bytes)}`,
+          ...duplicates.map((d) => `Duplicate key "${d.key}" on line ${d.line}`),
+        ].join('\n');
+
+        markUsed();
+      } catch (err) {
+        stats.setAttribute('hidden', '');
+        dupePanel.setAttribute('hidden', '');
+
+        if (err instanceof JsonParseError) {
+          const d = err.detail;
+          const where =
+            d.line !== undefined
+              ? ` (line ${d.line}${d.column !== undefined ? `, column ${d.column}` : ''})`
+              : '';
+          setStatus(root, `Invalid JSON: ${d.message}${where}`, 'error');
+          showCaret(d.excerpt, d.column);
+          report.value = `Invalid JSON: ${d.message}${where}`;
+        } else {
+          setStatus(root, messageFor(err), 'error');
+          report.value = messageFor(err);
+        }
+        if (quiet) return;
+      }
+    };
+
+    on(q('[data-action="validate"]', root), 'click', () => validate());
+    for (const toggle of qa('[data-dupes]', root)) on(toggle, 'change', () => input.value && validate());
+
+    const live = debounce(() => {
+      if (liveToggle.checked) validate(true);
+    }, 400);
+    on(input, 'input', live);
+
+    on(q('[data-copy-report]', root), 'click', (e) => {
+      if (!report.value) return setStatus(root, 'Validate something first.', 'warn');
+      void copyText(report.value, e.currentTarget as HTMLElement);
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          validate();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, {
+      onChange: () => {
+        reset();
+        if (input.value) validate();
+      },
+    });
+  });
+</script>

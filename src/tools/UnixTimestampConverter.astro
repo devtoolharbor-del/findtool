@@ -1,0 +1,423 @@
+---
+/**
+ * Unix Timestamp Converter — bidirectional.
+ *
+ * Epoch → date and date → epoch in one page, with automatic seconds /
+ * milliseconds / microseconds / nanoseconds detection that always tells the
+ * user which unit it assumed and lets them override it.
+ *
+ * All logic lives in src/lib/datetime.ts and is unit-tested in Node.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+/** A real timestamp with a memorable value: 2023-11-14T22:13:20Z. */
+const EXAMPLE = '1700000000';
+
+const OUTPUT_ROWS = [
+  { key: 'unit', label: 'Detected unit' },
+  { key: 'utc', label: 'UTC' },
+  { key: 'local', label: 'Local time' },
+  { key: 'iso', label: 'ISO 8601 (UTC)' },
+  { key: 'isolocal', label: 'ISO 8601 (local offset)' },
+  { key: 'rfc', label: 'RFC 2822' },
+  { key: 'relative', label: 'Relative' },
+  { key: 'seconds', label: 'Epoch seconds' },
+  { key: 'millis', label: 'Epoch milliseconds' },
+  { key: 'week', label: 'ISO week / day of year' },
+];
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="unix-timestamp-converter" class="space-y-6">
+    {/* ── Direction 1: timestamp → date ── */}
+    <section class="space-y-3" aria-labelledby="ut-h-decode">
+      <h2 id="ut-h-decode" class="text-sm font-semibold tracking-tight">Timestamp to date</h2>
+
+      <div class="bc-toolbar">
+        <div class="flex items-center gap-2">
+          <label for="ut-unit" class="text-xs font-medium tracking-wide text-muted uppercase">
+            Unit
+          </label>
+          <select id="ut-unit" class="bc-select w-auto py-1.5 text-xs" data-unit>
+            <option value="auto" selected>Auto-detect</option>
+            <option value="seconds">Seconds</option>
+            <option value="milliseconds">Milliseconds</option>
+            <option value="microseconds">Microseconds</option>
+            <option value="nanoseconds">Nanoseconds</option>
+          </select>
+        </div>
+
+        <div class="ml-auto flex flex-wrap gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-now>Now</button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={EXAMPLE}>
+            Example
+          </button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        </div>
+      </div>
+
+      <div>
+        <label for="ut-input" class="bc-label">Unix timestamp</label>
+        <input
+          id="ut-input"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          spellcheck="false"
+          class="bc-input font-mono text-base"
+          data-primary-input
+          data-clear-target
+          placeholder="1700000000"
+          aria-describedby="ut-status"
+        />
+      </div>
+
+      <div id="ut-status" data-status role="status" aria-live="polite" hidden></div>
+
+      <div class="overflow-x-auto" data-results hidden>
+        <table class="w-full text-sm">
+          <caption class="sr-only">Formatted representations of the timestamp</caption>
+          <tbody>
+            {
+              OUTPUT_ROWS.map((row) => (
+                <tr class="border-b border-line last:border-0">
+                  <th
+                    scope="row"
+                    class="py-2 pr-3 text-left align-top text-xs font-medium tracking-wide whitespace-nowrap text-muted uppercase"
+                  >
+                    {row.label}
+                  </th>
+                  <td class="py-2 pr-2 align-top font-mono text-[0.8125rem] break-all">
+                    <span data-out={row.key}>—</span>
+                  </td>
+                  <td class="w-px py-2 align-top">
+                    <button
+                      type="button"
+                      class="bc-btn bc-btn-ghost bc-btn-sm"
+                      data-copy={`[data-out="${row.key}"]`}
+                      aria-label={`Copy ${row.label}`}
+                    >
+                      <span data-label>Copy</span>
+                    </button>
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+
+      {/* Plain-text mirror of the whole result set, for one-click copy-all. */}
+      <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+    </section>
+
+    <hr class="border-line" />
+
+    {/* ── Direction 2: date → timestamp ── */}
+    <section class="space-y-3" aria-labelledby="ut-h-encode">
+      <h2 id="ut-h-encode" class="text-sm font-semibold tracking-tight">Date to timestamp</h2>
+
+      <div class="grid gap-3 sm:grid-cols-[1fr_auto]">
+        <div>
+          <label for="ut-date" class="bc-label">Date and time</label>
+          <input id="ut-date" type="datetime-local" step="1" class="bc-input" data-date-input />
+        </div>
+        <div>
+          <label for="ut-date-zone" class="bc-label">Read as</label>
+          <select id="ut-date-zone" class="bc-select" data-date-zone>
+            <option value="local" selected>Local time</option>
+            <option value="UTC">UTC</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid gap-2 sm:grid-cols-2">
+        <div class="bc-stat flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div class="bc-stat-value truncate font-mono" data-enc="seconds">—</div>
+            <div class="bc-stat-label">Seconds</div>
+          </div>
+          <button
+            type="button"
+            class="bc-btn bc-btn-ghost bc-btn-sm"
+            data-copy='[data-enc="seconds"]'
+            aria-label="Copy epoch seconds"
+          >
+            <span data-label>Copy</span>
+          </button>
+        </div>
+        <div class="bc-stat flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div class="bc-stat-value truncate font-mono" data-enc="millis">—</div>
+            <div class="bc-stat-label">Milliseconds</div>
+          </div>
+          <button
+            type="button"
+            class="bc-btn bc-btn-ghost bc-btn-sm"
+            data-copy='[data-enc="millis"]'
+            aria-label="Copy epoch milliseconds"
+          >
+            <span data-label>Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <p class="text-xs text-muted" data-enc-note></p>
+    </section>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      A Unix timestamp counts the seconds elapsed since 00:00:00 UTC on 1 January 1970, ignoring
+      leap seconds. That makes it compact and unambiguous for machines and completely unreadable
+      for people. Paste one here and you get the instant it represents in UTC, in your own zone,
+      and in the three string formats you are most likely to need to paste back somewhere else.
+    </p>
+    <p>
+      The second half of the page runs the other way: pick a date and time, say whether you mean
+      it in your local zone or in UTC, and read off the epoch value in seconds and milliseconds.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Reading a log line. Structured logs from Go, Java and most observability pipelines emit
+        raw epoch values, often in milliseconds or nanoseconds.
+      </li>
+      <li>
+        Checking a JWT. The <code>exp</code>, <code>iat</code> and <code>nbf</code> claims are
+        epoch seconds — pasting <code>exp</code> here tells you at a glance whether a token has
+        already expired.
+      </li>
+      <li>
+        Building a fixture. A test that needs a stable "yesterday" wants a literal number, not
+        <code>Date.now()</code>.
+      </li>
+      <li>
+        Comparing a database column against an API response when one stores seconds and the
+        other milliseconds.
+      </li>
+      <li>Setting an <code>Expires</code> or <code>Retry-After</code> value by hand.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>The value <code>1700000000</code> resolves to:</p>
+    <pre><code>{`UTC        2023-11-14 22:13:20
+ISO 8601   2023-11-14T22:13:20.000Z
+RFC 2822   Tue, 14 Nov 2023 22:13:20 +0000
+Epoch ms   1700000000000`}</code></pre>
+
+    <h2>How the unit is detected</h2>
+    <p>
+      The unit is inferred from the digit count, which is exact rather than a guess for anything
+      recorded this century. Since 9 September 2001 every timestamp in seconds has had 10 digits
+      and every timestamp in milliseconds 13, and that stays true until November 2286. So:
+    </p>
+    <ul>
+      <li>up to 11 digits — seconds</li>
+      <li>12 to 14 digits — milliseconds</li>
+      <li>15 to 17 digits — microseconds, as PostgreSQL and ClickHouse emit</li>
+      <li>18 or more — nanoseconds, as Go's <code>UnixNano</code> and OpenTelemetry emit</li>
+    </ul>
+    <p>
+      The cutoff sits at 12 digits because 100,000,000,000 seconds is the year 5138 — a value no
+      real system produces — whereas the same number of milliseconds is 1973. The detected unit
+      is always shown, and the dropdown overrides it when you know better. Nanosecond values
+      exceed the 2<sup>53</sup> limit of a JavaScript number, so they are converted with BigInt
+      and any sub-millisecond remainder is reported rather than quietly discarded.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Unix time is not a count of every second that has passed. Leap seconds are absorbed by
+      repeating a value, so the 27 leap seconds inserted since 1972 are invisible here — which
+      is precisely why the format is easy to compute with. Negative values are legal and mean
+      dates before 1970; this tool accepts them. And the year 2038 limit belongs to the 32-bit
+      signed integer, not to the epoch itself: at 03:14:07 UTC on 19 January 2038 a
+      <code>time_t</code> of that width overflows to 1901. Anything storing 64 bits is fine for
+      the next 292 billion years.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    markUsed,
+    wireStandardActions,
+  } from '~/lib/toolkit';
+  import {
+    formatHuman,
+    formatIsoInZone,
+    formatIsoUtc,
+    formatRelative,
+    formatRfc2822,
+    formatShort,
+    isoWeekDate,
+    localTimeZone,
+    ordinalDate,
+    parseTimestamp,
+    timestampIn,
+    toDatetimeLocalValue,
+    wallTimeToUtc,
+    zoneInfo,
+    formatOffset,
+    type TimestampUnit,
+  } from '~/lib/datetime';
+
+  mount('unix-timestamp-converter', (root) => {
+    const input = q<HTMLInputElement>('[data-primary-input]', root)!;
+    const unitSelect = q<HTMLSelectElement>('[data-unit]', root)!;
+    const results = q('[data-results]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const dateInput = q<HTMLInputElement>('[data-date-input]', root)!;
+    const dateZone = q<HTMLSelectElement>('[data-date-zone]', root)!;
+    const encNote = q('[data-enc-note]', root)!;
+
+    const zone = localTimeZone();
+
+    const out = (key: string, value: string) => {
+      const el = q(`[data-out="${key}"]`, root);
+      if (el) el.textContent = value;
+    };
+
+    const clearOutputs = () => {
+      results.setAttribute('hidden', '');
+      for (const el of qa('[data-out]', root)) el.textContent = '—';
+      mirror.value = '';
+    };
+
+    // ── Timestamp → date ────────────────────────────────────────────────
+    const decode = () => {
+      const text = input.value.trim();
+      if (!text) {
+        clearStatus(root);
+        clearOutputs();
+        return;
+      }
+
+      try {
+        const unit = unitSelect.value as TimestampUnit | 'auto';
+        const parsed = parseTimestamp(text, unit);
+        const info = zoneInfo(parsed.ms, zone);
+
+        results.removeAttribute('hidden');
+        out(
+          'unit',
+          `${parsed.unit}${parsed.forced ? ' (your choice)' : ' (auto-detected)'} — ${parsed.reason}`,
+        );
+        out('utc', `${formatShort(parsed.ms, 'UTC')} UTC`);
+        out(
+          'local',
+          `${formatHuman(parsed.ms, zone)} — ${zone} (${formatOffset(info.offsetMinutes)}${
+            info.dst ? ', daylight saving' : ''
+          })`,
+        );
+        out('iso', formatIsoUtc(parsed.ms));
+        out('isolocal', formatIsoInZone(parsed.ms, zone, { milliseconds: true }));
+        out('rfc', formatRfc2822(parsed.ms, zone));
+        out('relative', formatRelative(parsed.ms));
+        out('seconds', timestampIn(parsed.ms, 'seconds'));
+        out('millis', timestampIn(parsed.ms, 'milliseconds'));
+        out('week', `${isoWeekDate(parsed.ms)} · day ${ordinalDate(parsed.ms).split('-')[1]}`);
+
+        mirror.value = qa('[data-out]', root)
+          .map((el) => `${el.getAttribute('data-out')}: ${el.textContent}`)
+          .join('\n');
+
+        if (parsed.truncated) {
+          setStatus(
+            root,
+            `Converted, but ${parsed.truncated} cannot be held in a JavaScript date and was dropped.`,
+            'warn',
+          );
+        } else if (!parsed.confident) {
+          setStatus(
+            root,
+            `${parsed.digits} digits is an unusual width, so the unit is a judgement call. It was read as ${parsed.unit} — use the Unit dropdown if that is wrong.`,
+            'warn',
+          );
+        } else {
+          clearStatus(root);
+        }
+        markUsed();
+      } catch (err) {
+        clearOutputs();
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    // ── Date → timestamp ────────────────────────────────────────────────
+    const encode = () => {
+      const value = dateInput.value;
+      if (!value) {
+        q('[data-enc="seconds"]', root)!.textContent = '—';
+        q('[data-enc="millis"]', root)!.textContent = '—';
+        encNote.textContent = '';
+        return;
+      }
+      const m = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+      if (!m) {
+        encNote.textContent = 'That date could not be read. Use the picker or type YYYY-MM-DDThh:mm.';
+        return;
+      }
+      const target = dateZone.value === 'UTC' ? 'UTC' : zone;
+      const conv = wallTimeToUtc(
+        {
+          year: Number(m[1]),
+          month: Number(m[2]),
+          day: Number(m[3]),
+          hour: Number(m[4]),
+          minute: Number(m[5]),
+          second: Number(m[6] ?? 0),
+        },
+        target,
+      );
+      q('[data-enc="seconds"]', root)!.textContent = timestampIn(conv.ms, 'seconds');
+      q('[data-enc="millis"]', root)!.textContent = timestampIn(conv.ms, 'milliseconds');
+      encNote.textContent =
+        conv.note ??
+        `Read as wall-clock time in ${target} (${formatOffset(conv.offsetMinutes)}), which is ${formatIsoUtc(conv.ms, { milliseconds: false })}.`;
+      markUsed();
+    };
+
+    on(input, 'input', decode);
+    on(unitSelect, 'change', decode);
+    on(dateInput, 'input', encode);
+    on(dateZone, 'change', encode);
+
+    on(q('[data-now]', root), 'click', () => {
+      const now = Date.now();
+      unitSelect.value = 'auto';
+      input.value = String(Math.floor(now / 1000));
+      dateInput.value = toDatetimeLocalValue(now, zone, true);
+      decode();
+      encode();
+    });
+
+    wireStandardActions(root, {
+      onChange: () => {
+        if (input.value) decode();
+        else clearOutputs();
+      },
+    });
+
+    // Prefill the encoder so the second half is never an empty box.
+    dateInput.value = toDatetimeLocalValue(Date.now(), zone, true);
+    encode();
+  });
+</script>

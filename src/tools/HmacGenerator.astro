@@ -1,0 +1,483 @@
+---
+/**
+ * HMAC generator and verifier.
+ *
+ * The secret key is read from the field, passed to `crypto.subtle.importKey`
+ * as a non-extractable CryptoKey, and used to sign. It is never put in an
+ * attribute, never stored, and never touched by the analytics helper — which
+ * by design only ever sees an event name and the page slug.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+const EXAMPLE_MESSAGE = '1737039600.{"id":"evt_1PrLq2","type":"payment_intent.succeeded"}';
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="hmac-generator" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="hmac-algorithm" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Hash
+        </label>
+        <select id="hmac-algorithm" class="bc-select w-auto py-1.5 text-xs" data-algorithm>
+          <option value="SHA-256" selected>HMAC-SHA-256</option>
+          <option value="SHA-1">HMAC-SHA-1</option>
+          <option value="SHA-384">HMAC-SHA-384</option>
+          <option value="SHA-512">HMAC-SHA-512</option>
+        </select>
+      </div>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button
+          type="button"
+          class="bc-btn bc-btn-secondary bc-btn-sm"
+          data-example={EXAMPLE_MESSAGE}
+        >
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>
+          Message from file
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input type="file" class="hidden" data-file-input />
+      </div>
+    </div>
+
+    {/* ── Message ── */}
+    <div>
+      <label for="hmac-message" class="bc-label">Message</label>
+      <textarea
+        id="hmac-message"
+        class="bc-textarea min-h-36"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="The exact bytes that were signed — for a webhook, the raw request body…"
+        aria-describedby="hmac-status"></textarea>
+    </div>
+
+    {/* ── Message loaded from a file ── */}
+    <div
+      class="flex flex-wrap items-center gap-3 rounded-lg border border-line-strong bg-surface-2 px-3 py-2 text-sm"
+      data-file-banner
+      hidden
+    >
+      <span class="text-xs font-medium tracking-wide text-muted uppercase">Signing file</span>
+      <span class="font-medium text-ink" data-file-name></span>
+      <span class="text-muted" data-file-size></span>
+      <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm ml-auto" data-file-remove>
+        Use the text box instead
+      </button>
+    </div>
+
+    {/* ── Secret key ── */}
+    <div>
+      <div class="bc-toolbar mb-1.5">
+        <label for="hmac-key" class="bc-label mb-0">Secret key</label>
+
+        <label for="hmac-key-encoding" class="sr-only">Secret key encoding</label>
+        <select id="hmac-key-encoding" class="bc-select w-auto py-1 text-xs" data-key-encoding>
+          <option value="utf8" selected>Text</option>
+          <option value="hex">Hex</option>
+          <option value="base64">Base64</option>
+        </select>
+
+        <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm ml-auto" data-reveal>
+          <span data-label>Show</span>
+        </button>
+      </div>
+
+      <input
+        id="hmac-key"
+        type="password"
+        class="bc-input font-mono text-[0.8125rem]"
+        data-key
+        data-clear-target
+        spellcheck="false"
+        autocomplete="off"
+        autocapitalize="off"
+        placeholder="whsec_… / your shared secret"
+      />
+      <p class="mt-1.5 text-xs text-muted">
+        The key stays in this tab. It is used through the Web Crypto API and is never sent
+        anywhere, saved, or included in a copied result.
+      </p>
+    </div>
+
+    {/* ── Status ── */}
+    <div id="hmac-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Signature output ── */}
+    <div>
+      <div class="bc-toolbar mb-1.5">
+        <span class="text-xs font-medium tracking-wide text-muted uppercase">Signature</span>
+
+        <label for="hmac-encoding" class="sr-only">Output encoding</label>
+        <select id="hmac-encoding" class="bc-select w-auto py-1 text-xs" data-encoding>
+          <option value="hex" selected>Hex</option>
+          <option value="base64">Base64</option>
+        </select>
+
+        <label class="bc-check-label text-xs">
+          <input type="checkbox" class="bc-checkbox" data-uppercase />
+          Uppercase
+        </label>
+
+        <button
+          type="button"
+          class="bc-btn bc-btn-secondary bc-btn-sm ml-auto"
+          data-copy="[data-output]"
+        >
+          <span data-label>Copy</span>
+        </button>
+      </div>
+
+      <pre class="bc-output min-h-16 break-all" data-output-display tabindex="0"></pre>
+      <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+    </div>
+
+    {/* ── Verify ── */}
+    <div class="rounded-lg border border-line bg-surface-2 p-3">
+      <label for="hmac-expected" class="bc-label">Verify against a signature you received</label>
+      <input
+        id="hmac-expected"
+        type="text"
+        class="bc-input font-mono text-[0.8125rem]"
+        data-expected
+        data-clear-target
+        spellcheck="false"
+        autocomplete="off"
+        placeholder="1645a1c3…  /  sha256=1645a1c3…  /  t=1737039600,v1=1645a1c3…"
+      />
+      <p class="mt-1.5 text-xs text-muted">
+        Paste the whole header if you like — a GitHub <code>sha256=</code> prefix and a Stripe
+        <code>t=…,v1=…</code> header are both understood.
+      </p>
+      <div class="mt-2" data-compare hidden></div>
+      <div class="mt-2" data-stripe-hint hidden></div>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      An HMAC proves that whoever produced a message held a shared secret. Give this page a message
+      and a key and it returns the HMAC of the two, defaulting to SHA-256 because that is what
+      nearly every webhook provider uses. Paste a signature you received and it tells you whether
+      it verifies.
+    </p>
+    <p>
+      The key is imported through <code>crypto.subtle.importKey()</code> as a non-extractable key
+      and used only to sign inside this tab. Nothing about the key or the message is transmitted,
+      logged or stored — check the network panel if you want to confirm it.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Verifying a webhook you received really came from Stripe, GitHub, Shopify or Slack.</li>
+      <li>Reproducing a signature your own service generated, to see why the receiver rejects it.</li>
+      <li>Signing a canonical string for an API that expects one, such as AWS Signature v4.</li>
+      <li>Checking that your code and a provider's SDK agree on the same bytes.</li>
+    </ul>
+
+    <h2>Verifying a Stripe webhook signature</h2>
+    <p>Stripe sends a header that looks like this:</p>
+    <pre><code>Stripe-Signature: t=1737039600,v1=1645a1c344a819b182ea947d58eade27937e5fc74066a65bd7b81b8fd0c9a480</code></pre>
+    <p>
+      <code>t</code> is the Unix timestamp of the attempt and <code>v1</code> is an HMAC-SHA-256.
+      What gets signed is not the request body on its own but the timestamp, a literal full stop
+      and the <em>raw</em> body:
+    </p>
+    <pre><code>{'1737039600.{"id":"evt_1PrLq2","type":"payment_intent.succeeded"}'}</code></pre>
+    <p>
+      Put that string in the message box, put the endpoint's signing secret
+      (<code>whsec_ByteCabinExampleSecret</code> for this example) in the key box, and the
+      signature above appears. Press Example to load all three fields at once.
+    </p>
+    <p>Three details account for almost every failed verification:</p>
+    <ul>
+      <li>
+        <strong>Re-serialised JSON.</strong> Sign the exact bytes received; parsing and re-encoding
+        changes key order, spacing or escapes, and the HMAC with them.
+      </li>
+      <li>
+        <strong>The wrong secret.</strong> The signing secret is per endpoint and starts
+        <code>whsec_</code>. Your API key verifies nothing.
+      </li>
+      <li>
+        <strong>The missing timestamp.</strong> Signing the body alone is the most common mistake,
+        which is why this page warns when a <code>t=</code> value is present and your message does
+        not start with it.
+      </li>
+    </ul>
+    <p>
+      GitHub's <code>X-Hub-Signature-256</code> does the same job differently: <code>sha256=</code>
+      followed by an HMAC of the body alone, no timestamp.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Verifying in your own code means two things this page cannot do for you. Compare in constant
+      time — <code>crypto.timingSafeEqual</code> in Node, <code>hmac.compare_digest</code> in
+      Python — because a plain <code>===</code> leaks how much of a forged signature was right.
+      And reject old timestamps: Stripe's libraries default to a five-minute tolerance, which is
+      what stops a captured webhook being replayed later.
+    </p>
+    <p>
+      An HMAC authenticates, it does not hide — the message is not encrypted. Because its security
+      rests on the key rather than the hash's collision resistance, HMAC-SHA-1 is still sound, but
+      pick SHA-256 for anything new.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    wireStandardActions,
+    wireFileInput,
+    readFileBuffer,
+    formatBytes,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import {
+    hmacBytes,
+    decodeKey,
+    formatDigest,
+    compareChecksum,
+    parseStripeSignatureHeader,
+    utf8,
+    type ShaAlgorithm,
+    type DigestEncoding,
+    type KeyEncoding,
+  } from '~/lib/hash';
+
+  const EXAMPLE = {
+    message: '1737039600.{"id":"evt_1PrLq2","type":"payment_intent.succeeded"}',
+    key: 'whsec_ByteCabinExampleSecret',
+    signature:
+      't=1737039600,v1=1645a1c344a819b182ea947d58eade27937e5fc74066a65bd7b81b8fd0c9a480',
+  };
+
+  mount('hmac-generator', (root) => {
+    const message = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const keyField = q<HTMLInputElement>('[data-key]', root)!;
+    const keyEncoding = q<HTMLSelectElement>('[data-key-encoding]', root)!;
+    const algorithmSelect = q<HTMLSelectElement>('[data-algorithm]', root)!;
+    const encodingSelect = q<HTMLSelectElement>('[data-encoding]', root)!;
+    const uppercase = q<HTMLInputElement>('[data-uppercase]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const display = q<HTMLElement>('[data-output-display]', root)!;
+    const expected = q<HTMLInputElement>('[data-expected]', root)!;
+    const compareSlot = q<HTMLElement>('[data-compare]', root)!;
+    const stripeHint = q<HTMLElement>('[data-stripe-hint]', root)!;
+    const banner = q<HTMLElement>('[data-file-banner]', root)!;
+
+    let signature: Uint8Array | null = null;
+    let file: { name: string; bytes: Uint8Array } | null = null;
+
+    const algorithm = () => algorithmSelect.value as ShaAlgorithm;
+    const encoding = () => encodingSelect.value as DigestEncoding;
+
+    const clearOutput = () => {
+      signature = null;
+      display.textContent = '';
+      mirror.value = '';
+      compareSlot.setAttribute('hidden', '');
+      compareSlot.textContent = '';
+      stripeHint.setAttribute('hidden', '');
+      stripeHint.textContent = '';
+    };
+
+    const paint = () => {
+      if (!signature) return clearOutput();
+      const text = formatDigest(signature, encoding(), uppercase.checked);
+      display.textContent = text;
+      mirror.value = text;
+      renderVerdict();
+    };
+
+    /** Render an alert box from plain text nodes — never innerHTML. */
+    const alert = (tone: string, heading: string, body: string): HTMLElement => {
+      const box = document.createElement('div');
+      box.className = `bc-alert ${tone}`;
+      const strong = document.createElement('strong');
+      strong.textContent = heading;
+      const span = document.createElement('span');
+      span.textContent = body;
+      box.append(strong, span);
+      return box;
+    };
+
+    /**
+     * Verify mode. Accepts a bare signature, GitHub's `sha256=…`, or a whole
+     * Stripe header — which can legitimately carry more than one `v1` while a
+     * signing secret is being rotated, so any one of them matching is a pass.
+     */
+    const renderVerdict = () => {
+      compareSlot.textContent = '';
+      compareSlot.setAttribute('hidden', '');
+      stripeHint.textContent = '';
+      stripeHint.setAttribute('hidden', '');
+
+      const raw = expected.value.trim();
+      if (!signature || !raw) return;
+
+      const stripe = parseStripeSignatureHeader(raw);
+      const candidates = stripe.signatures.length ? stripe.signatures : [raw];
+
+      let best = compareChecksum(candidates[0]!, signature, algorithm());
+      for (const candidate of candidates.slice(1)) {
+        const result = compareChecksum(candidate, signature, algorithm());
+        if (result.status === 'match') best = result;
+      }
+
+      const tone =
+        best.status === 'match'
+          ? 'bc-alert-ok'
+          : best.status === 'mismatch'
+            ? 'bc-alert-error'
+            : 'bc-alert-warn';
+
+      compareSlot.appendChild(
+        alert(
+          tone,
+          best.status === 'match' ? 'Signature verified' : 'Signature does not verify',
+          best.message.replace(/^(Match|No match)\s*—\s*/, ''),
+        ),
+      );
+      compareSlot.removeAttribute('hidden');
+
+      // The classic Stripe mistake: signing the body without the timestamp.
+      if (
+        best.status !== 'match' &&
+        stripe.timestamp &&
+        !file &&
+        !message.value.startsWith(`${stripe.timestamp}.`)
+      ) {
+        const hint = alert(
+          'bc-alert-warn',
+          'Timestamp missing',
+          `Stripe signs "${stripe.timestamp}.<raw body>", not the body alone. Your message does not start with that prefix.`,
+        );
+        const fix = document.createElement('button');
+        fix.type = 'button';
+        fix.className = 'bc-btn bc-btn-secondary bc-btn-sm ml-auto shrink-0';
+        fix.textContent = 'Add the prefix';
+        on(fix, 'click', () => {
+          message.value = `${stripe.timestamp}.${message.value}`;
+          void run();
+        });
+        hint.appendChild(fix);
+        stripeHint.appendChild(hint);
+        stripeHint.removeAttribute('hidden');
+      }
+    };
+
+    const run = async () => {
+      const keyText = keyField.value;
+      const hasMessage = file !== null || message.value.length > 0;
+
+      if (!keyText && !hasMessage) {
+        clearStatus(root);
+        clearOutput();
+        return;
+      }
+      if (!keyText) {
+        clearOutput();
+        setStatus(root, 'Enter the secret key to sign this message.', 'warn');
+        return;
+      }
+
+      try {
+        guardSize(message.value);
+        const keyBytes = decodeKey(keyText, keyEncoding.value as KeyEncoding);
+        const messageBytes = file ? file.bytes : utf8(message.value);
+        signature = await hmacBytes(keyBytes, messageBytes, algorithm());
+        clearStatus(root);
+        markUsed();
+        paint();
+      } catch (err) {
+        clearOutput();
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    const useFile = (name: string, bytes: Uint8Array | null) => {
+      if (!bytes) {
+        file = null;
+        banner.setAttribute('hidden', '');
+        message.disabled = false;
+      } else {
+        file = { name, bytes };
+        q('[data-file-name]', root)!.textContent = name;
+        q('[data-file-size]', root)!.textContent = formatBytes(bytes.length);
+        banner.removeAttribute('hidden');
+        message.disabled = true;
+      }
+      void run();
+    };
+
+    on(message, 'input', debounce(run, 180));
+    on(keyField, 'input', debounce(run, 180));
+    on(keyEncoding, 'change', run);
+    on(algorithmSelect, 'change', run);
+    on(encodingSelect, 'change', () => {
+      uppercase.disabled = encoding() === 'base64';
+      paint();
+    });
+    on(uppercase, 'change', paint);
+    on(expected, 'input', debounce(renderVerdict, 120));
+    on(q('[data-file-remove]', root), 'click', () => useFile('', null));
+
+    // Show/hide the key. Defaults to hidden so a shared screen does not leak it.
+    on(q('[data-reveal]', root), 'click', (e) => {
+      const shown = keyField.type === 'text';
+      keyField.type = shown ? 'password' : 'text';
+      const label = q('[data-label]', e.currentTarget as HTMLElement);
+      if (label) label.textContent = shown ? 'Show' : 'Hide';
+    });
+
+    // The Example button fills the message through the standard wiring; the
+    // key and the header it should verify against have to be set here.
+    on(q('[data-example]', root), 'click', () => {
+      useFile('', null);
+      message.value = EXAMPLE.message;
+      keyField.value = EXAMPLE.key;
+      expected.value = EXAMPLE.signature;
+      algorithmSelect.value = 'SHA-256';
+      keyEncoding.value = 'utf8';
+      void run();
+    });
+
+    wireFileInput(
+      root,
+      async (chosen) => {
+        try {
+          const buffer = await readFileBuffer(chosen);
+          useFile(chosen.name, new Uint8Array(buffer));
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: message },
+    );
+
+    wireStandardActions(root, { onChange: () => useFile('', null) });
+  });
+</script>

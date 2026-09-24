@@ -1,0 +1,49 @@
+---
+/**
+ * Per-tool FAQ.
+ *
+ * Rendered as plain, crawlable HTML — answers are in the markup, not behind
+ * JavaScript. `<details>` gives us disclosure behaviour with no script at all,
+ * and the first item is open so the page never looks empty.
+ */
+import type { FaqItem } from '~/types';
+
+interface Props {
+  items: FaqItem[];
+}
+const { items } = Astro.props;
+---
+
+{
+  items.length > 0 && (
+    <section aria-labelledby="faq-heading" class="mt-10">
+      <h2 id="faq-heading" class="mb-4 text-lg font-semibold">
+        Frequently asked questions
+      </h2>
+      <div class="divide-y divide-line overflow-hidden rounded-xl border border-line">
+        {items.map((item, i) => (
+          <details open={i === 0} class="group bg-surface">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-[0.9375rem] font-medium text-ink hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
+              <span set:html={item.q} />
+              <svg
+                class="size-4 shrink-0 text-muted transition-transform group-open:rotate-180"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                aria-hidden="true"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </summary>
+            <div class="bc-prose px-4 pt-0 pb-4 [&>p:last-child]:mb-0">
+              <p set:html={item.a} />
+            </div>
+          </details>
+        ))}
+      </div>
+    </section>
+  )
+}

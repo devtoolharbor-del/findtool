@@ -1,0 +1,190 @@
+---
+import { SITE } from '~/consts';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import ToolCard from '~/components/ToolCard.astro';
+import Icon from '~/components/Icon.astro';
+import { TOOLS, popularTools, recentlyAdded } from '~/data/tools';
+import { sortedCategories } from '~/data/categories';
+import { toolsInCategory } from '~/data/tools';
+
+const popular = popularTools(8);
+const categories = sortedCategories();
+const recent = recentlyAdded();
+const count = TOOLS.length;
+
+const schema = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE.name,
+    url: SITE.url,
+    description: SITE.description,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: `${SITE.url}/tools?q={search_term_string}`,
+      'query-input': 'required name=search_term_string',
+    },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE.name,
+    url: SITE.url,
+    logo: `${SITE.url}/icon-512.png`,
+    description: SITE.description,
+  },
+];
+---
+
+<BaseLayout
+  title={`${SITE.name} — Fast Developer Tools That Run in Your Browser`}
+  description={SITE.description}
+  canonical="/"
+  appendBrand={false}
+  wide
+  schema={schema}
+>
+  {/* ── Hero ───────────────────────────────────────────────────────────── */}
+  <section class="py-14 text-center sm:py-20">
+    <h1 class="mx-auto max-w-3xl text-3xl font-semibold tracking-tight sm:text-5xl">
+      Developer tools that run in your browser
+    </h1>
+    <p class="mx-auto mt-4 max-w-xl text-base leading-relaxed text-muted sm:text-lg">
+      {count} fast, focused utilities for JSON, encoding, hashing, dates and text. No accounts,
+      no uploads, nothing to install.
+    </p>
+
+    <div class="mx-auto mt-8 max-w-lg">
+      <button
+        type="button"
+        data-search-open
+        class="flex w-full items-center gap-3 rounded-xl border border-line-strong bg-surface px-4 py-3.5 text-left shadow-card transition-colors hover:border-accent-line"
+      >
+        <svg
+          class="size-5 shrink-0 text-muted"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m20 20-3.5-3.5"></path>
+        </svg>
+        <span class="flex-1 text-[0.95rem] text-muted">Search tools…</span>
+        <kbd
+          class="hidden rounded border border-line-strong px-1.5 py-0.5 font-sans text-[11px] text-muted sm:inline"
+          >⌘K</kbd
+        >
+      </button>
+
+      <ul class="mt-3 flex flex-wrap justify-center gap-1.5">
+        {
+          [
+            ['JSON Formatter', 'json-formatter'],
+            ['JWT Decoder', 'jwt-decoder'],
+            ['Base64', 'base64-encoder'],
+            ['UUID', 'uuid-generator'],
+            ['Timestamp', 'unix-timestamp-converter'],
+            ['Regex', 'regex-tester'],
+          ].map(([label, slug]) => (
+            <li>
+              <a
+                href={`/tools/${slug}`}
+                class="inline-block rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted transition-colors hover:border-accent-line hover:text-accent"
+              >
+                {label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  {/* ── Popular ────────────────────────────────────────────────────────── */}
+  <section aria-labelledby="popular-heading" class="pb-14">
+    <div class="mb-4 flex items-baseline justify-between gap-4">
+      <h2 id="popular-heading" class="text-lg font-semibold">Most used</h2>
+      <a href="/tools" class="text-sm font-medium text-accent hover:underline">
+        All {count} tools →
+      </a>
+    </div>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {popular.map((tool) => <ToolCard tool={tool} />)}
+    </div>
+  </section>
+
+  {/* ── Categories ─────────────────────────────────────────────────────── */}
+  <section aria-labelledby="cats-heading" class="pb-14">
+    <h2 id="cats-heading" class="mb-4 text-lg font-semibold">Browse by category</h2>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {
+        categories.map((c) => (
+          <a href={`/${c.slug}`} class="bc-card group flex gap-3 hover:border-line-strong">
+            <span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-line bg-surface-2 text-muted transition-colors group-hover:border-accent-line group-hover:text-accent">
+              <Icon name={c.icon} size={18} />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="flex items-baseline gap-2">
+                <span class="text-[0.9375rem] font-medium text-ink group-hover:text-accent">
+                  {c.name}
+                </span>
+                <span class="text-xs text-muted">{toolsInCategory(c.id).length}</span>
+              </span>
+              <span class="mt-1 block text-sm leading-relaxed text-muted">{c.tagline}</span>
+            </span>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+
+  {/* ── Recently added — hidden until there is a genuine subset to show ── */}
+  {
+    recent.length > 0 && (
+      <section aria-labelledby="recent-heading" class="pb-14">
+        <h2 id="recent-heading" class="mb-4 text-lg font-semibold">
+          Recently added
+        </h2>
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {recent.map((tool) => (
+            <ToolCard tool={tool} />
+          ))}
+        </div>
+      </section>
+    )
+  }
+
+  {/* ── How it works ───────────────────────────────────────────────────── */}
+  <section aria-labelledby="how-heading" class="border-t border-line py-12">
+    <h2 id="how-heading" class="sr-only">How ByteCabin works</h2>
+    <div class="grid gap-8 sm:grid-cols-3">
+      <div>
+        <h3 class="text-sm font-semibold text-ink">Nothing is uploaded</h3>
+        <p class="mt-1.5 text-sm leading-relaxed text-muted">
+          Every tool here runs as JavaScript in your own tab. The API response you paste, the
+          token you decode and the password you generate never reach a ByteCabin server, because
+          there is no server to reach.
+        </p>
+      </div>
+      <div>
+        <h3 class="text-sm font-semibold text-ink">No account, no limits</h3>
+        <p class="mt-1.5 text-sm leading-relaxed text-muted">
+          There is nothing to sign up for and no usage quota. Bookmark a tool, use it fifty times
+          a day, and you will never see a login wall or a "upgrade to continue" prompt.
+        </p>
+      </div>
+      <div>
+        <h3 class="text-sm font-semibold text-ink">Built to stay fast</h3>
+        <p class="mt-1.5 text-sm leading-relaxed text-muted">
+          Pages are static HTML served from a CDN, with only the small amount of JavaScript a
+          given tool actually needs. Most pages are interactive before a spinner would have had
+          time to appear.
+        </p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

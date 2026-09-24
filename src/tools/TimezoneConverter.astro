@@ -1,0 +1,394 @@
+---
+/**
+ * Timezone Converter.
+ *
+ * One instant, many zones, side by side. The zone list comes from
+ * Intl.supportedValuesOf('timeZone') where available and from a curated
+ * fallback where it is not, and every offset is read from the platform's IANA
+ * database at the chosen instant, so daylight saving is right by construction.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="timezone-converter" class="space-y-4">
+    {/* ── Source ── */}
+    <div class="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+      <div>
+        <label for="tz-source" class="bc-label">Source timezone</label>
+        <select id="tz-source" class="bc-select" data-source-zone>
+          <option value="UTC">UTC</option>
+        </select>
+      </div>
+      <div>
+        <label for="tz-when" class="bc-label">Date and time there</label>
+        <input id="tz-when" type="datetime-local" step="60" class="bc-input" data-when />
+      </div>
+      <div class="flex items-end gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary" data-now>Now</button>
+      </div>
+    </div>
+
+    <div data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Add a target zone ── */}
+    <div class="bc-toolbar">
+      <div class="flex min-w-0 flex-1 items-center gap-2">
+        <label for="tz-add" class="sr-only">Add a timezone to compare</label>
+        <input
+          id="tz-add"
+          type="text"
+          class="bc-input"
+          list="tz-zone-list"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="Add a zone, e.g. Europe/Berlin"
+          data-add-input
+        />
+        <datalist id="tz-zone-list"></datalist>
+        <button type="button" class="bc-btn bc-btn-primary" data-add>Add</button>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-preset>
+          Common zones
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear-zones>
+          Remove all
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-table>
+          <span data-label>Copy table</span>
+        </button>
+      </div>
+    </div>
+
+    {/* ── Results ── */}
+    <div class="space-y-2" data-zone-list role="list" aria-label="Times in the selected zones"></div>
+
+    <p class="text-xs text-muted">
+      Offsets and daylight-saving status come from your browser's copy of the IANA timezone
+      database, evaluated at the exact moment you chose — not at today's date.
+    </p>
+
+    <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Pick a zone and a moment in it, then add as many other zones as you like and read them all
+      at once. Each row shows the local date and time, the UTC offset in force at that instant,
+      the abbreviation the zone uses, and whether daylight saving is active. Rows that land on a
+      different calendar day from the source are marked, which is the detail that ruins meeting
+      invitations.
+    </p>
+    <p>
+      The source zone defaults to the one your browser reports, so the first reading you see is
+      already anchored to where you are.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Finding an hour that works for people in three places, without doing arithmetic that is
+        wrong twice a year.
+      </li>
+      <li>
+        Working out what "09:00 Pacific" means for a release window you have to be awake for.
+      </li>
+      <li>
+        Checking what a server in UTC will report when an event happens at a given local time.
+      </li>
+      <li>Confirming whether a partner's country has already switched to summer time.</li>
+      <li>Reading a customer-reported incident time back into your own clock.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>14:30 on 24 September 2026 in Berlin, viewed elsewhere:</p>
+    <pre><code>{`Europe/Berlin       2026-09-24 14:30   +02:00  CEST  DST
+UTC                 2026-09-24 12:30   +00:00  UTC
+America/New_York    2026-09-24 08:30   -04:00  EDT   DST
+Asia/Kolkata        2026-09-24 18:00   +05:30  IST
+Australia/Sydney    2026-09-24 22:30   +10:00  AEST`}</code></pre>
+    <p>
+      Note Kolkata's half-hour offset and the fact that Sydney is not on daylight saving in
+      September — the southern hemisphere's summer time runs from October to April.
+    </p>
+
+    <h2>Offsets, zones and the transitions in between</h2>
+    <p>
+      An IANA zone such as <code>America/New_York</code> is not a fixed offset. It is a rule set
+      covering the whole history of civil time in one place: New York has used −05:00 in winter
+      and −04:00 in summer since 1918, with wartime exceptions, a different transition date
+      before 2007, and no daylight saving at all in several early years. Asking for "the offset
+      of New York" is only meaningful once you name the instant, which is why this tool never
+      shows an offset without a date attached.
+    </p>
+    <p>
+      Two local times a year are not ordinary. On the spring transition an hour never happens —
+      02:30 on the second Sunday in March simply does not exist in New York — and on the autumn
+      transition an hour happens twice, so 01:30 is ambiguous without an offset. If you enter a
+      time that falls into either case, the page tells you which and shows what it resolved to.
+      Zones that shift by something other than an hour exist too: Lord Howe Island moves by
+      thirty minutes.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Abbreviations are not identifiers. "CST" is Central Standard Time in North America
+      (−06:00), China Standard Time (+08:00) and Cuba Standard Time (−05:00), and there is no
+      registry that resolves the conflict. Never store an abbreviation and never parse one —
+      store an IANA name, or a UTC instant plus the offset that applied. The database itself
+      changes several times a year as governments legislate; your browser ships a snapshot, so a
+      very recent rule change may not be reflected until the browser updates.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import { mount, q, on, setStatus, clearStatus, copyText, markUsed } from '~/lib/toolkit';
+  import {
+    formatOffset,
+    formatShort,
+    getWallTime,
+    listTimeZones,
+    localTimeZone,
+    toDatetimeLocalValue,
+    wallTimeToUtc,
+    zoneInfo,
+  } from '~/lib/datetime';
+
+  mount('timezone-converter', (root) => {
+    const sourceSelect = q<HTMLSelectElement>('[data-source-zone]', root)!;
+    const whenInput = q<HTMLInputElement>('[data-when]', root)!;
+    const addInput = q<HTMLInputElement>('[data-add-input]', root)!;
+    const datalist = q<HTMLDataListElement>('#tz-zone-list', root)!;
+    const list = q('[data-zone-list]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+
+    const home = localTimeZone();
+    const zones = listTimeZones();
+
+    // Populate the source <select> and the add-field <datalist> once.
+    sourceSelect.textContent = '';
+    for (const zone of zones) {
+      const option = document.createElement('option');
+      option.value = zone;
+      option.textContent = zone;
+      sourceSelect.appendChild(option);
+
+      const suggestion = document.createElement('option');
+      suggestion.value = zone;
+      datalist.appendChild(suggestion);
+    }
+    sourceSelect.value = zones.includes(home) ? home : 'UTC';
+
+    const DEFAULTS = ['UTC', 'America/New_York', 'Europe/London', 'Asia/Tokyo'];
+    let targets: string[] = DEFAULTS.filter((z) => z !== sourceSelect.value);
+
+    /** The instant currently selected, or null when the input is unusable. */
+    const currentInstant = (): { ms: number; note?: string } | null => {
+      const m = whenInput.value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+      if (!m) return null;
+      const conv = wallTimeToUtc(
+        {
+          year: Number(m[1]),
+          month: Number(m[2]),
+          day: Number(m[3]),
+          hour: Number(m[4]),
+          minute: Number(m[5]),
+          second: Number(m[6] ?? 0),
+        },
+        sourceSelect.value,
+      );
+      return { ms: conv.ms, note: conv.note };
+    };
+
+    const badge = (text: string, tone: 'accent' | 'muted'): HTMLElement => {
+      const span = document.createElement('span');
+      span.className =
+        tone === 'accent'
+          ? 'rounded border border-accent-line bg-accent-soft px-1.5 py-0.5 text-[0.6875rem] font-medium text-accent'
+          : 'rounded border border-line bg-surface-2 px-1.5 py-0.5 text-[0.6875rem] text-muted';
+      span.textContent = text;
+      return span;
+    };
+
+    /** One row. Built with DOM nodes — zone names come from Intl, but the
+     *  add-field is user input, so nothing here goes near innerHTML. */
+    /** A sortable numeric key for a calendar day, e.g. 2026-09-24 → 20260924. */
+    const dayKey = (ms: number, zone: string): number => {
+      const w = getWallTime(ms, zone);
+      return w.year * 10_000 + w.month * 100 + w.day;
+    };
+
+    const row = (zone: string, ms: number, sourceDay: number, removable: boolean): HTMLElement => {
+      const item = document.createElement('div');
+      item.className = 'bc-card flex flex-wrap items-center gap-x-4 gap-y-2';
+      item.setAttribute('role', 'listitem');
+
+      const left = document.createElement('div');
+      left.className = 'min-w-0 flex-1';
+
+      const name = document.createElement('div');
+      name.className = 'truncate text-sm font-medium';
+      name.textContent = zone;
+      left.appendChild(name);
+
+      let info: ReturnType<typeof zoneInfo>;
+      try {
+        info = zoneInfo(ms, zone);
+      } catch {
+        const error = document.createElement('div');
+        error.className = 'text-xs text-muted';
+        error.textContent = 'This zone is not recognised by your browser.';
+        left.appendChild(error);
+        item.appendChild(left);
+        return item;
+      }
+
+      const meta = document.createElement('div');
+      meta.className = 'mt-1 flex flex-wrap items-center gap-1.5';
+      meta.appendChild(badge(formatOffset(info.offsetMinutes), 'muted'));
+      if (info.abbreviation) meta.appendChild(badge(info.abbreviation, 'muted'));
+      meta.appendChild(badge(info.dst ? 'Daylight saving' : 'Standard time', info.dst ? 'accent' : 'muted'));
+      const day = dayKey(ms, zone);
+      if (day !== sourceDay) {
+        meta.appendChild(badge(day > sourceDay ? 'Next day' : 'Previous day', 'accent'));
+      }
+      left.appendChild(meta);
+
+      const time = document.createElement('div');
+      time.className = 'font-mono text-lg font-semibold tabular-nums';
+      time.textContent = formatShort(ms, zone);
+
+      const actions = document.createElement('div');
+      actions.className = 'flex items-center gap-1';
+      const copy = document.createElement('button');
+      copy.type = 'button';
+      copy.className = 'bc-btn bc-btn-ghost bc-btn-sm';
+      copy.textContent = 'Copy';
+      copy.setAttribute('aria-label', `Copy the time in ${zone}`);
+      on(copy, 'click', () => void copyText(`${formatShort(ms, zone)} ${zone}`, copy));
+      actions.appendChild(copy);
+
+      if (removable) {
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'bc-btn bc-btn-ghost bc-btn-sm';
+        remove.textContent = 'Remove';
+        remove.setAttribute('aria-label', `Remove ${zone}`);
+        on(remove, 'click', () => {
+          targets = targets.filter((z) => z !== zone);
+          render();
+        });
+        actions.appendChild(remove);
+      }
+
+      item.append(left, time, actions);
+      return item;
+    };
+
+    const render = () => {
+      const instant = currentInstant();
+      list.textContent = '';
+
+      if (!instant) {
+        setStatus(root, 'Pick a date and time to compare across zones.', 'warn');
+        mirror.value = '';
+        return;
+      }
+
+      const sourceDay = dayKey(instant.ms, sourceSelect.value);
+
+      list.appendChild(row(sourceSelect.value, instant.ms, sourceDay, false));
+      for (const zone of targets) list.appendChild(row(zone, instant.ms, sourceDay, true));
+
+      mirror.value = [sourceSelect.value, ...targets]
+        .map((zone) => {
+          try {
+            const info = zoneInfo(instant.ms, zone);
+            return `${zone.padEnd(24)}${formatShort(instant.ms, zone)}  ${formatOffset(
+              info.offsetMinutes,
+            )}  ${info.abbreviation}${info.dst ? '  DST' : ''}`;
+          } catch {
+            return `${zone}  (unrecognised)`;
+          }
+        })
+        .join('\n');
+
+      if (instant.note) setStatus(root, instant.note, 'warn');
+      else clearStatus(root);
+      markUsed();
+    };
+
+    on(sourceSelect, 'change', () => {
+      targets = targets.filter((z) => z !== sourceSelect.value);
+      render();
+    });
+    on(whenInput, 'input', render);
+
+    on(q('[data-add]', root), 'click', () => {
+      const zone = addInput.value.trim();
+      if (!zone) return setStatus(root, 'Type or pick a timezone name first.', 'warn');
+      if (!zones.includes(zone)) {
+        return setStatus(
+          root,
+          `"${zone}" is not an IANA timezone your browser knows. Pick one from the suggestions — they look like Area/City, for example Europe/Berlin.`,
+          'error',
+        );
+      }
+      if (zone === sourceSelect.value || targets.includes(zone)) {
+        return setStatus(root, `${zone} is already in the list.`, 'warn');
+      }
+      targets.push(zone);
+      addInput.value = '';
+      render();
+    });
+
+    on(addInput, 'keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        q('[data-add]', root)!.click();
+      }
+    });
+
+    on(q('[data-now]', root), 'click', () => {
+      whenInput.value = toDatetimeLocalValue(Date.now(), sourceSelect.value);
+      render();
+    });
+
+    on(q('[data-preset]', root), 'click', () => {
+      targets = [
+        'UTC',
+        'America/Los_Angeles',
+        'America/New_York',
+        'Europe/London',
+        'Europe/Berlin',
+        'Asia/Kolkata',
+        'Asia/Tokyo',
+        'Australia/Sydney',
+      ].filter((z) => z !== sourceSelect.value && zones.includes(z));
+      render();
+    });
+
+    on(q('[data-clear-zones]', root), 'click', () => {
+      targets = [];
+      render();
+    });
+
+    on(q('[data-copy-table]', root), 'click', (e) => {
+      if (!mirror.value) return setStatus(root, 'Pick a date and time first.', 'warn');
+      void copyText(mirror.value, e.currentTarget as HTMLElement);
+    });
+
+    whenInput.value = toDatetimeLocalValue(Date.now(), sourceSelect.value);
+    render();
+  });
+</script>

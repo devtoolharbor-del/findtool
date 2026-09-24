@@ -1,0 +1,584 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_DIFF_LEFT, SAMPLE_DIFF_RIGHT } from '~/lib/diff';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div
+    data-tool="text-diff"
+    class="space-y-4"
+    data-sample-left={SAMPLE_DIFF_LEFT}
+    data-sample-right={SAMPLE_DIFF_RIGHT}
+  >
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-opt="ignoreWhitespace" />
+        Ignore whitespace
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-opt="ignoreCase" />
+        Ignore case
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-opt="wordLevel" checked />
+        Highlight changed words
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-load-example>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-swap>Swap sides</button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      </div>
+    </div>
+
+    {/* ── The two inputs ── */}
+    <div class="grid gap-3 lg:grid-cols-2">
+      <div>
+        <div class="mb-1.5 flex items-center justify-between">
+          <label for="td-left" class="bc-label mb-0">Original</label>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-upload-left>Upload</button>
+          <input type="file" accept=".txt,.md,.json,.csv,.log,.yml,.yaml,text/plain" class="hidden" data-file-left />
+        </div>
+        <textarea
+          id="td-left"
+          class="bc-textarea min-h-48"
+          data-primary-input
+          data-clear-target
+          spellcheck="false"
+          placeholder="Paste the original version…"
+          aria-describedby="td-status"></textarea>
+      </div>
+
+      <div>
+        <div class="mb-1.5 flex items-center justify-between">
+          <label for="td-right" class="bc-label mb-0">Modified</label>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-upload-right>Upload</button>
+          <input type="file" accept=".txt,.md,.json,.csv,.log,.yml,.yaml,text/plain" class="hidden" data-file-right />
+        </div>
+        <textarea
+          id="td-right"
+          class="bc-textarea min-h-48"
+          data-right-input
+          data-clear-target
+          spellcheck="false"
+          placeholder="Paste the changed version…"
+          aria-describedby="td-status"></textarea>
+      </div>
+    </div>
+
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-action="compare">Compare</button>
+
+      <div class="flex items-center gap-1" role="group" aria-label="Diff view">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-view="split" aria-pressed="true">
+          Side by side
+        </button>
+        <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-view="unified" aria-pressed="false">
+          Unified
+        </button>
+      </div>
+
+      <div class="ml-auto flex gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-output>
+          <span data-label>Copy unified</span>
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>Download</button>
+      </div>
+    </div>
+
+    <div id="td-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Summary ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-summary hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="additions">0</div>
+        <div class="bc-stat-label">Additions</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="deletions">0</div>
+        <div class="bc-stat-label">Deletions</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="changed">0</div>
+        <div class="bc-stat-label">Modified lines</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="unchanged">0</div>
+        <div class="bc-stat-label">Unchanged</div>
+      </div>
+    </div>
+
+    {/* ── Result ── */}
+    <div class="bc-output max-h-[36rem] min-h-32 overflow-auto p-0" data-diff tabindex="0" aria-label="Comparison result">
+      <p class="p-3 text-muted">Paste two versions above, then press Compare.</p>
+    </div>
+
+    <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Put two versions of a text side by side and it marks every line that was added, removed or
+      edited, with line numbers from both versions. Inside an edited line it goes further and
+      highlights the individual words that changed, so a one-character difference in a long line
+      does not require you to read the line twice.
+    </p>
+    <p>
+      There is a unified view as well, using the <code>+</code> and <code>-</code> prefixes you
+      already know from <code>git diff</code>, and that view is what the copy button produces —
+      handy for pasting into a ticket or a review comment.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Comparing two config files — a working <code>.env</code> against a broken one is the
+        fastest way to find a missing variable.
+      </li>
+      <li>
+        Checking what a formatter, a minifier or a code generator actually changed.
+      </li>
+      <li>
+        Diffing two API responses. Format both with the
+        <a href="/tools/json-formatter">JSON formatter</a> and sort the keys first, or you will see
+        reordering rather than real differences.
+      </li>
+      <li>
+        Reviewing an edited paragraph when you do not have version control — a contract clause, a
+        commit message, a translated string.
+      </li>
+      <li>Comparing two lists to find which entries are only in one of them.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>Comparing these two:</p>
+    <pre><code>{`port: 8080          port: 8080
+workers: 4          workers: 8
+driver: memory      driver: redis
+                    timeout: 30`}</code></pre>
+    <p>gives two modified lines and one addition:</p>
+    <pre><code>{`  port: 8080
+- workers: 4
++ workers: 8
+- driver: memory
++ driver: redis
++ timeout: 30`}</code></pre>
+    <p>
+      In the side-by-side view those first two pairs appear as single rows with only
+      <code>4</code>/<code>8</code> and <code>memory</code>/<code>redis</code> highlighted.
+    </p>
+
+    <h2>How the comparison works</h2>
+    <p>
+      The engine finds the longest common subsequence of lines — the largest set of lines that
+      appear in both versions in the same order — and treats everything else as inserted or
+      deleted. That is the same foundation as <code>diff(1)</code>, and it is why the output never
+      drifts out of alignment the way a naive line-by-line comparison does after a single
+      insertion.
+    </p>
+    <p>
+      Deletions and insertions that land next to each other are then paired up. If two such lines
+      are similar enough — measured by how many two-character sequences they share — they are
+      shown as one modified row rather than a delete followed by an insert. Lines that are merely
+      adjacent but unrelated stay apart, because forcing them into one row reads far worse than
+      showing them separately.
+    </p>
+    <p>
+      The two ignore options affect only the comparison, never the display. With "ignore
+      whitespace" on, runs of spaces are treated as equal and leading and trailing space is
+      disregarded — so a re-indentation shows as no change — but the text you see is still exactly
+      what you pasted.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      A moved block is not detected as a move. Line-based diffing has no concept of relocation, so
+      a paragraph cut from the top and pasted at the bottom appears as one deletion and one
+      addition. Every tool built on this algorithm behaves the same way, including Git without
+      <code>--color-moved</code>.
+    </p>
+    <p>
+      Identical leading and trailing sections are skipped before the real work starts, so two
+      2,000-line files differing in one place compare instantly. When the genuinely different
+      region is very large — beyond roughly 2,000 × 2,000 lines — the tool says so and shows the
+      region as one replaced block rather than freezing the tab for a minute. Comparing smaller
+      sections then gives an exact result.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    readFileText,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { diffLines, toUnifiedText, type DiffResult, type DiffRow, type WordPart } from '~/lib/diff';
+
+  /** Rows rendered before the viewer gives up — a browser will not paint more. */
+  const MAX_RENDERED_ROWS = 4000;
+
+  mount('text-diff', (root) => {
+    const left = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const right = q<HTMLTextAreaElement>('[data-right-input]', root)!;
+    const container = q('[data-diff]', root)!;
+    const summary = q('[data-summary]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+
+    let view: 'split' | 'unified' = 'split';
+    let current: DiffResult | null = null;
+
+    const checked = (name: string) => q<HTMLInputElement>(`[data-opt="${name}"]`, root)!.checked;
+
+    // ── Rendering. Everything below builds DOM nodes; no user text ever
+    //    reaches innerHTML. ──
+
+    const cell = (className: string): HTMLTableCellElement => {
+      const td = document.createElement('td');
+      td.className = className;
+      return td;
+    };
+
+    const gutter = (n: number | undefined): HTMLTableCellElement => {
+      const td = cell('w-12 select-none border-r border-line px-2 py-0.5 text-right align-top text-muted tabular-nums');
+      td.textContent = n === undefined ? '' : String(n);
+      return td;
+    };
+
+    /** Line content, optionally with per-word highlighting. */
+    const content = (
+      text: string | undefined,
+      parts: WordPart[] | undefined,
+      tone: 'add' | 'del' | 'none',
+    ): HTMLTableCellElement => {
+      const td = cell(
+        'w-full px-2 py-0.5 align-top whitespace-pre-wrap break-words' +
+          (tone === 'add' ? ' diff-add' : tone === 'del' ? ' diff-del' : ''),
+      );
+
+      if (text === undefined) {
+        td.classList.add('bg-surface-2');
+        return td;
+      }
+
+      if (parts && parts.length) {
+        for (const part of parts) {
+          if (part.type === 'unchanged') {
+            td.appendChild(document.createTextNode(part.text));
+          } else {
+            const span = document.createElement('span');
+            span.className =
+              part.type === 'add' ? 'diff-add rounded-sm font-semibold' : 'diff-del rounded-sm font-semibold';
+            span.textContent = part.text;
+            td.appendChild(span);
+          }
+        }
+      } else {
+        td.textContent = text;
+      }
+
+      // An empty line still needs height, or the row collapses.
+      if (td.textContent === '') td.appendChild(document.createTextNode(' '));
+      return td;
+    };
+
+    const marker = (symbol: string, tone: 'add' | 'del' | 'none'): HTMLTableCellElement => {
+      const td = cell(
+        'w-6 select-none px-1 py-0.5 text-center align-top font-semibold' +
+          (tone === 'add' ? ' diff-add' : tone === 'del' ? ' diff-del' : ' text-muted'),
+      );
+      td.textContent = symbol;
+      return td;
+    };
+
+    const renderSplit = (rows: DiffRow[]): HTMLTableElement => {
+      const table = document.createElement('table');
+      table.className = 'w-full border-collapse font-mono text-[0.8125rem] leading-relaxed';
+      const tbody = document.createElement('tbody');
+
+      for (const row of rows) {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-line/60 align-top';
+
+        const leftTone = row.type === 'remove' ? 'del' : row.type === 'changed' ? 'none' : 'none';
+        const rightTone = row.type === 'add' ? 'add' : row.type === 'changed' ? 'none' : 'none';
+
+        tr.appendChild(gutter(row.leftNumber));
+        tr.appendChild(content(row.left, row.type === 'changed' ? row.leftWords : undefined, leftTone));
+        tr.appendChild(gutter(row.rightNumber));
+        tr.appendChild(content(row.right, row.type === 'changed' ? row.rightWords : undefined, rightTone));
+
+        if (row.type === 'changed') tr.classList.add('bg-surface-2');
+        tbody.appendChild(tr);
+      }
+
+      table.appendChild(tbody);
+      return table;
+    };
+
+    const renderUnified = (rows: DiffRow[]): HTMLTableElement => {
+      const table = document.createElement('table');
+      table.className = 'w-full border-collapse font-mono text-[0.8125rem] leading-relaxed';
+      const tbody = document.createElement('tbody');
+
+      const emit = (
+        leftNo: number | undefined,
+        rightNo: number | undefined,
+        symbol: string,
+        text: string | undefined,
+        parts: WordPart[] | undefined,
+        tone: 'add' | 'del' | 'none',
+      ) => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-line/40 align-top';
+        tr.appendChild(gutter(leftNo));
+        tr.appendChild(gutter(rightNo));
+        tr.appendChild(marker(symbol, tone));
+        tr.appendChild(content(text, parts, tone));
+        tbody.appendChild(tr);
+      };
+
+      for (const row of rows) {
+        switch (row.type) {
+          case 'unchanged':
+            emit(row.leftNumber, row.rightNumber, ' ', row.left, undefined, 'none');
+            break;
+          case 'remove':
+            emit(row.leftNumber, undefined, '-', row.left, undefined, 'del');
+            break;
+          case 'add':
+            emit(undefined, row.rightNumber, '+', row.right, undefined, 'add');
+            break;
+          case 'changed':
+            emit(row.leftNumber, undefined, '-', row.left, row.leftWords, 'del');
+            emit(undefined, row.rightNumber, '+', row.right, row.rightWords, 'add');
+            break;
+        }
+      }
+
+      table.appendChild(tbody);
+      return table;
+    };
+
+    const note = (message: string): HTMLParagraphElement => {
+      const p = document.createElement('p');
+      p.className = 'border-b border-line px-3 py-2 text-xs text-muted';
+      p.textContent = message;
+      return p;
+    };
+
+    const render = () => {
+      container.textContent = '';
+      if (!current) return;
+
+      const rows = current.lines;
+      const capped = rows.length > MAX_RENDERED_ROWS;
+      const visible = capped ? rows.slice(0, MAX_RENDERED_ROWS) : rows;
+
+      if (current.note) container.appendChild(note(current.note));
+      if (capped) {
+        container.appendChild(
+          note(
+            `Showing the first ${MAX_RENDERED_ROWS.toLocaleString()} of ${rows.length.toLocaleString()} rows. ` +
+              `The counts above cover the whole comparison; download the unified diff for the rest.`,
+          ),
+        );
+      }
+
+      container.appendChild(view === 'split' ? renderSplit(visible) : renderUnified(visible));
+    };
+
+    // ── Comparison ──
+
+    const compare = () => {
+      const a = left.value;
+      const b = right.value;
+
+      if (!a && !b) {
+        clearStatus(root);
+        current = null;
+        mirror.value = '';
+        summary.setAttribute('hidden', '');
+        container.textContent = '';
+        const hint = document.createElement('p');
+        hint.className = 'p-3 text-muted';
+        hint.textContent = 'Paste two versions above, then press Compare.';
+        container.appendChild(hint);
+        return;
+      }
+
+      try {
+        guardSize(a);
+        guardSize(b);
+      } catch (err) {
+        setStatus(root, messageFor(err), 'error');
+        return;
+      }
+
+      try {
+        current = diffLines(a, b, {
+          ignoreWhitespace: checked('ignoreWhitespace'),
+          ignoreCase: checked('ignoreCase'),
+          wordLevel: checked('wordLevel'),
+        });
+      } catch (err) {
+        setStatus(root, messageFor(err), 'error');
+        return;
+      }
+
+      summary.removeAttribute('hidden');
+      const stat = (name: string, value: number) => {
+        const el = q(`[data-stat="${name}"]`, root);
+        if (el) el.textContent = value.toLocaleString();
+      };
+      stat('additions', current.additions);
+      stat('deletions', current.deletions);
+      stat('changed', current.changed);
+      stat('unchanged', current.unchanged);
+
+      mirror.value = toUnifiedText(current);
+      render();
+
+      if (current.identical) {
+        const why =
+          checked('ignoreWhitespace') || checked('ignoreCase')
+            ? ' under the options you selected'
+            : '';
+        setStatus(root, `The two versions are identical${why}.`, 'ok');
+      } else {
+        const plus = current.additions + current.changed;
+        const minus = current.deletions + current.changed;
+        setStatus(
+          root,
+          `${plus.toLocaleString()} insertion${plus === 1 ? '' : 's'}, ` +
+            `${minus.toLocaleString()} deletion${minus === 1 ? '' : 's'} ` +
+            `across ${current.lines.length.toLocaleString()} rows.`,
+          'warn',
+        );
+      }
+
+      markUsed();
+    };
+
+    // ── Wiring ──
+
+    on(q('[data-action="compare"]', root), 'click', compare);
+
+    const live = debounce(() => {
+      if (current) compare();
+    }, 350);
+    on(left, 'input', live);
+    on(right, 'input', live);
+
+    for (const box of qa('[data-opt]', root)) {
+      on(box, 'change', () => current && compare());
+    }
+
+    for (const btn of qa('[data-view]', root)) {
+      on(btn, 'click', () => {
+        view = btn.dataset.view === 'unified' ? 'unified' : 'split';
+        for (const other of qa('[data-view]', root)) {
+          other.setAttribute('aria-pressed', String(other === btn));
+          other.classList.toggle('bc-btn-secondary', other === btn);
+          other.classList.toggle('bc-btn-ghost', other !== btn);
+        }
+        render();
+      });
+    }
+
+    on(q('[data-swap]', root), 'click', () => {
+      const tmp = left.value;
+      left.value = right.value;
+      right.value = tmp;
+      if (current) compare();
+    });
+
+    on(q('[data-clear]', root), 'click', () => {
+      left.value = '';
+      right.value = '';
+      current = null;
+      mirror.value = '';
+      summary.setAttribute('hidden', '');
+      clearStatus(root);
+      compare();
+    });
+
+    on(q('[data-load-example]', root), 'click', () => {
+      left.value = root.dataset.sampleLeft ?? '';
+      right.value = root.dataset.sampleRight ?? '';
+      compare();
+    });
+
+    on(q('[data-copy-output]', root), 'click', (e) => {
+      if (!mirror.value) return setStatus(root, 'Compare two texts first.', 'warn');
+      void copyText(mirror.value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-download]', root), 'click', () => {
+      if (!mirror.value) return setStatus(root, 'Compare two texts first.', 'warn');
+      downloadText('diff.txt', mirror.value);
+    });
+
+    // Two independent uploads, so the shared helper is wired per side.
+    const wireSide = (
+      buttonSel: string,
+      inputSel: string,
+      target: HTMLTextAreaElement,
+      zone: HTMLElement,
+    ) => {
+      const fileInput = q<HTMLInputElement>(inputSel, root);
+      on(q(buttonSel, root), 'click', () => fileInput?.click());
+      on(fileInput, 'change', async () => {
+        const file = fileInput?.files?.[0];
+        if (!file) return;
+        try {
+          target.value = await readFileText(file);
+          compare();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+        if (fileInput) fileInput.value = '';
+      });
+      on(zone, 'dragover', (e: DragEvent) => {
+        e.preventDefault();
+        zone.classList.add('ring-2', 'ring-accent');
+      });
+      on(zone, 'dragleave', () => zone.classList.remove('ring-2', 'ring-accent'));
+      on(zone, 'drop', async (e: DragEvent) => {
+        e.preventDefault();
+        zone.classList.remove('ring-2', 'ring-accent');
+        const file = e.dataTransfer?.files?.[0];
+        if (!file) return;
+        try {
+          target.value = await readFileText(file);
+          compare();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      });
+    };
+
+    wireSide('[data-upload-left]', '[data-file-left]', left, left);
+    wireSide('[data-upload-right]', '[data-file-right]', right, right);
+  });
+</script>

@@ -1,0 +1,277 @@
+---
+/**
+ * Lorem Ipsum generator.
+ *
+ * Text assembly lives in src/lib/lorem.ts, which is unit-tested with an
+ * injected deterministic RNG. This file wires the controls and renders the
+ * result as text (never as markup — the HTML output goes into a textarea).
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="lorem-ipsum-generator" class="space-y-4">
+    {/* ── What to generate ── */}
+    <div class="grid gap-3 sm:grid-cols-3">
+      <div>
+        <label for="li-unit" class="bc-label">Generate</label>
+        <select id="li-unit" class="bc-select">
+          <option value="paragraphs" selected>Paragraphs</option>
+          <option value="sentences">Sentences</option>
+          <option value="words">Words</option>
+          <option value="list-items">List items</option>
+        </select>
+      </div>
+      <div>
+        <label for="li-count" class="bc-label">How many</label>
+        <input
+          id="li-count"
+          class="bc-input"
+          type="number"
+          min="1"
+          max="5000"
+          step="1"
+          value="3"
+          inputmode="numeric"
+        />
+      </div>
+      <div>
+        <label for="li-format" class="bc-label">Output</label>
+        <select id="li-format" class="bc-select">
+          <option value="text" selected>Plain text</option>
+          <option value="html">HTML</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="bc-toolbar">
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-opt="startWithLorem" checked />
+        Start with “Lorem ipsum dolor sit amet”
+      </label>
+      <div class="flex items-center gap-2" data-tag-wrap hidden>
+        <label for="li-tag" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Wrap each in
+        </label>
+        <select id="li-tag" class="bc-select w-auto py-1.5 text-xs">
+          <option value="p" selected>&lt;p&gt;</option>
+          <option value="li">&lt;li&gt;</option>
+          <option value="h2">&lt;h2&gt;</option>
+        </select>
+      </div>
+    </div>
+
+    {/* ── Actions ── */}
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-generate>Generate</button>
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+          <span data-label>Copy</span>
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>
+          Download
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      </div>
+    </div>
+
+    <div id="li-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-words>—</div>
+        <div class="bc-stat-label">Words</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-sentences>—</div>
+        <div class="bc-stat-label">Sentences</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-chars>—</div>
+        <div class="bc-stat-label">Characters</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-reading>—</div>
+        <div class="bc-stat-label">Reading time</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <label for="li-output" class="bc-label">Result</label>
+      <textarea
+        id="li-output"
+        class="bc-textarea min-h-56"
+        data-output
+        readonly
+        spellcheck="false"
+        aria-live="off"></textarea>
+    </div>
+  </div>
+
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      It produces placeholder copy in the quantity a layout actually needs: paragraphs, sentences,
+      a precise number of words, or list items sized for bullets. Sentence lengths vary between six
+      and sixteen words and paragraphs run to three to six sentences, so a column of text has the
+      ragged edge real writing has instead of the suspicious uniformity of repeated filler.
+    </p>
+    <p>
+      Choose HTML output and each block comes wrapped in <code>&lt;p&gt;</code>,
+      <code>&lt;li&gt;</code> (inside a <code>&lt;ul&gt;</code>) or <code>&lt;h2&gt;</code>, indented
+      and ready to paste into a template.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Filling a card, a hero or a blog template before the copy exists.</li>
+      <li>Checking how a design behaves at 40 characters per line versus 100.</li>
+      <li>Seeding a CMS or a database with posts of realistic length.</li>
+      <li>Testing truncation, line clamps and overflow with text that will not cooperate.</li>
+      <li>Giving a client something to react to that is obviously not final wording.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>Two list items, HTML output:</p>
+    <pre><code>{`<ul>
+  <li>Dolore magna aliqua enim ad minim veniam.</li>
+  <li>Excepteur sint occaecat cupidatat non proident.</li>
+</ul>`}</code></pre>
+
+    <h2>Where the text comes from</h2>
+    <p>
+      Lorem Ipsum is not nonsense that someone invented. It is Latin from Cicero's
+      <em>De finibus bonorum et malorum</em>, written in 45 BC, scrambled by a 16th-century
+      typesetter who cut up a passage to make a type specimen. The familiar opening is a mangled
+      fragment of <em>dolorem ipsum quia dolor sit amet</em> — "pain itself, because it is pain" —
+      from a section arguing that no one seeks out pain for its own sake.
+    </p>
+    <p>
+      That history is why it works as placeholder text. The word lengths and letter frequencies sit
+      close enough to English to give a realistic visual texture, while being unreadable enough
+      that nobody mistakes it for finished copy or starts editing it. Filler written in English
+      fails on both counts: reviewers read it, and someone eventually ships it.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Placeholder text hides real problems. Latin has no long compound nouns, no URLs, no names
+      with diacritics and no right-to-left script, so a layout that survives Lorem Ipsum can still
+      break on <em>Llanfairpwllgwyngyll</em> or an Arabic name. Before shipping, test with the
+      longest and strangest strings your data can contain — and grep the build for
+      <code>lorem</code>, because it reaching production is common enough to be a genre of bug
+      report.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    downloadText,
+    wireCopyButtons,
+    markUsed,
+  } from '~/lib/toolkit';
+  import { generateLorem, loremStats, type LoremUnit, type LoremTag } from '~/lib/lorem';
+
+  mount('lorem-ipsum-generator', (root) => {
+    const unitSel = q<HTMLSelectElement>('#li-unit', root)!;
+    const countInput = q<HTMLInputElement>('#li-count', root)!;
+    const formatSel = q<HTMLSelectElement>('#li-format', root)!;
+    const tagSel = q<HTMLSelectElement>('#li-tag', root)!;
+    const tagWrap = q('[data-tag-wrap]', root)!;
+    const startWith = q<HTMLInputElement>('[data-opt="startWithLorem"]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const stats = q('[data-stats]', root)!;
+
+    /** The tag choice only exists in HTML mode, and follows the unit by default. */
+    const syncTagControl = () => {
+      const isHtml = formatSel.value === 'html';
+      tagWrap.toggleAttribute('hidden', !isHtml);
+      tagSel.value = unitSel.value === 'list-items' ? 'li' : tagSel.value === 'li' ? 'p' : tagSel.value;
+    };
+
+    const generate = () => {
+      const count = Number(countInput.value);
+      try {
+        const text = generateLorem({
+          unit: unitSel.value as LoremUnit,
+          count,
+          startWithLorem: startWith.checked,
+          format: formatSel.value === 'html' ? 'html' : 'text',
+          tag: tagSel.value as LoremTag,
+        });
+        // Assigned as a value, never as innerHTML: the HTML output is shown
+        // as source for the user to copy, not rendered into the page.
+        output.value = text;
+
+        const s = loremStats(text);
+        stats.removeAttribute('hidden');
+        q('[data-stat-words]', root)!.textContent = s.words.toLocaleString();
+        q('[data-stat-sentences]', root)!.textContent = s.sentences.toLocaleString();
+        q('[data-stat-chars]', root)!.textContent = s.characters.toLocaleString();
+        // 200 words per minute is the usual reading-speed estimate for prose.
+        const minutes = s.words / 200;
+        q('[data-stat-reading]', root)!.textContent =
+          minutes < 1 ? '<1 min' : `${Math.round(minutes)} min`;
+
+        clearStatus(root);
+        markUsed();
+      } catch (err) {
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    on(unitSel, 'change', () => {
+      // Three paragraphs and three hundred words are both reasonable defaults,
+      // so nudge the count when the unit changes to something very different.
+      if (unitSel.value === 'words' && Number(countInput.value) < 20) countInput.value = '50';
+      if (unitSel.value !== 'words' && Number(countInput.value) > 50) countInput.value = '5';
+      syncTagControl();
+      generate();
+    });
+    on(countInput, 'change', generate);
+    on(formatSel, 'change', () => {
+      syncTagControl();
+      generate();
+    });
+    on(tagSel, 'change', generate);
+    on(startWith, 'change', generate);
+    on(q('[data-generate]', root), 'click', generate);
+
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Generate some text first.', 'warn');
+      const html = formatSel.value === 'html';
+      downloadText(
+        html ? 'lorem-ipsum.html' : 'lorem-ipsum.txt',
+        output.value + '\n',
+        html ? 'text/html;charset=utf-8' : 'text/plain;charset=utf-8',
+      );
+    });
+
+    on(q('[data-clear]', root), 'click', () => {
+      output.value = '';
+      stats.setAttribute('hidden', '');
+      clearStatus(root);
+    });
+
+    wireCopyButtons(root);
+    syncTagControl();
+    generate();
+  });
+</script>

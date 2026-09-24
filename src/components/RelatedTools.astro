@@ -1,0 +1,37 @@
+---
+import type { Tool } from '~/types';
+import { relatedTools } from '~/data/tools';
+import ToolCard from '~/components/ToolCard.astro';
+
+interface Props {
+  tool: Tool;
+  limit?: number;
+}
+
+const { tool, limit = 4 } = Astro.props;
+const related = relatedTools(tool, limit);
+---
+
+{
+  related.length > 0 && (
+    <section aria-labelledby="related-heading" class="mt-12">
+      <h2 id="related-heading" class="mb-4 text-lg font-semibold">
+        Related tools
+      </h2>
+      <div class="grid gap-3 sm:grid-cols-2">
+        {related.map((t) => (
+          <ToolCard tool={t} fromRelated />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+<script>
+  // Attribute related-tool navigation without recording which tool was chosen
+  // beyond the destination already present in the URL.
+  import { track } from '~/lib/toolkit';
+  document.querySelectorAll('[data-related]').forEach((a) =>
+    a.addEventListener('click', () => track('related_tool_clicked')),
+  );
+</script>

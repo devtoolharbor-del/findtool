@@ -1,0 +1,53 @@
+---
+/**
+ * Reserved advertising space.
+ *
+ * Renders NOTHING until ads are switched on, so there is no placeholder, no
+ * layout shift and no empty box in production today. The point of the
+ * component is that the three approved positions already exist in the page
+ * structure — turning ads on later is a config change, not a redesign.
+ *
+ * Rules baked in here on purpose:
+ *  - never inside or above the tool interface
+ *  - always visually separated and labelled "Advertisement"
+ *  - fixed min-height so enabling ads cannot shift content (CLS)
+ *  - never styled like a button or tool control
+ */
+import { ADS } from '~/consts';
+
+interface Props {
+  /** Where in the page this slot sits. Determines the reserved height. */
+  placement: 'below-header' | 'after-tool' | 'in-content';
+}
+
+const { placement } = Astro.props;
+
+const enabled = ADS.enabled && ADS.slots[placement];
+const minHeight =
+  placement === 'below-header' ? 90 : placement === 'after-tool' ? 250 : 250;
+---
+
+{
+  enabled && (
+    <aside
+      class="my-8"
+      aria-label="Advertisement"
+      data-ad-placement={placement}
+      style={`min-height:${minHeight}px`}
+    >
+      <p class="mb-1 text-center text-[10px] tracking-widest text-muted uppercase">
+        Advertisement
+      </p>
+      <div class="flex items-center justify-center rounded-lg border border-line bg-surface-2">
+        <ins
+          class="adsbygoogle block w-full"
+          style={`display:block;min-height:${minHeight}px`}
+          data-ad-client={ADS.client}
+          data-ad-slot={ADS.slots[placement]}
+          data-ad-format="auto"
+          data-full-width-responsive="true"
+        />
+      </div>
+    </aside>
+  )
+}

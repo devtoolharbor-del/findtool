@@ -1,0 +1,353 @@
+---
+/**
+ * Random string generator — presets plus a fully custom alphabet.
+ *
+ * The draw itself is in src/lib/random.ts (rejection-sampled, crypto-backed);
+ * this file owns the presets, the bulk output and the entropy read-out.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+const PRESETS = [
+  { id: 'hex', label: 'Hex' },
+  { id: 'alphanumeric', label: 'Alphanumeric' },
+  { id: 'urlSafe', label: 'URL-safe' },
+  { id: 'digits', label: 'Digits' },
+  { id: 'lowercase', label: 'Letters a–z' },
+  { id: 'base58', label: 'Base58' },
+];
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="random-string-generator" class="space-y-4">
+    {/* ── Presets ── */}
+    <div>
+      <span class="bc-label" id="rs-preset-label">Alphabet preset</span>
+      <div class="bc-toolbar" role="group" aria-labelledby="rs-preset-label">
+        {
+          PRESETS.map((p) => (
+            <button
+              type="button"
+              class="bc-btn bc-btn-secondary bc-btn-sm"
+              data-preset={p.id}
+              aria-pressed="false"
+            >
+              {p.label}
+            </button>
+          ))
+        }
+      </div>
+    </div>
+
+    {/* ── Alphabet ── */}
+    <div>
+      <label for="rs-alphabet" class="bc-label">
+        Characters to draw from — edit freely
+      </label>
+      <input
+        id="rs-alphabet"
+        class="bc-input font-mono"
+        spellcheck="false"
+        autocomplete="off"
+        aria-describedby="rs-alphabet-help"
+      />
+      <p id="rs-alphabet-help" class="mt-1 text-xs text-muted">
+        Duplicate characters are removed before drawing, so a character cannot be weighted by
+        repeating it.
+      </p>
+    </div>
+
+    {/* ── Size and count ── */}
+    <div class="grid gap-3 sm:grid-cols-3">
+      <div>
+        <label for="rs-length" class="bc-label">Length</label>
+        <input
+          id="rs-length"
+          class="bc-input"
+          type="number"
+          min="1"
+          max="512"
+          step="1"
+          value="32"
+          inputmode="numeric"
+        />
+      </div>
+      <div>
+        <label for="rs-count" class="bc-label">How many</label>
+        <input
+          id="rs-count"
+          class="bc-input"
+          type="number"
+          min="1"
+          max="500"
+          step="1"
+          value="1"
+          inputmode="numeric"
+        />
+      </div>
+      <div class="flex items-end">
+        <label class="bc-check-label pb-2">
+          <input type="checkbox" class="bc-checkbox" data-opt="excludeAmbiguous" />
+          Exclude look-alikes
+        </label>
+      </div>
+    </div>
+
+    {/* ── Actions ── */}
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-generate>Generate</button>
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+          <span data-label>Copy</span>
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>
+          Download .txt
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      </div>
+    </div>
+
+    <div id="rs-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-alphabet>—</div>
+        <div class="bc-stat-label">Alphabet size</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-bits>—</div>
+        <div class="bc-stat-label">Bits per string</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-count>—</div>
+        <div class="bc-stat-label">Strings</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value text-base" data-stat-space>—</div>
+        <div class="bc-stat-label">Possible values</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <label for="rs-output" class="bc-label">Result</label>
+      <textarea
+        id="rs-output"
+        class="bc-textarea min-h-40"
+        data-output
+        readonly
+        spellcheck="false"
+        aria-live="off"></textarea>
+    </div>
+  </div>
+
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      You choose the alphabet and the length; it draws each character independently from
+      <code>crypto.getRandomValues()</code> and hands back as many strings as you ask for. The
+      presets cover the alphabets that come up constantly — hexadecimal, alphanumeric, the URL-safe
+      64, plain digits, Base58 — and the field below them is editable, so an alphabet of
+      <code>ACGT</code> or of three emoji works exactly as well.
+    </p>
+    <p>
+      Every string is generated in this tab. Nothing is sent anywhere, which matters because the
+      most common reason to be here is to produce something that is about to become a secret.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>An API key or bearer token for a service you are building.</li>
+      <li>A 32-character hex value to seed a session-signing secret in a <code>.env</code> file.</li>
+      <li>A per-user salt, or a nonce for a Content-Security-Policy header.</li>
+      <li>Test fixtures: five hundred distinct account references in one click.</li>
+      <li>A random subdomain or bucket suffix that will not collide with an existing one.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>Alphabet <code>0123456789abcdef</code>, length 32, one string:</p>
+    <pre><code>7f3a91c0d45e28b6af10c73d95e8b2a4</code></pre>
+    <p>
+      That is 32 × 4 = 128 bits, because each hex character carries exactly four. The same 128 bits
+      needs only 22 characters from the URL-safe 64-character alphabet, or 20 from Base58.
+    </p>
+
+    <h2>Choosing an alphabet that survives the journey</h2>
+    <p>
+      The alphabet matters more than people expect, because the string has to travel. Hex is the
+      safest: it survives URLs, filenames, shell arguments, CSV exports and case-insensitive
+      comparison, at the cost of being twice as long as it needs to be. The URL-safe set (letters,
+      digits, <code>-</code> and <code>_</code>) is the efficient middle ground and is what Base64url
+      and Nano ID both use.
+    </p>
+    <p>
+      Base58 drops <code>0</code>, <code>O</code>, <code>I</code> and <code>l</code> — the
+      characters people transcribe wrongly — which is why Bitcoin addresses use it and why it is a
+      good choice for anything someone might read aloud or retype off a screen. Avoid raw Base64
+      for identifiers that land in URLs: <code>+</code> and <code>/</code> both need escaping, and
+      the trailing <code>=</code> padding is stripped by some libraries and not others.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      "Possible values" in the stats above is the full keyspace, not a security claim. A short
+      string from a big alphabet can still be guessable: eight alphanumeric characters is about 48
+      bits, which is fine for a URL slug and far too little for a password-reset token, where 128
+      bits is the sensible floor. Duplicate characters you type into the alphabet are removed
+      before drawing — weighting a character by repeating it would quietly break the entropy figure
+      shown above.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    downloadText,
+    wireCopyButtons,
+    markUsed,
+  } from '~/lib/toolkit';
+  import {
+    randomString,
+    dedupeChars,
+    stripChars,
+    entropyBits,
+    AMBIGUOUS_CHARS,
+    CHARSETS,
+  } from '~/lib/random';
+
+  const PRESET_ALPHABETS: Record<string, string> = {
+    hex: CHARSETS.hexLower,
+    alphanumeric: CHARSETS.alphanumeric,
+    urlSafe: CHARSETS.urlSafe,
+    digits: CHARSETS.digits,
+    lowercase: CHARSETS.lowercase,
+    base58: CHARSETS.base58,
+  };
+
+  const MAX_LENGTH = 512;
+  const MAX_COUNT = 500;
+
+  mount('random-string-generator', (root) => {
+    const alphabetInput = q<HTMLInputElement>('#rs-alphabet', root)!;
+    const lengthInput = q<HTMLInputElement>('#rs-length', root)!;
+    const countInput = q<HTMLInputElement>('#rs-count', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const excludeAmbiguous = q<HTMLInputElement>('[data-opt="excludeAmbiguous"]', root)!;
+
+    alphabetInput.value = PRESET_ALPHABETS.hex!;
+
+    /** The alphabet actually drawn from, after dedupe and exclusions. */
+    const effectiveAlphabet = (): string => {
+      let alphabet = dedupeChars(alphabetInput.value);
+      if (excludeAmbiguous.checked) alphabet = stripChars(alphabet, AMBIGUOUS_CHARS);
+      return alphabet;
+    };
+
+    const markActivePreset = () => {
+      const current = alphabetInput.value;
+      for (const btn of qa('[data-preset]', root)) {
+        const active = PRESET_ALPHABETS[btn.dataset.preset!] === current;
+        btn.setAttribute('aria-pressed', String(active));
+        btn.classList.toggle('border-accent', active);
+        btn.classList.toggle('text-accent', active);
+      }
+    };
+
+    const generate = () => {
+      const alphabet = effectiveAlphabet();
+      const length = Number(lengthInput.value);
+      const count = Number(countInput.value);
+
+      if (!alphabet) {
+        return fail(
+          excludeAmbiguous.checked
+            ? 'Excluding look-alike characters emptied the alphabet. Add more characters or turn the option off.'
+            : 'Add at least one character to the alphabet.',
+        );
+      }
+      if (!Number.isInteger(length) || length < 1 || length > MAX_LENGTH) {
+        return fail(`Length must be a whole number between 1 and ${MAX_LENGTH}.`);
+      }
+      if (!Number.isInteger(count) || count < 1 || count > MAX_COUNT) {
+        return fail(`Generate between 1 and ${MAX_COUNT} strings at a time.`);
+      }
+
+      try {
+        const values = Array.from({ length: count }, () => randomString(length, alphabet));
+        output.value = values.join('\n');
+
+        const size = [...alphabet].length;
+        const bits = entropyBits(size, length);
+        stats.removeAttribute('hidden');
+        q('[data-stat-alphabet]', root)!.textContent = String(size);
+        q('[data-stat-bits]', root)!.textContent = bits.toFixed(1);
+        q('[data-stat-count]', root)!.textContent = count.toLocaleString();
+        q('[data-stat-space]', root)!.textContent =
+          bits > 60 ? `2^${bits.toFixed(0)}` : Math.round(2 ** bits).toLocaleString();
+
+        if (size === 1) {
+          setStatus(
+            root,
+            'A one-character alphabet can only produce one string — it carries zero bits of entropy.',
+            'warn',
+          );
+        } else {
+          clearStatus(root);
+        }
+        markUsed();
+      } catch (err) {
+        fail(messageFor(err));
+      }
+    };
+
+    function fail(message: string) {
+      output.value = '';
+      stats.setAttribute('hidden', '');
+      setStatus(root, message, 'error');
+    }
+
+    for (const btn of qa('[data-preset]', root)) {
+      on(btn, 'click', () => {
+        alphabetInput.value = PRESET_ALPHABETS[btn.dataset.preset!]!;
+        markActivePreset();
+        generate();
+      });
+    }
+
+    on(alphabetInput, 'input', markActivePreset);
+    on(alphabetInput, 'change', generate);
+    on(lengthInput, 'change', generate);
+    on(countInput, 'change', generate);
+    on(excludeAmbiguous, 'change', generate);
+    on(q('[data-generate]', root), 'click', generate);
+
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Generate something first.', 'warn');
+      downloadText('random-strings.txt', output.value + '\n', 'text/plain;charset=utf-8');
+    });
+
+    on(q('[data-clear]', root), 'click', () => {
+      output.value = '';
+      stats.setAttribute('hidden', '');
+      clearStatus(root);
+    });
+
+    wireCopyButtons(root);
+    markActivePreset();
+    generate();
+  });
+</script>

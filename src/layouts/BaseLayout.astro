@@ -1,0 +1,154 @@
+---
+/**
+ * The single HTML shell for every ByteCabin page.
+ *
+ * Owns: document head, canonical URL, Open Graph, theme bootstrap, skip link,
+ * header and footer. Pages supply only their own metadata and content.
+ */
+import '~/styles/global.css';
+import { SITE } from '~/consts';
+import Header from '~/components/Header.astro';
+import Footer from '~/components/Footer.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Path-only canonical override, e.g. "/tools/json-formatter". */
+  canonical?: string;
+  /** Appends " — ByteCabin" unless false (the homepage sets its own full title). */
+  appendBrand?: boolean;
+  noindex?: boolean;
+  /** JSON-LD objects injected as <script type="application/ld+json">. */
+  schema?: Record<string, unknown>[];
+  /** Wider container for index-style pages. */
+  wide?: boolean;
+  ogType?: 'website' | 'article';
+}
+
+const {
+  title,
+  description,
+  canonical,
+  appendBrand = true,
+  noindex = false,
+  schema = [],
+  wide = false,
+  ogType = 'website',
+} = Astro.props;
+
+const fullTitle = appendBrand ? `${title} — ${SITE.name}` : title;
+const canonicalUrl = new URL(canonical ?? Astro.url.pathname, SITE.url).href.replace(
+  /\/$/,
+  '',
+);
+const ogImageUrl = new URL(SITE.ogImage, SITE.url).href;
+
+/**
+ * Analytics configuration, read at build time.
+ *
+ * Both are public values by design: the beacon token identifies a site to
+ * Cloudflare Web Analytics and grants no access, and the events endpoint only
+ * ever receives an event name plus a tool slug. Neither is a secret, and
+ * neither is required for the site to work.
+ */
+const beaconToken = import.meta.env.PUBLIC_CF_BEACON_TOKEN ?? '';
+const eventsEndpoint = import.meta.env.PUBLIC_EVENTS_ENDPOINT ?? '';
+
+/**
+ * Runs before first paint so the correct theme is applied with no flash.
+ * Kept as a raw inline string — an external file would arrive too late.
+ */
+const themeBootstrap = `(function(){try{var s=localStorage.getItem('bc-theme');var d=s?s==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark');document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`;
+---
+
+<!doctype html>
+<html lang={SITE.locale} class="h-full">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <script is:inline set:html={themeBootstrap} />
+
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+    {noindex && <meta name="robots" content="noindex, follow" />}
+
+    <meta property="og:site_name" content={SITE.name} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content={SITE.lang} />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageUrl} />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content={SITE.themeColorLight} media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content={SITE.themeColorDark} media="(prefers-color-scheme: dark)" />
+
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+
+    {
+      schema.map((obj) => (
+        <script type="application/ld+json" is:inline set:html={JSON.stringify(obj)} />
+      ))
+    }
+
+    <slot name="head" />
+  </head>
+
+  <body class="flex min-h-full flex-col">
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-accent-ink"
+    >
+      Skip to content
+    </a>
+
+    <Header />
+
+    <main id="main" class="flex-1">
+      <div class={`mx-auto w-full px-4 sm:px-6 ${wide ? 'max-w-6xl' : 'max-w-4xl'}`}>
+        <slot />
+      </div>
+    </main>
+
+    <Footer />
+
+    {
+      /*
+        Cloudflare Web Analytics — cookie-free and fingerprint-free, so no
+        consent banner is required. The token is a public beacon identifier,
+        not a credential. When the variable is unset (local development and
+        preview builds) no script is emitted at all, so development traffic
+        never pollutes production numbers.
+      */
+    }
+    {
+      beaconToken && (
+        <script
+          is:inline
+          defer
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon={`{"token": "${beaconToken}"}`}
+        />
+      )
+    }
+
+    {
+      eventsEndpoint && (
+        <script is:inline set:html={`window.__BC_EVENTS_ENDPOINT=${JSON.stringify(eventsEndpoint)};`} />
+      )
+    }
+  </body>
+</html>

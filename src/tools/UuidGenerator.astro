@@ -1,0 +1,310 @@
+---
+/**
+ * UUID generator — v4 (random), v7 (time-ordered) and the nil UUID.
+ *
+ * All generation lives in src/lib/random.ts so the version and variant bits
+ * are unit-tested without a DOM. This file is wiring and presentation only.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="uuid-generator" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="grid gap-3 sm:grid-cols-2">
+      <div>
+        <label for="uuid-version" class="bc-label">Version</label>
+        <select id="uuid-version" class="bc-select">
+          <option value="v4" selected>Version 4 — random</option>
+          <option value="v7">Version 7 — time-ordered</option>
+          <option value="nil">Nil — all zeros</option>
+        </select>
+      </div>
+      <div>
+        <label for="uuid-count" class="bc-label">How many (1–1000)</label>
+        <input
+          id="uuid-count"
+          class="bc-input"
+          type="number"
+          min="1"
+          max="1000"
+          step="1"
+          value="5"
+          inputmode="numeric"
+        />
+      </div>
+    </div>
+
+    <fieldset class="rounded-lg border border-line p-3">
+      <legend class="px-1 text-xs font-medium tracking-wide text-muted uppercase">Format</legend>
+      <div class="bc-toolbar">
+        <label class="bc-check-label">
+          <input type="checkbox" class="bc-checkbox" data-opt="uppercase" />
+          Uppercase
+        </label>
+        <label class="bc-check-label">
+          <input type="checkbox" class="bc-checkbox" data-opt="nohyphens" />
+          Remove hyphens
+        </label>
+        <label class="bc-check-label">
+          <input type="checkbox" class="bc-checkbox" data-opt="braces" />
+          Wrap in braces
+        </label>
+        <label class="bc-check-label">
+          <input type="checkbox" class="bc-checkbox" data-opt="urn" />
+          <code>urn:uuid:</code> prefix
+        </label>
+      </div>
+    </fieldset>
+
+    {/* ── Actions ── */}
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-generate>Generate</button>
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-all>
+          <span data-label>Copy all</span>
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>
+          Download .txt
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      </div>
+    </div>
+
+    <div id="uuid-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-count>—</div>
+        <div class="bc-stat-label">Generated</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-bits>—</div>
+        <div class="bc-stat-label">Random bits each</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-length>—</div>
+        <div class="bc-stat-label">Characters each</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <span class="mb-1.5 block text-xs font-medium tracking-wide text-muted uppercase">
+        Result
+      </span>
+      <div class="bc-output max-h-[28rem] min-h-32 space-y-1" data-list tabindex="0"></div>
+      {/* Plain-text mirror, used by Copy all and Download. */}
+      <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+    </div>
+  </div>
+
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      It mints UUIDs in your browser using <code>crypto.getRandomValues()</code>, the same
+      cryptographically secure source your browser uses for TLS key material. Pick version 4 for
+      pure randomness, version 7 when you want identifiers that sort by creation time, or the nil
+      UUID when you need a well-known placeholder. Ask for one or ask for a thousand.
+    </p>
+    <p>
+      The formatting switches cover the shapes different ecosystems expect: bare lowercase for
+      PostgreSQL and JSON, uppercase inside braces for the Windows registry and COM, the 32-character
+      compact form for URLs, and the <code>urn:uuid:</code> prefix defined in RFC 9562 §4.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Seeding a database column or a fixture file with realistic primary keys.</li>
+      <li>Creating a correlation ID to thread one request through several services' logs.</li>
+      <li>Naming uploaded objects in S3 so two users cannot overwrite each other's file.</li>
+      <li>Producing an idempotency key for a payment API that requires one per attempt.</li>
+      <li>Filling a <code>uuid</code> field by hand while testing an endpoint in Postman or curl.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>One value, shown in each supported format:</p>
+    <pre><code>{`0190f6c2-4a51-7b19-8c3d-5e9a1b2c3d4e
+0190F6C2-4A51-7B19-8C3D-5E9A1B2C3D4E
+0190f6c24a517b198c3d5e9a1b2c3d4e
+{0190f6c2-4a51-7b19-8c3d-5e9a1b2c3d4e}
+urn:uuid:0190f6c2-4a51-7b19-8c3d-5e9a1b2c3d4e`}</code></pre>
+
+    <h2>Why version 7 is usually the better database key</h2>
+    <p>
+      A v4 UUID is 122 random bits with four pinned to the version and two to the variant. Two
+      values created a second apart have no relationship, so inserting them into a B-tree index
+      writes to a random leaf page every time. The index stops fitting in cache, pages split
+      constantly, and a table that was fast at a million rows is noticeably slower at fifty
+      million — the fragmentation problem that made people reach for auto-increment integers.
+    </p>
+    <p>
+      Version 7 fixes the ordering without giving up global uniqueness. Its first 48 bits are the
+      Unix timestamp in milliseconds, big-endian, followed by the version nibble and 74 random
+      bits. Sorting v7 values as text or as bytes puts them in creation order, so inserts land at
+      the right-hand edge of the index the way a sequence would, and <code>ORDER BY id</code>
+      becomes a usable proxy for <code>ORDER BY created_at</code>.
+    </p>
+    <p>
+      The trade is that a v7 value leaks when it was created, to the millisecond. If an identifier
+      is exposed publicly and that timing is sensitive — sign-up order, say — use v4 there.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Uniqueness is probabilistic, not guaranteed. With 122 random bits you would need to generate
+      about 2.7 × 10<sup>18</sup> v4 UUIDs before reaching a 50% chance of a single collision, which
+      is why nobody checks. What does break uniqueness is a weak random source: UUIDs built on
+      <code>Math.random()</code>, a bad server-side seed, or a container image that boots with the
+      same entropy pool have all caused real duplicate-key incidents. This tool never calls
+      <code>Math.random()</code>.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    copyText,
+    downloadText,
+    markUsed,
+  } from '~/lib/toolkit';
+  import { generateUuid, formatUuid, type UuidVersion } from '~/lib/random';
+
+  const MAX = 1000;
+
+  mount('uuid-generator', (root) => {
+    const versionSel = q<HTMLSelectElement>('#uuid-version', root)!;
+    const countInput = q<HTMLInputElement>('#uuid-count', root)!;
+    const list = q('[data-list]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const opt = (name: string) => q<HTMLInputElement>(`[data-opt="${name}"]`, root)!;
+
+    /** The unformatted values, kept so a format change need not re-randomise. */
+    let raw: string[] = [];
+
+    const format = () => ({
+      uppercase: opt('uppercase').checked,
+      hyphens: !opt('nohyphens').checked,
+      braces: opt('braces').checked,
+      urn: opt('urn').checked,
+    });
+
+    const render = () => {
+      const shown = raw.map((u) => formatUuid(u, format()));
+      mirror.value = shown.join('\n');
+
+      list.textContent = '';
+      shown.forEach((value, i) => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between gap-2';
+
+        const text = document.createElement('span');
+        text.className = 'truncate';
+        text.textContent = value; // never innerHTML
+        row.appendChild(text);
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'bc-btn bc-btn-ghost bc-btn-sm shrink-0';
+        btn.textContent = 'Copy';
+        btn.setAttribute('aria-label', `Copy UUID ${i + 1} of ${shown.length}`);
+        on(btn, 'click', () => void copyText(value, btn));
+        row.appendChild(btn);
+
+        list.appendChild(row);
+      });
+
+      if (shown.length) {
+        const version = versionSel.value as UuidVersion;
+        stats.removeAttribute('hidden');
+        q('[data-stat-count]', root)!.textContent = shown.length.toLocaleString();
+        q('[data-stat-bits]', root)!.textContent =
+          version === 'v4' ? '122' : version === 'v7' ? '74' : '0';
+        q('[data-stat-length]', root)!.textContent = String(shown[0]!.length);
+      } else {
+        stats.setAttribute('hidden', '');
+      }
+    };
+
+    const generate = () => {
+      const version = versionSel.value as UuidVersion;
+      const count = Number(countInput.value);
+
+      if (!Number.isInteger(count) || count < 1) {
+        return setStatus(root, 'Enter how many UUIDs you want — a whole number of 1 or more.', 'error');
+      }
+      if (count > MAX) {
+        return setStatus(
+          root,
+          `${count.toLocaleString()} is over the limit of ${MAX.toLocaleString()} per batch. Generate them in smaller runs.`,
+          'error',
+        );
+      }
+
+      try {
+        if (version === 'nil') {
+          raw = [generateUuid('nil')];
+          setStatus(
+            root,
+            'The nil UUID is a single fixed value, so the count is ignored for this version.',
+            'warn',
+          );
+        } else {
+          raw = Array.from({ length: count }, () => generateUuid(version));
+          clearStatus(root);
+        }
+        render();
+        markUsed();
+      } catch (err) {
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    on(q('[data-generate]', root), 'click', generate);
+    on(versionSel, 'change', generate);
+    on(countInput, 'change', generate);
+
+    // Format switches only re-render; the values themselves do not change.
+    for (const name of ['uppercase', 'nohyphens', 'braces', 'urn']) {
+      on(opt(name), 'change', () => {
+        // urn:uuid:{…} is not a legal URN, so the two wrappers are exclusive.
+        if (name === 'urn' && opt('urn').checked) opt('braces').checked = false;
+        if (name === 'braces' && opt('braces').checked) opt('urn').checked = false;
+        if (raw.length) render();
+      });
+    }
+
+    on(q('[data-copy-all]', root), 'click', (e) => {
+      if (!mirror.value) return setStatus(root, 'Generate some UUIDs first.', 'warn');
+      void copyText(mirror.value, e.currentTarget as HTMLElement);
+    });
+
+    on(q('[data-download]', root), 'click', () => {
+      if (!mirror.value) return setStatus(root, 'Generate some UUIDs first.', 'warn');
+      downloadText('uuids.txt', mirror.value + '\n', 'text/plain;charset=utf-8');
+    });
+
+    on(q('[data-clear]', root), 'click', () => {
+      raw = [];
+      render();
+      clearStatus(root);
+    });
+
+    // A page that starts empty makes people click before they see anything.
+    generate();
+  });
+</script>

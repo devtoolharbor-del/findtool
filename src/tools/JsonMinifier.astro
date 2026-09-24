@@ -1,0 +1,343 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_JSON_DEEP } from '~/lib/json';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="json-minifier" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="jm-mode" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Output
+        </label>
+        <select id="jm-mode" class="bc-select w-auto py-1.5 text-xs" data-mode>
+          <option value="minified" selected>Minified JSON</option>
+          <option value="escaped">Escaped string literal</option>
+          <option value="urlencoded">URL-encoded</option>
+        </select>
+      </div>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-strip-nulls />
+        Drop null-valued keys
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_JSON_DEEP}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>
+          Upload file
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input
+          type="file"
+          accept=".json,.txt,application/json,text/plain"
+          class="hidden"
+          data-file-input
+        />
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="jm-input" class="bc-label">JSON input</label>
+      <textarea
+        id="jm-input"
+        class="bc-textarea min-h-48"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste formatted JSON here…"
+        aria-describedby="jm-status"></textarea>
+    </div>
+
+    <div id="jm-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Actions ── */}
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-action="minify">Minify</button>
+      <div class="ml-auto flex gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-output>
+          <span data-label>Copy</span>
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>Download</button>
+      </div>
+    </div>
+
+    {/* ── Savings ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-before>—</div>
+        <div class="bc-stat-label">Original</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-after>—</div>
+        <div class="bc-stat-label">Minified</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-saved>—</div>
+        <div class="bc-stat-label">Saved</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-gzip>—</div>
+        <div class="bc-stat-label">Gzipped</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <label for="jm-output" class="bc-label">Result</label>
+      <textarea
+        id="jm-output"
+        class="bc-textarea max-h-80 min-h-32"
+        data-output
+        readonly
+        spellcheck="false"
+        placeholder="The minified result appears here."></textarea>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Minifying JSON means removing every byte that only exists for human readers: the newlines
+      between members, the indentation in front of them, and the space after each colon and comma.
+      Nothing else changes. The parsed value that comes out is identical to the one that went in.
+    </p>
+    <p>
+      The tool shows what that is worth — original size, minified size, the percentage saved and,
+      where your browser supports it, the gzipped size of the result — and can additionally emit
+      the JSON as an escaped string literal or percent-encoded, which is what you need when the
+      document has to survive a config file or a URL.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Packing a JSON value into an environment variable, a Kubernetes secret or a CI variable,
+        where a multi-line value is awkward or forbidden.
+      </li>
+      <li>Shrinking a fixture that is committed to a repository and read by machines only.</li>
+      <li>
+        Putting a small JSON payload into a query string or a data attribute, where the escaped and
+        URL-encoded forms matter more than the raw one.
+      </li>
+      <li>Trimming a response body before pasting it into a ticket or a chat message.</li>
+      <li>Measuring the real cost of pretty-printing a payload your API returns on every request.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>72 bytes of formatted JSON:</p>
+    <pre><code>{`{
+  "id": 7,
+  "tags": [
+    "alpha",
+    "beta"
+  ],
+  "active": true
+}`}</code></pre>
+    <p>becomes 46 bytes — a 36% saving:</p>
+    <pre><code>{'{"id":7,"tags":["alpha","beta"],"active":true}'}</code></pre>
+
+    <h2>What minifying does and does not change</h2>
+    <p>
+      The output is produced by parsing the document and re-serialising it, which has two visible
+      consequences beyond whitespace removal:
+    </p>
+    <ul>
+      <li>
+        <strong>Numbers are re-serialised.</strong> <code>1.0</code> becomes <code>1</code>,
+        <code>1e3</code> becomes <code>1000</code> and <code>1.50</code> becomes <code>1.5</code>.
+        The values are equal; the text is not. If you are comparing checksums of the document
+        rather than of the data, that difference matters.
+      </li>
+      <li>
+        <strong>Escapes are normalised.</strong> A string written as <code>{'"caf\\u00e9"'}</code> comes back as
+        <code>"café"</code>, because only <code>"</code>, <code>\</code> and the control characters
+        below <code>U+0020</code> have to be escaped. Both spellings are correct JSON for the same
+        string, but a byte-for-byte comparison will disagree.
+      </li>
+    </ul>
+    <p>
+      Key order is never touched, so a minified document diffs cleanly against another minified
+      document from the same source.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Over HTTP, minifying is worth much less than it looks. Whitespace is the most compressible
+      thing in a document — long runs of identical spaces are exactly what DEFLATE encodes in a few
+      bits — so a payload that shrinks 30% when minified often shrinks only 2–5% more after gzip or
+      Brotli compression on top. If your API already sends
+      <code>Content-Encoding: gzip</code>, spend the effort on the number of fields you return
+      instead. Minifying still wins where compression is not in play: env vars, URLs, database
+      columns and log lines.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    wireStandardActions,
+    wireFileInput,
+    readFileText,
+    formatBytes,
+    byteLength,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { parseJson, JsonParseError } from '~/lib/json';
+
+  mount('json-minifier', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const mode = q<HTMLSelectElement>('[data-mode]', root)!;
+    const stripNulls = q<HTMLInputElement>('[data-strip-nulls]', root)!;
+
+    /** Remove keys whose value is null, recursively. Arrays keep their holes. */
+    const dropNulls = (value: unknown): unknown => {
+      if (Array.isArray(value)) return value.map(dropNulls);
+      if (value && typeof value === 'object') {
+        const out: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+          if (v === null) continue;
+          out[k] = dropNulls(v);
+        }
+        return out;
+      }
+      return value;
+    };
+
+    const gzipSize = async (text: string): Promise<number | null> => {
+      const Compression = (window as any).CompressionStream;
+      if (typeof Compression !== 'function') return null;
+      try {
+        const stream = new Blob([text]).stream().pipeThrough(new Compression('gzip'));
+        const buffer = await new Response(stream).arrayBuffer();
+        return buffer.byteLength;
+      } catch {
+        return null;
+      }
+    };
+
+    const run = () => {
+      const text = input.value;
+      if (!text.trim()) {
+        clearStatus(root);
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        return;
+      }
+
+      try {
+        guardSize(text);
+        let value = parseJson(text);
+        if (stripNulls.checked) value = dropNulls(value);
+
+        const minified = JSON.stringify(value);
+        const result =
+          mode.value === 'escaped'
+            ? JSON.stringify(minified)
+            : mode.value === 'urlencoded'
+              ? encodeURIComponent(minified)
+              : minified;
+
+        output.value = result;
+        clearStatus(root);
+
+        const before = byteLength(text);
+        const after = byteLength(result);
+        const saved = before - after;
+        const percent = before > 0 ? Math.round((saved / before) * 1000) / 10 : 0;
+
+        stats.removeAttribute('hidden');
+        q('[data-stat-before]', root)!.textContent = formatBytes(before);
+        q('[data-stat-after]', root)!.textContent = formatBytes(after);
+        q('[data-stat-saved]', root)!.textContent =
+          saved >= 0 ? `${percent}%` : `+${Math.abs(percent)}%`;
+
+        const gzipSlot = q('[data-stat-gzip]', root)!;
+        gzipSlot.textContent = '…';
+        void gzipSize(result).then((size) => {
+          gzipSlot.textContent = size === null ? 'n/a' : formatBytes(size);
+        });
+
+        if (saved < 0) {
+          setStatus(
+            root,
+            'This output is larger than the input — escaping and URL-encoding both add characters.',
+            'warn',
+          );
+        }
+        markUsed();
+      } catch (err) {
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        if (err instanceof JsonParseError) {
+          const d = err.detail;
+          setStatus(
+            root,
+            `${d.message}${d.line !== undefined ? ` (line ${d.line}, column ${d.column ?? 1})` : ''}`,
+            'error',
+          );
+        } else {
+          setStatus(root, messageFor(err), 'error');
+        }
+      }
+    };
+
+    on(q('[data-action="minify"]', root), 'click', run);
+    on(mode, 'change', () => input.value && run());
+    on(stripNulls, 'change', () => input.value && run());
+    on(input, 'input', debounce(run, 400));
+
+    on(q('[data-copy-output]', root), 'click', (e) => {
+      if (!output.value) return setStatus(root, 'Minify something first.', 'warn');
+      void copyText(output.value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Minify something first.', 'warn');
+      const name = mode.value === 'minified' ? 'minified.json' : 'minified.txt';
+      downloadText(name, output.value, mode.value === 'minified' ? 'application/json' : 'text/plain');
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          run();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, {
+      onChange: () => {
+        stats.setAttribute('hidden', '');
+        if (input.value) run();
+      },
+    });
+  });
+</script>

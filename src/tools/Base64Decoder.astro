@@ -1,0 +1,379 @@
+---
+/**
+ * Base64 Decoder.
+ *
+ * Decodes to text when the bytes are valid UTF-8, and offers a file download
+ * when they are not — showing a screen of replacement characters helps nobody.
+ * Logic lives in src/lib/base64.ts.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_BASE64 } from '~/lib/base64';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="base64-decoder" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="b64d-encoding" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Read bytes as
+        </label>
+        <select id="b64d-encoding" class="bc-select w-auto py-1.5 text-xs">
+          <option value="utf-8" selected>UTF-8</option>
+          <option value="latin1">Latin-1 (one byte per character)</option>
+        </select>
+      </div>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_BASE64}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>
+          Upload file
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input type="file" accept=".txt,.b64,.base64,text/plain" class="hidden" data-file-input />
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="b64d-input" class="bc-label">Base64 to decode</label>
+      <textarea
+        id="b64d-input"
+        class="bc-textarea min-h-40 font-mono"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste Base64 here — line breaks, padding and data: URI prefixes are all fine…"
+        aria-describedby="b64d-status"></textarea>
+    </div>
+
+    {/* ── Status ── */}
+    <div id="b64d-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-chars>—</div>
+        <div class="bc-stat-label">Base64 length</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-bytes>—</div>
+        <div class="bc-stat-label">Decoded size</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-alphabet>—</div>
+        <div class="bc-stat-label">Alphabet</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-type>—</div>
+        <div class="bc-stat-label">Content</div>
+      </div>
+    </div>
+
+    {/* ── Binary result: shown instead of text when the bytes are not UTF-8 ── */}
+    <div class="bc-card p-3" data-binary hidden>
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-medium text-ink">This is binary, not text</p>
+          <p class="text-xs text-muted" data-binary-meta></p>
+        </div>
+        <img class="max-h-28 rounded border border-line" data-binary-preview alt="Preview of the decoded image" hidden />
+        <button type="button" class="bc-btn bc-btn-primary bc-btn-sm" data-download-binary>
+          Download file
+        </button>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+        <label for="b64d-output" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Decoded text
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+            <span data-label>Copy</span>
+          </button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>
+            Download
+          </button>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-swap>
+            Swap fields
+          </button>
+        </div>
+      </div>
+      <textarea
+        id="b64d-output"
+        class="bc-textarea min-h-40"
+        data-output
+        readonly
+        spellcheck="false"
+        aria-label="Decoded text"></textarea>
+    </div>
+
+    <p class="text-xs text-muted">
+      Going the other way? Use the <a class="text-accent underline" href="/tools/base64-encoder">Base64 Encoder</a>.
+    </p>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Paste a Base64 string and this decoder turns it back into what it was. If the bytes are text
+      it shows them; if they are a PNG, a ZIP or a key file it says so and offers a download rather
+      than filling the screen with replacement characters.
+    </p>
+    <p>
+      Both alphabets are accepted without you having to choose: the standard one with
+      <code>+</code> and <code>/</code>, and the URL-safe one with <code>-</code> and
+      <code>_</code>. Padding may be present, absent or wrong. Line breaks, stray spaces and a
+      leading <code>data:image/png;base64,</code> are all stripped before decoding.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Reading a Kubernetes secret. <code>kubectl get secret -o yaml</code> returns every value
+        Base64-encoded, and the interesting part is usually one field.
+      </li>
+      <li>
+        Recovering the image behind a data URI you found in a stylesheet or an email's HTML source.
+      </li>
+      <li>
+        Checking what a Basic auth header actually contains — it decodes to
+        <code>username:password</code> with no hashing whatsoever.
+      </li>
+      <li>Unpacking a Base64 field from a log line or a webhook payload to see what a system sent.</li>
+      <li>Opening a certificate body to confirm it is the key you think it is.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>This input:</p>
+    <pre><code>SGVsbG8sIHdvcmxkIQ==</code></pre>
+    <p>decodes to:</p>
+    <pre><code>Hello, world!</code></pre>
+    <p>
+      And a string in the URL-safe alphabet decodes identically —
+      <code>aGVsbG8-d29ybGQ_</code> and <code>aGVsbG8+d29ybGQ/</code> are the same nine bytes.
+    </p>
+
+    <h2>Why a string fails to decode</h2>
+    <p>
+      Four problems account for nearly every failure, and this tool names whichever one it finds
+      rather than reporting a generic error:
+    </p>
+    <ul>
+      <li>
+        <strong>A truncated string.</strong> If the length leaves a remainder of 1 when divided by
+        4, no sequence of bytes could have produced it — a character was lost in a copy.
+      </li>
+      <li>
+        <strong>A character that is not in either alphabet.</strong> A space that should have been a
+        <code>+</code> is the classic case: passing Base64 through an unencoded query parameter
+        turns every <code>+</code> into a space.
+      </li>
+      <li>
+        <strong>Padding in the middle</strong>, which means two strings were concatenated.
+      </li>
+      <li>
+        <strong>Both alphabets at once</strong>, which usually means a find-and-replace ran over
+        only part of the value.
+      </li>
+    </ul>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Base64 hides nothing. A token, a password or a key pasted here was never protected by the
+      encoding — anyone who intercepted it could read it just as easily. Treat a decoded credential
+      as compromised if it travelled anywhere untrusted.
+    </p>
+    <p>
+      One subtlety about Latin-1 mode: it is not a fallback for broken UTF-8, it is a different
+      interpretation. Every byte becomes exactly one character, so bytes that are meaningless as
+      UTF-8 still produce output — output that is only correct if the data really was Latin-1.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    downloadText,
+    downloadBlob,
+    wireStandardActions,
+    wireSwap,
+    wireFileInput,
+    readFileText,
+    formatBytes,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import {
+    decodeToBytes,
+    decodeBase64Latin1,
+    validateBase64,
+    normalizeBase64,
+    isValidUtf8,
+    sniffMimeType,
+    toDataUri,
+    encodeBytes,
+  } from '~/lib/base64';
+
+  mount('base64-decoder', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const encoding = q<HTMLSelectElement>('#b64d-encoding', root)!;
+    const stats = q('[data-stats]', root)!;
+    const binaryPanel = q('[data-binary]', root)!;
+    const binaryPreview = q<HTMLImageElement>('[data-binary-preview]', root)!;
+
+    let decodedBytes: Uint8Array | null = null;
+    let decodedExtension = 'bin';
+    let decodedMime = 'application/octet-stream';
+
+    const reset = () => {
+      output.value = '';
+      decodedBytes = null;
+      stats.setAttribute('hidden', '');
+      binaryPanel.setAttribute('hidden', '');
+      binaryPreview.setAttribute('hidden', '');
+      binaryPreview.removeAttribute('src');
+    };
+
+    const run = () => {
+      const raw = input.value;
+      if (!raw.trim()) {
+        clearStatus(root);
+        reset();
+        return;
+      }
+
+      try {
+        guardSize(raw);
+        const check = validateBase64(raw);
+        if (!check.valid) {
+          reset();
+          setStatus(root, check.reason ?? 'This is not valid Base64.', 'error');
+          return;
+        }
+
+        const bytes = decodeToBytes(raw);
+        decodedBytes = bytes;
+
+        const sniffed = sniffMimeType(bytes);
+        decodedExtension = sniffed.extension;
+        decodedMime = sniffed.mime;
+
+        stats.removeAttribute('hidden');
+        q('[data-stat-chars]', root)!.textContent =
+          `${normalizeBase64(raw).length.toLocaleString()} chars`;
+        q('[data-stat-bytes]', root)!.textContent = formatBytes(bytes.length);
+        q('[data-stat-alphabet]', root)!.textContent = check.urlSafe ? 'URL-safe' : 'Standard';
+        q('[data-stat-type]', root)!.textContent = sniffed.mime;
+
+        const wantsLatin1 = encoding.value === 'latin1';
+
+        if (wantsLatin1) {
+          binaryPanel.setAttribute('hidden', '');
+          output.value = decodeBase64Latin1(raw);
+          setStatus(
+            root,
+            'Decoded as Latin-1: every byte became one character. Switch back to UTF-8 unless you know the source was Latin-1.',
+            'warn',
+          );
+          markUsed();
+          return;
+        }
+
+        if (isValidUtf8(bytes)) {
+          binaryPanel.setAttribute('hidden', '');
+          binaryPreview.setAttribute('hidden', '');
+          output.value = new TextDecoder('utf-8').decode(bytes);
+          clearStatus(root);
+          markUsed();
+          return;
+        }
+
+        // Binary: never show mojibake, offer the file instead.
+        output.value = '';
+        binaryPanel.removeAttribute('hidden');
+        q('[data-binary-meta]', root)!.textContent =
+          `${formatBytes(bytes.length)} of ${sniffed.mime} — these bytes are not valid UTF-8, so there is no text to show.`;
+
+        if (sniffed.mime.startsWith('image/')) {
+          binaryPreview.src = toDataUri(sniffed.mime, encodeBytes(bytes, { padding: true }));
+          binaryPreview.removeAttribute('hidden');
+        } else {
+          binaryPreview.setAttribute('hidden', '');
+          binaryPreview.removeAttribute('src');
+        }
+
+        setStatus(
+          root,
+          `Decoded ${formatBytes(bytes.length)} of binary data (${sniffed.mime}). Download it as a file below.`,
+          'warn',
+        );
+        markUsed();
+      } catch (err) {
+        reset();
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    on(input, 'input', debounce(run, 250));
+    on(encoding, 'change', run);
+
+    on(q('[data-download-binary]', root), 'click', () => {
+      if (!decodedBytes) return;
+      downloadBlob(
+        `decoded.${decodedExtension}`,
+        new Blob([decodedBytes.slice()], { type: decodedMime }),
+      );
+    });
+
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Decode something first.', 'warn');
+      downloadText('decoded.txt', output.value);
+    });
+
+    // Swap is the fix for pasting plain text into the Base64 box by mistake.
+    wireSwap(root, '[data-primary-input]', '[data-output]', () => {
+      setStatus(root, 'Fields swapped. To turn text into Base64, open the Base64 Encoder.', 'warn');
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          run();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, {
+      onChange: () => {
+        reset();
+        if (input.value) run();
+      },
+    });
+  });
+</script>

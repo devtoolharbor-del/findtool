@@ -1,0 +1,44 @@
+---
+import type { Tool } from '~/types';
+import { CATEGORY_MAP } from '~/data/categories';
+import Icon from '~/components/Icon.astro';
+
+interface Props {
+  tool: Tool;
+  /** Show the category badge — off on category pages where it is redundant. */
+  showCategory?: boolean;
+  /** Marks the link as coming from a related-tools block, for analytics. */
+  fromRelated?: boolean;
+}
+
+const { tool, showCategory = true, fromRelated = false } = Astro.props;
+const category = CATEGORY_MAP[tool.category];
+---
+
+<a
+  href={`/tools/${tool.slug}`}
+  class="bc-card group flex gap-3 hover:border-line-strong"
+  data-related={fromRelated ? '' : undefined}
+>
+  <span
+    class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-line bg-surface-2 text-muted transition-colors group-hover:border-accent-line group-hover:text-accent"
+  >
+    <Icon name={tool.icon} size={18} />
+  </span>
+
+  <span class="min-w-0 flex-1">
+    <span class="flex items-start justify-between gap-2">
+      <span class="text-[0.9375rem] font-medium text-ink group-hover:text-accent">
+        {tool.name}
+      </span>
+      {
+        showCategory && category && (
+          <span class="mt-0.5 shrink-0 rounded border border-line px-1.5 py-0.5 text-[10px] whitespace-nowrap text-muted">
+            {category.shortName}
+          </span>
+        )
+      }
+    </span>
+    <span class="mt-1 block text-sm leading-relaxed text-muted">{tool.description}</span>
+  </span>
+</a>

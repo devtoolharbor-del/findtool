@@ -1,0 +1,408 @@
+---
+/**
+ * SHA-256 generator (also SHA-384 and SHA-512, which are the same code path).
+ *
+ * All hashing goes through `crypto.subtle` in src/lib/hash.ts, so the digest
+ * is computed by the browser's own native implementation and nothing about
+ * the input leaves the tab.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+const EXAMPLE = 'The quick brown fox jumps over the lazy dog';
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="sha256-generator" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="sha-algorithm" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Algorithm
+        </label>
+        <select id="sha-algorithm" class="bc-select w-auto py-1.5 text-xs" data-algorithm>
+          <option value="SHA-256" selected>SHA-256</option>
+          <option value="SHA-384">SHA-384</option>
+          <option value="SHA-512">SHA-512</option>
+        </select>
+      </div>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={EXAMPLE}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>
+          Hash a file
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input type="file" class="hidden" data-file-input />
+      </div>
+    </div>
+
+    {/* ── Input: text ── */}
+    <div>
+      <label for="sha-input" class="bc-label">Text to hash</label>
+      <textarea
+        id="sha-input"
+        class="bc-textarea min-h-40"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste text here, or use “Hash a file” to check a download…"
+        aria-describedby="sha-status"></textarea>
+    </div>
+
+    {/* ── Input: file, shown once one is loaded ── */}
+    <div
+      class="flex flex-wrap items-center gap-3 rounded-lg border border-line-strong bg-surface-2 px-3 py-2 text-sm"
+      data-file-banner
+      hidden
+    >
+      <span class="text-xs font-medium tracking-wide text-muted uppercase">Hashing file</span>
+      <span class="font-medium text-ink" data-file-name></span>
+      <span class="text-muted" data-file-size></span>
+      <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm ml-auto" data-file-remove>
+        Use text instead
+      </button>
+    </div>
+
+    {/* ── Status ── */}
+    <div id="sha-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Output ── */}
+    <div>
+      <div class="bc-toolbar mb-1.5">
+        <span class="text-xs font-medium tracking-wide text-muted uppercase">Digest</span>
+
+        <div class="flex items-center gap-2">
+          <label for="sha-encoding" class="sr-only">Output encoding</label>
+          <select id="sha-encoding" class="bc-select w-auto py-1 text-xs" data-encoding>
+            <option value="hex" selected>Hex</option>
+            <option value="base64">Base64</option>
+          </select>
+        </div>
+
+        <label class="bc-check-label text-xs">
+          <input type="checkbox" class="bc-checkbox" data-uppercase />
+          Uppercase
+        </label>
+
+        <div class="ml-auto flex gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+            <span data-label>Copy</span>
+          </button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>
+            Download
+          </button>
+        </div>
+      </div>
+
+      <pre class="bc-output min-h-16 break-all" data-output-display tabindex="0"></pre>
+      <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+    </div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-3 gap-2" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-algorithm>—</div>
+        <div class="bc-stat-label">Algorithm</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-bits>—</div>
+        <div class="bc-stat-label">Digest size</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-input>—</div>
+        <div class="bc-stat-label">Input</div>
+      </div>
+    </div>
+
+    {/* ── Checksum comparison ── */}
+    <div class="rounded-lg border border-line bg-surface-2 p-3">
+      <label for="sha-expected" class="bc-label">Compare with an expected checksum</label>
+      <input
+        id="sha-expected"
+        type="text"
+        class="bc-input font-mono text-[0.8125rem]"
+        data-expected
+        data-clear-target
+        spellcheck="false"
+        autocomplete="off"
+        placeholder="Paste the published SHA-256 from the download page…"
+      />
+      <p class="mt-1.5 text-xs text-muted">
+        A whole <code>sha256sum</code> line works too — the file name and any
+        <code>SHA256 (file) =</code> wrapper are ignored.
+      </p>
+      <div class="mt-2" data-compare hidden></div>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      SHA-256 turns any input — a sentence, a 200 MB installer, a signed payload — into the same
+      256-bit fingerprint every time. This page computes that fingerprint for text you paste or a
+      file you choose, prints it as hex or Base64, and compares it against a checksum you already
+      have. The digest is produced by your browser's own <code>crypto.subtle.digest()</code>, so
+      the file is read off your disk and never uploaded.
+    </p>
+    <p>
+      The selector also offers SHA-384 and SHA-512 — the same SHA-2 family, wider internally, and
+      for this job different only in digest length: 64, 96 and 128 hex characters.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Verifying a download against the <code>SHA256SUMS</code> file a project publishes — the one
+        job this page is built around.
+      </li>
+      <li>Confirming a file restored from a backup is byte-identical to the original.</li>
+      <li>Producing a content fingerprint for a cache key, an ETag or a deduplication index.</li>
+      <li>
+        Getting the Base64 form a Subresource Integrity attribute or a Content-Security-Policy
+        hash needs.
+      </li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>Input:</p>
+    <pre><code>The quick brown fox jumps over the lazy dog</code></pre>
+    <p>SHA-256, hex:</p>
+    <pre><code>d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592</code></pre>
+    <p>The same 32 bytes, Base64:</p>
+    <pre><code>16j7swfXgJRpypq8sAguT41WUeRtPNt2LQLQvzfJ5ZI=</code></pre>
+    <p>
+      Add a single full stop to the input and every one of those characters changes. That is the
+      point: there is no "close enough" in a digest comparison.
+    </p>
+
+    <h2>SHA-256 is not a password hashing function</h2>
+    <p>
+      SHA-256 is fast by design — a modern GPU computes billions of operations per second, which is
+      exactly why Bitcoin mining uses it. Speed is a virtue when fingerprinting a 4 GB ISO and a
+      catastrophe for stored passwords, because the same hardware chews through a leaked table at
+      the same rate. Salting defeats precomputed tables but does nothing about raw speed.
+    </p>
+    <p>
+      Use a deliberately slow, memory-hard, salted algorithm instead: <strong>Argon2id</strong>
+      first, with <strong>scrypt</strong> and <strong>bcrypt</strong> as well-supported
+      alternatives. Each has a cost parameter you raise as hardware improves. SHA-256 has none.
+    </p>
+    <p>
+      Nor is there any way to reverse a digest. Hashing is one-way and keyless, so nothing here
+      decrypts anything; sites offering to "decrypt SHA-256" are looking your value up in a table
+      of previously hashed common inputs.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      A digest covers bytes, not characters. Text here is hashed as UTF-8, and a trailing newline
+      your editor added silently is enough to break a comparison — check for that before suspecting
+      the file.
+    </p>
+    <p>
+      SHA-256 has no known collision or preimage attack. The length-extension property it shares
+      with every Merkle–Damgård construction only bites if you invent your own
+      <code>hash(secret ‖ message)</code> scheme. Do not; use HMAC, which is immune by design.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    downloadText,
+    wireStandardActions,
+    wireFileInput,
+    readFileBuffer,
+    formatBytes,
+    byteLength,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import {
+    hashText,
+    hashBytes,
+    formatDigest,
+    compareChecksum,
+    toHex,
+    DIGEST_BYTES,
+    type ShaAlgorithm,
+    type DigestEncoding,
+  } from '~/lib/hash';
+
+  mount('sha256-generator', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const display = q<HTMLElement>('[data-output-display]', root)!;
+    const algorithmSelect = q<HTMLSelectElement>('[data-algorithm]', root)!;
+    const encodingSelect = q<HTMLSelectElement>('[data-encoding]', root)!;
+    const uppercase = q<HTMLInputElement>('[data-uppercase]', root)!;
+    const expected = q<HTMLInputElement>('[data-expected]', root)!;
+    const compareSlot = q<HTMLElement>('[data-compare]', root)!;
+    const stats = q<HTMLElement>('[data-stats]', root)!;
+    const banner = q<HTMLElement>('[data-file-banner]', root)!;
+
+    /** Raw digest bytes for the current input, or null when there is none. */
+    let digest: Uint8Array | null = null;
+    /** Loaded file, if the user chose one. Takes priority over the textarea. */
+    let file: { name: string; bytes: Uint8Array } | null = null;
+
+    const algorithm = () => algorithmSelect.value as ShaAlgorithm;
+    const encoding = () => encodingSelect.value as DigestEncoding;
+
+    const clearOutput = () => {
+      digest = null;
+      display.textContent = '';
+      mirror.value = '';
+      stats.setAttribute('hidden', '');
+      compareSlot.setAttribute('hidden', '');
+      compareSlot.textContent = '';
+    };
+
+    /** Render the digest in the chosen encoding, plus the stat chips. */
+    const paint = () => {
+      if (!digest) return clearOutput();
+
+      const algo = algorithm();
+      const text = formatDigest(digest, encoding(), uppercase.checked);
+      display.textContent = text;
+      mirror.value = text;
+
+      stats.removeAttribute('hidden');
+      q('[data-stat-algorithm]', root)!.textContent = algo;
+      q('[data-stat-bits]', root)!.textContent = `${DIGEST_BYTES[algo] * 8} bits`;
+      q('[data-stat-input]', root)!.textContent = file
+        ? formatBytes(file.bytes.length)
+        : formatBytes(byteLength(input.value));
+
+      renderComparison();
+    };
+
+    /** The reason most people opened this page: does it match or not? */
+    const renderComparison = () => {
+      const raw = expected.value;
+      if (!digest || !raw.trim()) {
+        compareSlot.setAttribute('hidden', '');
+        compareSlot.textContent = '';
+        return;
+      }
+
+      const result = compareChecksum(raw, digest, algorithm());
+      const tone =
+        result.status === 'match'
+          ? 'bc-alert-ok'
+          : result.status === 'mismatch'
+            ? 'bc-alert-error'
+            : 'bc-alert-warn';
+
+      // Built with DOM nodes — the message is ours, but the habit is what
+      // keeps user input out of innerHTML everywhere on the site.
+      const box = document.createElement('div');
+      box.className = `bc-alert ${tone}`;
+      const strong = document.createElement('strong');
+      strong.textContent = result.status === 'match' ? 'Match' : 'No match';
+      const span = document.createElement('span');
+      span.textContent = result.message.replace(/^(Match|No match)\s*—\s*/, '');
+      box.append(strong, span);
+
+      compareSlot.textContent = '';
+      compareSlot.appendChild(box);
+      compareSlot.removeAttribute('hidden');
+    };
+
+    const run = async () => {
+      try {
+        if (file) {
+          digest = await hashBytes(file.bytes, algorithm());
+        } else {
+          const text = input.value;
+          if (!text) {
+            clearStatus(root);
+            clearOutput();
+            return;
+          }
+          guardSize(text);
+          digest = await hashText(text, algorithm());
+        }
+        clearStatus(root);
+        markUsed();
+        paint();
+      } catch (err) {
+        clearOutput();
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    const useFile = (name: string, bytes: Uint8Array | null) => {
+      if (!bytes) {
+        file = null;
+        banner.setAttribute('hidden', '');
+        input.disabled = false;
+      } else {
+        file = { name, bytes };
+        q('[data-file-name]', root)!.textContent = name;
+        q('[data-file-size]', root)!.textContent = formatBytes(bytes.length);
+        banner.removeAttribute('hidden');
+        // A file wins over the textarea, so make that visible rather than
+        // silently ignoring whatever is typed above.
+        input.disabled = true;
+      }
+      void run();
+    };
+
+    on(input, 'input', debounce(run, 180));
+    on(algorithmSelect, 'change', run);
+    on(encodingSelect, 'change', () => {
+      // Base64 is case-significant: upper-casing it would produce a different
+      // value, not the same value styled differently.
+      uppercase.disabled = encoding() === 'base64';
+      paint();
+    });
+    on(uppercase, 'change', paint);
+    on(expected, 'input', debounce(renderComparison, 120));
+    on(q('[data-file-remove]', root), 'click', () => useFile('', null));
+
+    on(q('[data-download]', root), 'click', () => {
+      if (!mirror.value) return setStatus(root, 'Hash something first.', 'warn');
+      const algo = algorithm().toLowerCase().replace('-', '');
+      const line = file
+        ? `${toHex(digest!)}  ${file.name}\n`
+        : `${formatDigest(digest!, encoding(), uppercase.checked)}\n`;
+      downloadText(`${file ? file.name : 'digest'}.${algo}`, line);
+    });
+
+    wireFileInput(
+      root,
+      async (chosen) => {
+        try {
+          const buffer = await readFileBuffer(chosen);
+          useFile(chosen.name, new Uint8Array(buffer));
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, {
+      onChange: () => {
+        useFile('', null);
+      },
+    });
+  });
+</script>

@@ -1,0 +1,98 @@
+---
+import { SITE, CONTACT } from '~/consts';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import Breadcrumbs from '~/components/Breadcrumbs.astro';
+import type { Crumb } from '~/types';
+import { TOOLS } from '~/data/tools';
+import { CATEGORIES } from '~/data/categories';
+
+const crumbs: Crumb[] = [{ label: 'Home', href: '/' }, { label: 'About' }];
+---
+
+<BaseLayout
+  title="About ByteCabin"
+  description={`What ByteCabin is, why it exists, and how its ${TOOLS.length} browser-based developer tools are built and funded.`}
+  canonical="/about"
+>
+  <div class="py-6 sm:py-8">
+    <Breadcrumbs items={crumbs} />
+    <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">About ByteCabin</h1>
+
+    <div class="bc-prose mt-6">
+      <p>
+        ByteCabin is a collection of {TOOLS.length} small, focused utilities for the things developers
+        do dozens of times a week: making sense of a JSON response, decoding a token, converting a
+        timestamp, testing a regular expression, cleaning up a list.
+      </p>
+
+      <h2>Why it exists</h2>
+      <p>
+        Tools like these already exist, but most of them are unpleasant to use. They are slow to
+        load, covered in ads that outnumber the controls, interrupted by newsletter popups, or —
+        worst of all — they quietly send whatever you paste to a server you know nothing about.
+        Pasting a production API response or a bearer token into a site like that is a genuine
+        security problem, and it happens constantly because the tools are convenient.
+      </p>
+      <p>
+        ByteCabin is the version of those tools we wanted to use: fast, plain, and honest about
+        where your data goes.
+      </p>
+
+      <h2>How it works</h2>
+      <p>
+        Every tool on this site runs as JavaScript inside your own browser tab. There is no
+        backend that receives your input, because there is no backend at all — the site is static
+        HTML and JavaScript served from a CDN. When a page says your data is processed locally,
+        that is a statement about the architecture, not a promise about our intentions.
+      </p>
+      <p>
+        You can verify this yourself: open your browser's network tab, use any tool, and watch
+        that nothing is sent. Disconnecting from the internet entirely also works — every tool
+        keeps functioning once the page has loaded.
+      </p>
+
+      <h2>What we do and do not collect</h2>
+      <p>
+        We use privacy-focused analytics that records aggregate pageviews, referrers, countries
+        and device types. It sets no cookies and does not follow you between sites. We never
+        collect, log or transmit the content you paste into a tool. The full detail is in the
+        <a href="/privacy">privacy policy</a>.
+      </p>
+
+      <h2>How it is organised</h2>
+      <p>
+        Tools are grouped into {CATEGORIES.length} categories —
+        {CATEGORIES.map((c) => c.name).join(', ')} — and every tool page links to the handful of
+        other tools you are most likely to need next. If you prefer searching, press
+        <kbd>⌘K</kbd> (or <kbd>/</kbd>) anywhere on the site.
+      </p>
+
+      <h2>How it is funded</h2>
+      <p>
+        ByteCabin is free and has no paid tier. It may carry advertising in future to cover
+        hosting and development time. If that happens, ads will sit in clearly labelled places
+        outside the tool interface — never disguised as buttons, never interrupting what you are
+        doing, and never in a position that pushes the tool below the fold.
+      </p>
+
+      <h2>New tools</h2>
+      <p>
+        The tool list grows. If something you use regularly is missing, or an existing tool is
+        missing an option that would make it genuinely more useful, tell us at
+        <a href={`mailto:${CONTACT.general}`}>{CONTACT.general}</a>. Specific requests from people
+        who would actually use the result are the best input we get.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        General enquiries: <a href={`mailto:${CONTACT.general}`}>{CONTACT.general}</a><br />
+        Bug reports and tool problems: <a href={`mailto:${CONTACT.support}`}>{CONTACT.support}</a
+        ><br />
+        Privacy questions: <a href={`mailto:${CONTACT.privacy}`}>{CONTACT.privacy}</a>
+      </p>
+      <p>
+        More detail on getting in touch is on the <a href="/contact">contact page</a>.
+      </p>
+    </div>
+  </div>
+</BaseLayout>

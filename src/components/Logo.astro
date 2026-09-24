@@ -1,0 +1,29 @@
+---
+/**
+ * The ByteCabin mark: a cabin roof over a square "byte" body.
+ * Geometric, monochrome, and legible down to 16px.
+ */
+interface Props {
+  size?: number;
+  class?: string;
+}
+const { size = 26, class: className = '' } = Astro.props;
+---
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.9"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  class={className}
+  aria-hidden="true"
+>
+  <path d="M2.5 11.2 12 3.5l9.5 7.7" />
+  <path d="M5.2 13.2v6.1a1.2 1.2 0 0 0 1.2 1.2h11.2a1.2 1.2 0 0 0 1.2-1.2v-6.1" />
+  <path d="M9.8 20.5v-4.4a2.2 2.2 0 0 1 4.4 0v4.4" />
+</svg>

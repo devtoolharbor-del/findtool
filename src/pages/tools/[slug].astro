@@ -1,0 +1,39 @@
+---
+/**
+ * The only tool route.
+ *
+ * One entry in src/data/tools.ts produces one page here. The component named
+ * by `tool.component` is resolved dynamically, so adding tool #51 never means
+ * touching routing — see README → "Adding a new tool".
+ */
+import { TOOLS } from '~/data/tools';
+import type { Tool } from '~/types';
+
+export function getStaticPaths() {
+  return TOOLS.map((tool) => ({
+    params: { slug: tool.slug },
+    props: { tool },
+  }));
+}
+
+interface Props {
+  tool: Tool;
+}
+
+const { tool } = Astro.props;
+
+// Lazily resolved so each built page only pulls in its own tool component.
+const modules = import.meta.glob<{ default: any }>('../../tools/*.astro');
+const importer = modules[`../../tools/${tool.component}.astro`];
+
+if (!importer) {
+  throw new Error(
+    `Tool "${tool.slug}" points at component "${tool.component}", but ` +
+      `src/tools/${tool.component}.astro does not exist.`,
+  );
+}
+
+const ToolComponent = (await importer()).default;
+---
+
+<ToolComponent tool={tool} />

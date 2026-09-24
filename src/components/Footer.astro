@@ -1,0 +1,94 @@
+---
+import { SITE, CONTACT } from '~/consts';
+import { sortedCategories } from '~/data/categories';
+import { popularTools } from '~/data/tools';
+import Logo from '~/components/Logo.astro';
+
+const categories = sortedCategories();
+const popular = popularTools(6);
+const year = new Date().getFullYear();
+---
+
+<footer class="mt-20 border-t border-line bg-surface">
+  <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+    <div class="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+      <div>
+        <a href="/" class="flex items-center gap-2 text-ink">
+          <Logo size={22} class="text-accent" />
+          <span class="font-semibold tracking-tight">{SITE.name}</span>
+        </a>
+        <p class="mt-3 max-w-xs text-sm leading-relaxed text-muted">
+          Fast developer utilities that run entirely in your browser. No accounts, no uploads,
+          no nonsense.
+        </p>
+      </div>
+
+      <nav aria-labelledby="footer-cats">
+        <h2 id="footer-cats" class="text-xs font-semibold tracking-wide text-ink uppercase">
+          Categories
+        </h2>
+        <ul class="mt-3 space-y-2">
+          {
+            categories.map((c) => (
+              <li>
+                <a href={`/${c.slug}`} class="text-sm text-muted transition-colors hover:text-accent">
+                  {c.name}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+
+      <nav aria-labelledby="footer-popular">
+        <h2 id="footer-popular" class="text-xs font-semibold tracking-wide text-ink uppercase">
+          Popular tools
+        </h2>
+        <ul class="mt-3 space-y-2">
+          {
+            popular.map((t) => (
+              <li>
+                <a
+                  href={`/tools/${t.slug}`}
+                  class="text-sm text-muted transition-colors hover:text-accent"
+                >
+                  {t.name}
+                </a>
+              </li>
+            ))
+          }
+          <li>
+            <a href="/tools" class="text-sm font-medium text-accent hover:underline">
+              All tools →
+            </a>
+          </li>
+        </ul>
+      </nav>
+
+      <nav aria-labelledby="footer-site">
+        <h2 id="footer-site" class="text-xs font-semibold tracking-wide text-ink uppercase">
+          ByteCabin
+        </h2>
+        <ul class="mt-3 space-y-2">
+          <li><a href="/about" class="text-sm text-muted transition-colors hover:text-accent">About</a></li>
+          <li><a href="/contact" class="text-sm text-muted transition-colors hover:text-accent">Contact</a></li>
+          <li><a href="/privacy" class="text-sm text-muted transition-colors hover:text-accent">Privacy</a></li>
+          <li><a href="/terms" class="text-sm text-muted transition-colors hover:text-accent">Terms</a></li>
+          <li>
+            <a
+              href={`mailto:${CONTACT.general}`}
+              class="text-sm text-muted transition-colors hover:text-accent">{CONTACT.general}</a
+            >
+          </li>
+        </ul>
+      </nav>
+    </div>
+
+    <div
+      class="mt-10 flex flex-col gap-3 border-t border-line pt-6 text-sm text-muted sm:flex-row sm:items-center sm:justify-between"
+    >
+      <p>© {year} {SITE.name}. All tools run locally in your browser.</p>
+      <p class="text-xs">Built with Astro · Hosted on Cloudflare</p>
+    </div>
+  </div>
+</footer>

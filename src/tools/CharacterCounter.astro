@@ -1,0 +1,414 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_SOCIAL, PLATFORM_LIMITS } from '~/lib/text';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="character-counter" class="space-y-4">
+    {/* ── Input ── */}
+    <div>
+      <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+        <label for="cc-input" class="bc-label mb-0">Text to measure</label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_SOCIAL}>
+            Example
+          </button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>
+            Upload file
+          </button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+          <input type="file" accept=".txt,.md,.csv,text/plain" class="hidden" data-file-input />
+        </div>
+      </div>
+      <textarea
+        id="cc-input"
+        class="bc-textarea min-h-44"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste a tweet, an SMS, a meta description…"
+        aria-describedby="cc-status"></textarea>
+    </div>
+
+    <div id="cc-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── The four counts that disagree ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Character counts">
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="graphemes">0</div>
+        <div class="bc-stat-label">Graphemes (what a reader sees)</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="codepoints">0</div>
+        <div class="bc-stat-label">Code points</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="units">0</div>
+        <div class="bc-stat-label">UTF-16 units (JS length)</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="bytes">0</div>
+        <div class="bc-stat-label">UTF-8 bytes</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="noSpaces">0</div>
+        <div class="bc-stat-label">Without spaces</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="spaces">0</div>
+        <div class="bc-stat-label">Whitespace characters</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="lines">0</div>
+        <div class="bc-stat-label">Lines</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="longest">0</div>
+        <div class="bc-stat-label">Longest line</div>
+      </div>
+    </div>
+
+    <p class="text-sm text-muted" data-divergence hidden></p>
+
+    {/* ── SMS ── */}
+    <div class="bc-panel p-4">
+      <h2 class="mb-3 text-sm font-semibold text-ink">SMS segments</h2>
+      <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div class="bc-stat">
+          <div class="bc-stat-value" data-sms="encoding">—</div>
+          <div class="bc-stat-label">Encoding</div>
+        </div>
+        <div class="bc-stat">
+          <div class="bc-stat-value" data-sms="segments">0</div>
+          <div class="bc-stat-label">Segments billed</div>
+        </div>
+        <div class="bc-stat">
+          <div class="bc-stat-value" data-sms="remaining">160</div>
+          <div class="bc-stat-label">Left in this segment</div>
+        </div>
+      </div>
+      <p class="mt-2 text-sm text-muted" data-sms="note">
+        Plain ASCII sends as GSM-7: 160 characters per message, 153 per part once it is split.
+      </p>
+    </div>
+
+    {/* ── Platform limits ── */}
+    <div class="bc-panel p-4">
+      <h2 class="mb-3 text-sm font-semibold text-ink">Remaining budget</h2>
+      <ul class="space-y-2.5" data-limits>
+        {
+          PLATFORM_LIMITS.map((limit) => (
+            <li data-limit-id={limit.id}>
+              <div class="flex items-baseline justify-between gap-3 text-sm">
+                <span class="font-medium text-ink">{limit.name}</span>
+                <span class="tabular-nums text-muted" data-limit-remaining>
+                  {limit.limit.toLocaleString()} left
+                </span>
+              </div>
+              <div
+                class="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-2"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax={limit.limit}
+                aria-valuenow="0"
+                aria-label={`${limit.name} usage`}
+                data-limit-track
+              >
+                <div class="h-full w-0 rounded-full bg-accent transition-all" data-limit-bar />
+              </div>
+              <p class="mt-1 text-xs text-muted">{limit.note}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-report>
+        <span data-label>Copy report</span>
+      </button>
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>Download report</button>
+    </div>
+
+    <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      There is no single number called "the character count". This tool shows four of them at once
+      — graphemes, code points, UTF-16 units and UTF-8 bytes — because for anything containing an
+      emoji, an accent or a non-Latin script they disagree, and the whole art of not shipping a
+      broken form is knowing which one the system on the other side is checking.
+    </p>
+    <p>
+      Alongside the counts it works out SMS segments and how much room is left against the limits
+      people hit most: X, meta descriptions, search-result titles, Instagram captions and a
+      <code>varchar(255)</code> column.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Confirming a message fits one SMS segment before a carrier bills you for three.
+      </li>
+      <li>
+        Trimming a meta description to roughly 160 characters, or a title tag to roughly 60.
+      </li>
+      <li>
+        Finding out why a 200-character bio is rejected by a database column that nominally
+        accepts 255.
+      </li>
+      <li>
+        Checking a translated UI string against the byte limit of a protocol field — German and
+        Japanese both inflate byte counts far beyond their character counts.
+      </li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>
+      Take the four-person family emoji, <code>👨‍👩‍👧‍👦</code>. Every counter below is measuring the
+      same single symbol:
+    </p>
+    <pre><code>{`Graphemes      1     one thing a reader sees
+Code points    7     4 people + 3 zero-width joiners
+UTF-16 units  11     each person is a surrogate pair
+UTF-8 bytes   25     4×4 bytes + 3×3 bytes`}</code></pre>
+    <p>
+      Paste that emoji into a field with a "10 character" limit and it may be accepted, silently
+      truncated into two separate people, or rejected outright — depending entirely on which of
+      those four numbers the validator uses.
+    </p>
+
+    <h2>Why emoji make the numbers diverge</h2>
+    <p>
+      A <strong>grapheme</strong> is one user-perceived character: <code>é</code>, <code>🇬🇧</code>,
+      <code>👍🏽</code>. It is what a person means by "character", and this page computes it with
+      <code>Intl.Segmenter</code>, the browser's implementation of the Unicode text-segmentation
+      rules.
+    </p>
+    <p>
+      A <strong>code point</strong> is one Unicode scalar. The family emoji is seven of them,
+      because it is four people glued together with three U+200D zero-width joiners. Strip those
+      joiners and the same bytes render as four separate people — which is exactly what happens
+      when a naive truncation cuts through the middle of the sequence.
+    </p>
+    <p>
+      A <strong>UTF-16 unit</strong> is what JavaScript's <code>"x".length</code> returns. Anything
+      above U+FFFF — every emoji, and most of the historic scripts — occupies two. This is the
+      number most client-side <code>maxlength</code> checks use, and the reason one emoji can eat
+      two of your 280 characters.
+    </p>
+    <p>
+      A <strong>UTF-8 byte</strong> is what a database column, an HTTP header or a protocol buffer
+      counts. ASCII is one byte; Latin-1 accents two; most CJK three; emoji four.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      X does not count the way any of these four do. It counts weighted code points: Latin, Greek
+      and Cyrillic characters count as one, everything else — CJK, Arabic, emoji — counts as two,
+      and every URL is counted as exactly 23 regardless of its real length. The 280 figure shown
+      here uses graphemes, so treat it as a close guide rather than the final word.
+    </p>
+    <p>
+      SMS is stranger still. A GSM-7 message holds 160 characters, but a single character outside
+      the GSM 03.38 alphabet forces the whole message into UCS-2 at 70 characters. A curly
+      apostrophe pasted from a word processor is enough to do it, which is why a 140-character
+      message sometimes bills as two segments for no visible reason.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    formatBytes,
+    wireStandardActions,
+    wireFileInput,
+    readFileText,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import {
+    countCodePoints,
+    countGraphemes,
+    countLines,
+    smsReport,
+    utf8ByteLength,
+    PLATFORM_LIMITS,
+  } from '~/lib/text';
+
+  mount('character-counter', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const divergence = q('[data-divergence]', root)!;
+
+    const set = (attr: string, name: string, value: string) => {
+      const el = q(`[data-${attr}="${name}"]`, root);
+      if (el) el.textContent = value;
+    };
+
+    const update = () => {
+      const text = input.value;
+
+      if (!text) {
+        clearStatus(root);
+        for (const el of qa('[data-stat]', root)) el.textContent = '0';
+        set('sms', 'encoding', '—');
+        set('sms', 'segments', '0');
+        set('sms', 'remaining', '160');
+        set('sms', 'note', 'Plain ASCII sends as GSM-7: 160 characters per message, 153 per part once it is split.');
+        divergence.setAttribute('hidden', '');
+        renderLimits(0);
+        mirror.value = '';
+        return;
+      }
+
+      try {
+        guardSize(text);
+      } catch (err) {
+        setStatus(root, messageFor(err), 'error');
+        return;
+      }
+      clearStatus(root);
+
+      const graphemes = countGraphemes(text);
+      const codePoints = countCodePoints(text);
+      const units = text.length;
+      const bytes = utf8ByteLength(text);
+      const stripped = text.replace(/\s/gu, '');
+      const lines = text.split('\n');
+      const longest = lines.reduce((m, l) => Math.max(m, countGraphemes(l)), 0);
+
+      set('stat', 'graphemes', graphemes.toLocaleString());
+      set('stat', 'codepoints', codePoints.toLocaleString());
+      set('stat', 'units', units.toLocaleString());
+      set('stat', 'bytes', bytes.toLocaleString());
+      set('stat', 'noSpaces', countGraphemes(stripped).toLocaleString());
+      set('stat', 'spaces', (countGraphemes(text) - countGraphemes(stripped)).toLocaleString());
+      set('stat', 'lines', countLines(text).toLocaleString());
+      set('stat', 'longest', longest.toLocaleString());
+
+      // Explain the disagreement, but only when there is one.
+      if (graphemes !== units || codePoints !== units) {
+        divergence.removeAttribute('hidden');
+        divergence.textContent =
+          `These four numbers differ because your text contains characters outside plain ASCII: ` +
+          `${graphemes.toLocaleString()} graphemes become ${codePoints.toLocaleString()} code points, ` +
+          `${units.toLocaleString()} UTF-16 units and ${formatBytes(bytes)} of UTF-8.`;
+      } else {
+        divergence.setAttribute('hidden', '');
+      }
+
+      const sms = smsReport(text);
+      set('sms', 'encoding', sms.encoding);
+      set('sms', 'segments', String(sms.segments));
+      set('sms', 'remaining', sms.remaining.toLocaleString());
+      set(
+        'sms',
+        'note',
+        sms.encoding === 'GSM-7'
+          ? `${sms.units} of ${sms.singleLimit} septets used. Staying under 160 keeps this to one billed segment.`
+          : `Forced to UCS-2 by ${sms.offenders.join(' ')} — the limit drops to 70 characters, ` +
+            `67 per part once split. Replacing those characters restores the 160-character limit.`,
+      );
+
+      renderLimits(graphemes, text);
+
+      mirror.value = [
+        `Graphemes        ${graphemes.toLocaleString()}`,
+        `Code points      ${codePoints.toLocaleString()}`,
+        `UTF-16 units     ${units.toLocaleString()}`,
+        `UTF-8 bytes      ${bytes.toLocaleString()}`,
+        `Without spaces   ${countGraphemes(stripped).toLocaleString()}`,
+        `Lines            ${countLines(text).toLocaleString()}`,
+        `Longest line     ${longest.toLocaleString()}`,
+        '',
+        `SMS              ${sms.encoding}, ${sms.segments} segment(s), ${sms.remaining} left`,
+        '',
+        ...PLATFORM_LIMITS.map((l) => {
+          const used = l.counts === 'bytes' ? bytes : l.counts === 'characters' ? units : graphemes;
+          return `${l.name.padEnd(24)} ${used} / ${l.limit}`;
+        }),
+      ].join('\n');
+
+      markUsed();
+    };
+
+    const renderLimits = (graphemes: number, text = '') => {
+      const bytes = text ? utf8ByteLength(text) : 0;
+      for (const limit of PLATFORM_LIMITS) {
+        const row = q(`[data-limit-id="${limit.id}"]`, root);
+        if (!row) continue;
+        const used =
+          limit.counts === 'bytes' ? bytes : limit.counts === 'characters' ? text.length : graphemes;
+        const remaining = limit.limit - used;
+        const label = q('[data-limit-remaining]', row)!;
+        const bar = q('[data-limit-bar]', row)!;
+        const track = q('[data-limit-track]', row)!;
+
+        label.textContent =
+          remaining >= 0
+            ? `${remaining.toLocaleString()} left`
+            : `${Math.abs(remaining).toLocaleString()} over`;
+        label.classList.toggle('text-muted', remaining >= 0);
+        label.classList.toggle('text-danger', remaining < 0);
+        label.classList.toggle('font-medium', remaining < 0);
+
+        const pct = Math.min(100, (used / limit.limit) * 100);
+        bar.style.width = `${pct}%`;
+        // Recolour rather than restyle, so the bar keeps its light/dark palette.
+        bar.classList.toggle('bg-accent', remaining >= 0);
+        bar.classList.toggle('bg-danger', remaining < 0);
+        track.setAttribute('aria-valuenow', String(Math.min(used, limit.limit)));
+      }
+    };
+
+    on(input, 'input', debounce(update, 80));
+
+    on(q('[data-copy-report]', root), 'click', (e) => {
+      if (!mirror.value) return setStatus(root, 'Paste some text first.', 'warn');
+      void copyText(mirror.value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-download]', root), 'click', () => {
+      if (!mirror.value) return setStatus(root, 'Paste some text first.', 'warn');
+      downloadText('character-count.txt', mirror.value);
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          update();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, { onChange: update });
+    update();
+  });
+</script>

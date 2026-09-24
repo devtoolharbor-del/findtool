@@ -1,0 +1,381 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_CSV } from '~/lib/csv';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="csv-to-json" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="cj-delim" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Delimiter
+        </label>
+        <select id="cj-delim" class="bc-select w-auto py-1.5 text-xs" data-delimiter>
+          <option value="auto" selected>Auto-detect</option>
+          <option value=",">Comma</option>
+          <option value=";">Semicolon</option>
+          <option value="\t">Tab</option>
+          <option value="|">Pipe</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label for="cj-indent" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Indent
+        </label>
+        <select id="cj-indent" class="bc-select w-auto py-1.5 text-xs" data-indent>
+          <option value="2" selected>2 spaces</option>
+          <option value="4">4 spaces</option>
+          <option value="tab">Tab</option>
+          <option value="0">Minified</option>
+        </select>
+      </div>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-header checked />
+        First row is a header
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-infer checked />
+        Infer types
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-expand />
+        Expand dotted keys
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_CSV}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>Upload file</button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" class="hidden" data-file-input />
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="cj-input" class="bc-label">CSV input</label>
+      <textarea
+        id="cj-input"
+        class="bc-textarea min-h-40"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste CSV or TSV here…"
+        aria-describedby="cj-status"></textarea>
+    </div>
+
+    <div id="cj-status" data-status role="status" aria-live="polite" hidden></div>
+
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-action="convert">Convert to JSON</button>
+      <div class="ml-auto flex gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-output>
+          <span data-label>Copy</span>
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>
+          Download .json
+        </button>
+      </div>
+    </div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-rows>—</div>
+        <div class="bc-stat-label">Rows</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-cols>—</div>
+        <div class="bc-stat-label">Columns</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-delim>—</div>
+        <div class="bc-stat-label">Delimiter</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-size>—</div>
+        <div class="bc-stat-label">JSON size</div>
+      </div>
+    </div>
+
+    {/* ── Preview of the parsed table ── */}
+    <div class="bc-panel overflow-x-auto p-3" data-preview-panel hidden>
+      <p class="mb-2 text-xs font-medium tracking-wide text-muted uppercase" data-preview-label>
+        Parsed preview
+      </p>
+      <table class="w-full border-collapse text-left text-xs" data-preview></table>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <label for="cj-output" class="bc-label">JSON result</label>
+      <textarea
+        id="cj-output"
+        class="bc-textarea max-h-96 min-h-40"
+        data-output
+        readonly
+        spellcheck="false"
+        placeholder="The JSON appears here."></textarea>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      This converter reads CSV the way RFC 4180 defines it rather than by splitting on commas. A
+      field wrapped in double quotes may contain the delimiter, a line break, or a doubled quote
+      standing for a literal one, and all three survive the trip intact. The header row becomes the
+      object keys; each following row becomes one object in the array.
+    </p>
+    <p>
+      The delimiter is detected by test-parsing the start of the file with each candidate and
+      keeping the one that produces a consistent column count — so a file full of commas inside
+      quoted, semicolon-separated fields is read correctly. Ragged rows are padded with
+      <code>null</code> and reported rather than silently dropped.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Turning a spreadsheet export into fixtures or seed data for tests.</li>
+      <li>Feeding a CSV report into a script, an API request body or a JSON-only import.</li>
+      <li>Inspecting a file whose delimiter or quoting you are not sure about, before automating it.</li>
+      <li>Converting a database dump into a shape you can filter with <code>jq</code>.</li>
+      <li>Rebuilding structure from flat exports, using the dotted-key option.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>This CSV, with a comma and a doubled quote inside quoted fields:</p>
+    <pre><code>{`id,name,active
+1042,"Lovelace, Ada",true
+1043,"Katherine ""Kat"" Johnson",false`}</code></pre>
+    <p>becomes:</p>
+    <pre><code>{`[
+  { "id": 1042, "name": "Lovelace, Ada", "active": true },
+  { "id": 1043, "name": "Katherine \\"Kat\\" Johnson", "active": false }
+]`}</code></pre>
+
+    <h2>What type inference will and will not do</h2>
+    <p>
+      CSV has no types — every cell is text — so converting <code>42</code> to a number is a guess.
+      It is usually the right guess, and the rules here are deliberately conservative:
+    </p>
+    <ul>
+      <li>
+        <strong>Leading zeros stay text.</strong> <code>01234</code> is a postcode, an account
+        number or a product code far more often than it is the number 1,234.
+      </li>
+      <li>
+        <strong>Long integers stay text.</strong> Anything over 15 digits cannot round-trip through
+        an IEEE-754 double, so a 19-digit snowflake ID is left exactly as written.
+      </li>
+      <li>
+        <strong>Only <code>true</code>, <code>false</code> and <code>null</code> convert</strong>,
+        case-insensitively. <code>yes</code>, <code>Y</code>, <code>NA</code> and <code>-</code> are
+        conventions, not values, so they stay strings.
+      </li>
+      <li><strong>Empty cells become <code>null</code></strong>, not empty strings.</li>
+    </ul>
+    <p>Turn inference off when you need every value to stay exactly as it appeared in the file.</p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      A leading byte order mark is stripped automatically, because otherwise the first column would
+      be named <code>{'\uFEFFid'}</code> and every lookup against <code>id</code> would fail — a bug that
+      costs people a surprising amount of time with Excel exports. Two more things worth
+      remembering: quoted fields containing newlines mean you cannot count records by counting
+      lines, and if your data arrives one record per line already, you may want
+      <a href="https://jsonlines.org/">JSON Lines</a> instead of one big array — it streams, where a
+      single top-level array has to be read whole before anything inside it is valid.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    wireStandardActions,
+    wireFileInput,
+    readFileText,
+    formatBytes,
+    byteLength,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { csvToJson, DELIMITERS } from '~/lib/csv';
+
+  const PREVIEW_ROWS = 8;
+
+  mount('csv-to-json', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const previewPanel = q('[data-preview-panel]', root)!;
+    const preview = q<HTMLTableElement>('[data-preview]', root)!;
+
+    const label = (delimiter: string) =>
+      DELIMITERS.find((d) => d.value === delimiter)?.label ?? delimiter;
+
+    const indent = (): number | '\t' => {
+      const value = q<HTMLSelectElement>('[data-indent]', root)!.value;
+      return value === 'tab' ? '\t' : Number(value);
+    };
+
+    /** Preview the first rows as a real table — built node by node. */
+    const renderPreview = (header: string[], rows: unknown[]) => {
+      preview.textContent = '';
+
+      const thead = document.createElement('thead');
+      const headRow = document.createElement('tr');
+      for (const name of header) {
+        const th = document.createElement('th');
+        th.className = 'border-b border-line px-2 py-1 font-medium whitespace-nowrap';
+        th.scope = 'col';
+        th.textContent = name;
+        headRow.appendChild(th);
+      }
+      thead.appendChild(headRow);
+      preview.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      for (const row of rows.slice(0, PREVIEW_ROWS)) {
+        const tr = document.createElement('tr');
+        const cells = Array.isArray(row)
+          ? (row as unknown[])
+          : header.map((name) => (row as Record<string, unknown>)[name]);
+        for (const cell of cells) {
+          const td = document.createElement('td');
+          td.className = 'border-b border-line px-2 py-1 align-top';
+          const text = cell === null || cell === undefined ? '—' : String(cell);
+          td.textContent = text.length > 60 ? `${text.slice(0, 60)}…` : text;
+          if (cell === null || cell === undefined) td.classList.add('text-muted');
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+      preview.appendChild(tbody);
+
+      q('[data-preview-label]', root)!.textContent =
+        rows.length > PREVIEW_ROWS
+          ? `Parsed preview — first ${PREVIEW_ROWS} of ${rows.length.toLocaleString()} rows`
+          : `Parsed preview — ${rows.length.toLocaleString()} row${rows.length === 1 ? '' : 's'}`;
+      previewPanel.removeAttribute('hidden');
+    };
+
+    const reset = () => {
+      output.value = '';
+      stats.setAttribute('hidden', '');
+      previewPanel.setAttribute('hidden', '');
+      preview.textContent = '';
+    };
+
+    const convert = () => {
+      const text = input.value;
+      if (!text.trim()) {
+        clearStatus(root);
+        reset();
+        return;
+      }
+
+      try {
+        guardSize(text);
+        const delimiterChoice = q<HTMLSelectElement>('[data-delimiter]', root)!.value.replace(
+          '\\t',
+          '\t',
+        );
+        const hasHeader = q<HTMLInputElement>('[data-header]', root)!.checked;
+
+        const result = csvToJson(text, {
+          delimiter: delimiterChoice,
+          header: hasHeader,
+          inferTypes: q<HTMLInputElement>('[data-infer]', root)!.checked,
+          expandDotted: q<HTMLInputElement>('[data-expand]', root)!.checked,
+        });
+
+        if (result.rowCount === 0) {
+          reset();
+          setStatus(root, 'No data rows were found — is the header row the only line?', 'warn');
+          return;
+        }
+
+        const json = JSON.stringify(result.data, null, indent());
+        output.value = json;
+
+        stats.removeAttribute('hidden');
+        q('[data-stat-rows]', root)!.textContent = result.rowCount.toLocaleString();
+        q('[data-stat-cols]', root)!.textContent = String(result.columnCount);
+        q('[data-stat-delim]', root)!.textContent = label(result.delimiter);
+        q('[data-stat-size]', root)!.textContent = formatBytes(byteLength(json));
+
+        renderPreview(result.header, result.data);
+
+        if (result.warnings.length > 0) {
+          setStatus(root, result.warnings.join(' '), 'warn');
+        } else {
+          clearStatus(root);
+        }
+        markUsed();
+      } catch (err) {
+        reset();
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    on(q('[data-action="convert"]', root), 'click', convert);
+    on(input, 'input', debounce(convert, 400));
+    for (const control of qa(
+      '[data-delimiter], [data-indent], [data-header], [data-infer], [data-expand]',
+      root,
+    )) {
+      on(control, 'change', () => input.value && convert());
+    }
+
+    on(q('[data-copy-output]', root), 'click', (e) => {
+      if (!output.value) return setStatus(root, 'Convert something first.', 'warn');
+      void copyText(output.value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Convert something first.', 'warn');
+      downloadText('data.json', output.value, 'application/json');
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          convert();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, {
+      onChange: () => {
+        reset();
+        if (input.value) convert();
+      },
+    });
+  });
+</script>

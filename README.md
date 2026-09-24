@@ -1,0 +1,343 @@
+# ByteCabin
+
+Fast, private developer tools that run entirely in the browser.
+Production: **https://bytecabin.dev**
+
+50 utilities for JSON, encoding, hashing, dates, text and web development.
+No accounts, no uploads, no backend.
+
+---
+
+## Contents
+
+- [Principles](#principles)
+- [Architecture](#architecture)
+- [Local development](#local-development)
+- [Adding a new tool](#adding-a-new-tool)
+- [Tool metadata](#tool-metadata)
+- [Categories](#categories)
+- [SEO behaviour](#seo-behaviour)
+- [Analytics](#analytics)
+- [Environment variables](#environment-variables)
+- [Deployment](#deployment)
+- [Cloudflare configuration](#cloudflare-configuration)
+- [Testing](#testing)
+- [Advertising](#advertising)
+- [Security](#security)
+
+---
+
+## Principles
+
+These are load-bearing. Changing one changes what the site is.
+
+1. **Everything runs client-side.** No tool sends user input anywhere. This is
+   architectural, not a policy — there is no server to send it to. The privacy
+   claim on each page depends on it staying true.
+2. **Static first.** The whole site is pre-rendered HTML on a CDN. No SSR, no
+   runtime, no cold starts.
+3. **Minimal JavaScript.** No UI framework. Each tool ships only its own small
+   script plus a ~2 KB shared toolkit.
+4. **The registry is the source of truth.** Routing, navigation, search,
+   sitemap and metadata are all derived from one array. Nothing is hand-wired.
+5. **The tool is the page.** Explanatory content supports the tool; it never
+   pushes it below the fold.
+
+## Architecture
+
+```
+src/
+  consts.ts              Site config, limits, ad config. No secrets.
+  types.ts               Tool / Category / Crumb types.
+  data/
+    tools.ts             THE REGISTRY — one entry per tool.
+    categories.ts        The 7 categories.
+  lib/
+    toolkit.ts           Shared browser helpers (copy, download, upload,
+                         status, size guards, analytics). Used by every tool.
+    search.ts            Scoring + highlighting for the search dialog.
+    json.ts, base64.ts,  Pure, DOM-free logic per topic. Unit-tested.
+    cron.ts, color.ts …
+  workers/
+    regex-worker.ts      Runs user regexes with a hard timeout.
+  components/            Header, Footer, ToolCard, SearchDialog, AdSlot …
+  layouts/
+    BaseLayout.astro     <head>, canonical, OG, theme bootstrap, chrome.
+    ToolLayout.astro     The standard tool page + structured data.
+  tools/                 One .astro per tool. 50 of them.
+  pages/
+    index.astro          Homepage
+    tools/index.astro    All tools, filterable
+    tools/[slug].astro   THE tool route — resolves component from registry
+    [category].astro     /json, /encoding, /text …
+    about|contact|privacy|terms.astro
+    404.astro
+    sitemap.xml.ts       Generated from the registry
+    robots.txt.ts
+    search.json.ts       Search index, fetched lazily by the dialog
+scripts/
+  generate-assets.mjs    Favicons, PWA icons, OG image (run manually)
+  verify-build.mjs       Post-build QA gate (runs in CI)
+tests/                   Vitest unit tests for every lib module
+docs/adding-a-tool.md    The full contract for a new tool
+```
+
+**Why no UI framework.** Tools are independent islands of plain DOM code. React
+would add ~45 KB gzipped to every page to manage a handful of inputs. The
+`mount()` helper in `toolkit.ts` scopes a tool's script to its own root
+element, which is all the isolation these need.
+
+**Why a hand-rolled sitemap.** `@astrojs/sitemap` cannot express per-tool
+`lastmod` from registry metadata, and it emits trailing-slash URLs that
+disagree with our canonical form. `src/pages/sitemap.xml.ts` is 60 lines and
+stays correct at 1,000 tools.
+
+## Local development
+
+Requires Node 20.3+ (Node 22 recommended — Wrangler needs it).
+
+```bash
+npm install
+npm run dev          # http://localhost:4321
+```
+
+| Command            | What it does                                        |
+| ------------------ | --------------------------------------------------- |
+| `npm run dev`      | Dev server with HMR                                  |
+| `npm run build`    | Production build into `dist/`                        |
+| `npm run preview`  | Serve `dist/` locally                                |
+| `npm test`         | Vitest unit tests                                    |
+| `npm run check`    | `astro check` — TypeScript + template diagnostics     |
+| `npm run verify`   | Post-build QA (links, canonicals, sitemap, metadata) |
+| `npm run assets`   | Regenerate favicons / PWA icons / OG image           |
+| `npm run ci`       | check + test + build + verify — what CI runs          |
+
+No environment variables are needed for local development. Every tool works
+offline once the page has loaded.
+
+## Adding a new tool
+
+Full contract: **[`docs/adding-a-tool.md`](docs/adding-a-tool.md)**.
+Reference implementation: **`src/tools/JsonFormatter.astro`**.
+
+Three steps:
+
+1. **Logic** → `src/lib/<topic>.ts`, pure and DOM-free, plus
+   `tests/<topic>.test.ts`.
+2. **UI** → `src/tools/<Component>.astro`, wrapping `<ToolLayout>` and using
+   the `bc-*` class vocabulary.
+3. **Registry** → one entry in `TOOLS` in `src/data/tools.ts`.
+
+Everything else is automatic: the route, nav, search index, category page,
+related-tool blocks, breadcrumbs, structured data and sitemap entry.
+
+`npm run verify` fails the build if a registry entry points at a component
+that does not exist, if a tool page renders without its interface, or if a
+title or description is duplicated.
+
+## Tool metadata
+
+```ts
+{
+  slug: 'json-formatter',        // URL: /tools/json-formatter
+  name: 'JSON Formatter',        // H1 and card title
+  category: 'json',              // must match a Category id
+  description: '…',              // one sentence: cards, search, page subtitle
+  seoTitle: '…',                 // <title>, aim ≤60 chars, must be unique
+  seoDescription: '…',           // <meta description>, 140–160, must be unique
+  keywords: ['…'],               // topic terms, used for search relevance
+  aliases: ['b64', 'guid', …],   // what users actually type — drives search
+  related: ['…'],                // explicit slugs, most relevant first
+  component: 'JsonFormatter',    // → src/tools/JsonFormatter.astro
+  icon: 'braces',                // must exist in IconName
+  serverProcessing: false,       // true ⇒ privacy note is NOT shown
+  privacyNote: '…',              // optional extra privacy wording
+  popular: true,                 // optional: surfaces on the homepage
+  addedAt: '2026-09-24',         // drives sitemap lastmod + "recently added"
+  faq: [{ q, a }],               // optional: renders as HTML + FAQPage schema
+}
+```
+
+**`related` is metadata-driven.** `relatedTools()` takes the explicit slugs in
+order, then tops up from the same category so a block is never short. Adding a
+tool automatically makes it available as a related tool elsewhere.
+
+**`serverProcessing` controls a factual claim.** When `false`, the page states
+that data is processed locally. Only set it to `false` if that is literally
+true — no fetch, no beacon, no third-party script touching the input.
+
+## Categories
+
+Seven, defined in `src/data/categories.ts`, mounted at the root for short URLs:
+
+| Slug          | Name                 |
+| ------------- | -------------------- |
+| `/json`       | JSON & Data          |
+| `/encoding`   | Encoding & Decoding  |
+| `/generators` | Generators           |
+| `/security`   | Hashing & Security   |
+| `/time`       | Date & Time          |
+| `/text`       | Text Tools           |
+| `/web`        | Web & Dev            |
+
+Static routes (`/about`, `/contact`, …) take precedence over the dynamic
+`[category].astro` route, and `getStaticPaths` only emits known slugs, so
+there is no collision risk.
+
+If this list ever exceeds ~10, add sub-categories rather than more top-level
+paths.
+
+## SEO behaviour
+
+- **Canonical URLs** are absolute, on `https://bytecabin.dev`, with no
+  trailing slash. `astro.config.mjs` sets `trailingSlash: 'never'`.
+- **One `<h1>` per page**, enforced by `npm run verify`.
+- **Unique title and description per page**, enforced by `npm run verify`.
+- **Open Graph + Twitter cards** on every page, with a generated `/og.png`.
+- **Structured data**: `WebSite` + `Organization` on the homepage,
+  `BreadcrumbList` + `SoftwareApplication` on every tool page, `FAQPage`
+  where a tool defines `faq`, `ItemList` on category and index pages.
+- **Content is server-rendered.** Headings, descriptions and all explainer
+  prose exist in the HTML without JavaScript. Only interactivity needs JS.
+- **`sitemap.xml`** is generated from the registry, with per-tool `lastmod`.
+- **`robots.txt`** allows everything and points at the sitemap.
+
+Redirects to the canonical origin (`http→https`, `www→apex`,
+`*.pages.dev→apex`) are Cloudflare rules, not application code — see below.
+
+## Analytics
+
+**Cloudflare Web Analytics.** Cookie-free, fingerprint-free, no consent banner
+required. Enabled by setting `PUBLIC_CF_BEACON_TOKEN`; with it unset, no
+analytics script is emitted at all, so local and preview traffic never
+pollutes production numbers.
+
+**Custom events** go through `track()` in `src/lib/toolkit.ts`:
+
+`tool_used` · `copy_clicked` · `download_clicked` · `example_loaded` ·
+`search_used` · `related_tool_clicked` · `theme_changed`
+
+> **Hard rule:** the payload is the event name and the tool slug from the URL.
+> `track()` never reads an input field, so no call site can leak user content
+> even by mistake. `tool_used` fires at most once per page view.
+
+Events are only sent when `PUBLIC_EVENTS_ENDPOINT` is set. Unset (the launch
+state), `track()` dispatches a DOM event and does nothing else.
+
+## Environment variables
+
+See `.env.example`. None are required to run or build the site.
+
+| Variable                 | Where            | Secret? | Purpose                              |
+| ------------------------ | ---------------- | ------- | ------------------------------------ |
+| `CLOUDFLARE_API_TOKEN`   | GitHub secret    | **Yes** | Deploy to Pages                      |
+| `CLOUDFLARE_ACCOUNT_ID`  | GitHub secret    | No      | Deploy target                        |
+| `PUBLIC_CF_BEACON_TOKEN` | Build-time       | No      | Web Analytics beacon (public id)     |
+| `PUBLIC_EVENTS_ENDPOINT` | Build-time       | No      | Optional anonymous event collector   |
+| `INDEXNOW_KEY`           | Build-time       | No      | IndexNow submission key              |
+
+**Never commit secrets.** `.env*` is gitignored, and `npm run verify` scans
+build output for token-shaped strings and fails if it finds any.
+
+## Deployment
+
+```
+push to main → GitHub Actions → check + test + build + verify → wrangler pages deploy
+```
+
+`.github/workflows/deploy.yml` is the only thing holding deploy credentials.
+Pull requests get their own preview URL, commented on the PR.
+
+Deployment is intentionally *not* wired through Cloudflare's dashboard Git
+integration: keeping it in Actions means the build logs, the test gate and the
+verification gate all live with the code, and a red test blocks a deploy.
+
+Required GitHub repository secrets:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+## Cloudflare configuration
+
+- **Pages project**: `bytecabin`, direct-upload mode, deployed by Wrangler.
+- **Custom domain**: `bytecabin.dev` (apex) plus `www.bytecabin.dev`.
+- **DNS**: managed in the `bytecabin.dev` zone. Apex and `www` are proxied
+  CNAMEs to the Pages project.
+- **SSL/TLS**: Full (strict). Always Use HTTPS on. `.dev` is HSTS-preloaded,
+  so browsers enforce HTTPS regardless.
+- **Redirect rules** collapse every non-canonical host onto
+  `https://bytecabin.dev`, preserving path and query:
+  - `http://bytecabin.dev` → `https://bytecabin.dev`
+  - `http(s)://www.bytecabin.dev` → `https://bytecabin.dev`
+  - `*.pages.dev` → `https://bytecabin.dev` (stops preview URLs being indexed)
+- **Email Routing**: `contact@`, `support@` and `privacy@` forward to the
+  project mailbox. Destination addresses are never shown on the site.
+- **Caching**: driven by `public/_headers` — hashed assets immutable for a
+  year, HTML revalidated on every request.
+
+## Testing
+
+```bash
+npm test          # unit tests for every lib module
+npm run check     # TypeScript + Astro template diagnostics
+npm run verify    # post-build QA — run after npm run build
+```
+
+`scripts/verify-build.mjs` fails the build on:
+
+- a missing page, or a registry entry pointing at a non-existent component
+- a broken internal link anywhere in the output
+- a missing or mismatched canonical URL
+- a duplicate `<title>` or meta description
+- zero or multiple `<h1>` on a page
+- a tool page that rendered without its interface
+- a sitemap that disagrees with what was generated
+- missing `SoftwareApplication` / `BreadcrumbList` structured data
+- a token-shaped string appearing in build output
+
+Manual QA before a release: Chrome, Safari and Firefox; mobile and desktop
+widths; light and dark; keyboard-only navigation; and for each tool — empty
+input, invalid input, very large input, copy, download.
+
+## Advertising
+
+Ads are **off**. `src/components/AdSlot.astro` renders nothing while
+`ADS.enabled` is `false`, so there are no placeholders and no layout shift.
+
+Three positions already exist in the page structure — below the header,
+after the tool, and further down the explainer content. Turning ads on is a
+config change in `src/consts.ts`, not a redesign.
+
+Constraints encoded in the component: never inside or above the tool
+interface; always labelled "Advertisement"; always visually separated from
+controls; fixed reserved height to avoid CLS.
+
+Enabling AdSense also requires widening the CSP in `public/_headers` to allow
+`googlesyndication.com` and `doubleclick.net`, and updating
+`src/pages/privacy.astro` **before** any ad code ships.
+
+## Security
+
+- **No secrets in the repo.** `.env*` gitignored; build output scanned in CI.
+- **No `eval`, no `new Function`, no `innerHTML` with user content.** Tools
+  use `textContent` or the `escapeHtml()` helper. Tree and diff views build
+  DOM nodes rather than markup strings.
+- **Regex denial-of-service is contained.** User patterns run in a Web Worker
+  that is terminated after `LIMITS.regexTimeoutMs`, so catastrophic
+  backtracking cannot freeze the tab.
+- **Input size limits** (`LIMITS` in `src/consts.ts`) are enforced by
+  `guardSize()` before expensive work, and by a file-size check on upload.
+- **Strict CSP** in `public/_headers`: `object-src 'none'`,
+  `frame-ancestors 'none'`, `form-action 'none'`, no third-party script
+  origins beyond the Cloudflare Analytics beacon.
+- **Cryptography uses the platform.** Hashes and HMAC use Web Crypto;
+  randomness uses `crypto.getRandomValues()`, never `Math.random()`.
+  MD5 is hand-implemented because Web Crypto deliberately omits it, and is
+  labelled throughout as unsuitable for security use.
+- **Dependencies are minimal** — Astro, Tailwind and `js-yaml` in production.
+  Run `npm audit` before releases.
+
+---
+
+Licensed for personal and commercial use of the tools themselves. The
+ByteCabin name, logo and written page content are not licensed for reuse.

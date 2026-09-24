@@ -1,0 +1,132 @@
+---
+/**
+ * The standard tool page.
+ *
+ * Every one of the 50 tools renders through this layout, which owns the
+ * consistent structure the brief asks for:
+ *
+ *   breadcrumbs → H1 → one-line explanation → tool interface →
+ *   privacy note → explainer content → FAQ → related tools
+ *
+ * It also emits the page's structured data (BreadcrumbList, SoftwareApplication
+ * and, when present, FAQPage) from the same registry entry that drives the
+ * visible page, so markup and metadata can never disagree.
+ */
+import type { Tool, Crumb } from '~/types';
+import { SITE } from '~/consts';
+import { CATEGORY_MAP } from '~/data/categories';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import Breadcrumbs from '~/components/Breadcrumbs.astro';
+import RelatedTools from '~/components/RelatedTools.astro';
+import PrivacyNote from '~/components/PrivacyNote.astro';
+import AdSlot from '~/components/AdSlot.astro';
+import Faq from '~/components/Faq.astro';
+import Icon from '~/components/Icon.astro';
+
+interface Props {
+  tool: Tool;
+}
+
+const { tool } = Astro.props;
+const category = CATEGORY_MAP[tool.category]!;
+const url = `${SITE.url}/tools/${tool.slug}`;
+
+const crumbs: Crumb[] = [
+  { label: 'Home', href: '/' },
+  { label: category.name, href: `/${category.slug}` },
+  { label: tool.name },
+];
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: SITE.url },
+    {
+      '@type': 'ListItem',
+      position: 2,
+      name: category.name,
+      item: `${SITE.url}/${category.slug}`,
+    },
+    { '@type': 'ListItem', position: 3, name: tool.name, item: url },
+  ],
+};
+
+const appSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: `${tool.name} — ${SITE.name}`,
+  url,
+  applicationCategory: 'DeveloperApplication',
+  operatingSystem: 'Any browser',
+  description: tool.seoDescription,
+  isAccessibleForFree: true,
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  publisher: { '@type': 'Organization', name: SITE.name, url: SITE.url },
+};
+
+const faqSchema = tool.faq?.length
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: tool.faq.map((f) => ({
+        '@type': 'Question',
+        name: f.q.replace(/<[^>]+>/g, ''),
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: f.a.replace(/<[^>]+>/g, ''),
+        },
+      })),
+    }
+  : null;
+
+const schema = [breadcrumbSchema, appSchema, ...(faqSchema ? [faqSchema] : [])];
+---
+
+<BaseLayout
+  title={tool.seoTitle}
+  description={tool.seoDescription}
+  canonical={`/tools/${tool.slug}`}
+  schema={schema}
+>
+  <div class="py-6 sm:py-8">
+    <Breadcrumbs items={crumbs} />
+
+    <header class="mb-6">
+      <div class="flex items-start gap-3">
+        <span
+          class="mt-1 flex size-10 shrink-0 items-center justify-center rounded-xl border border-line bg-surface-2 text-accent"
+          aria-hidden="true"
+        >
+          <Icon name={tool.icon} size={20} />
+        </span>
+        <div class="min-w-0">
+          <h1 class="text-2xl font-semibold tracking-tight sm:text-[1.75rem]">{tool.name}</h1>
+          <p class="mt-1.5 text-[0.9375rem] leading-relaxed text-muted">{tool.description}</p>
+        </div>
+      </div>
+    </header>
+
+    <AdSlot placement="below-header" />
+
+    {/* ── The tool itself. Always the visual priority on the page. ── */}
+    <div class="bc-panel p-4 sm:p-5">
+      <slot />
+    </div>
+
+    {!tool.serverProcessing && <PrivacyNote extra={tool.privacyNote} />}
+
+    <AdSlot placement="after-tool" />
+
+    {/* ── Explainer content: what it does, use cases, gotchas ── */}
+    <div class="bc-prose mt-10">
+      <slot name="content" />
+    </div>
+
+    {tool.faq && <Faq items={tool.faq} />}
+
+    <AdSlot placement="in-content" />
+
+    <RelatedTools tool={tool} />
+  </div>
+</BaseLayout>

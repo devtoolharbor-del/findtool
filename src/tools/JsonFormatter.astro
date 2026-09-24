@@ -1,0 +1,475 @@
+---
+/**
+ * REFERENCE IMPLEMENTATION — every other tool follows this shape.
+ *
+ * Structure contract:
+ *   1. Frontmatter takes `tool: Tool` and renders <ToolLayout tool={tool}>.
+ *   2. The default slot is the interface. Wrap it in [data-tool="<slug>"].
+ *   3. Include <div data-status role="status" aria-live="polite" hidden>.
+ *   4. The `content` slot holds the crawlable explainer prose.
+ *   5. One <script> wires DOM → pure functions from src/lib/.
+ *
+ * All logic lives in src/lib/json.ts so it can be unit-tested without a DOM.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_JSON } from '~/lib/json';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="json-formatter" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="jf-indent" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Indent
+        </label>
+        <select id="jf-indent" class="bc-select w-auto py-1.5 text-xs">
+          <option value="2" selected>2 spaces</option>
+          <option value="4">4 spaces</option>
+          <option value="tab">Tab</option>
+        </select>
+      </div>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-sort-keys />
+        Sort keys
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_JSON}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>
+          Upload file
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input type="file" accept=".json,.txt,application/json,text/plain" class="hidden" data-file-input />
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="jf-input" class="bc-label">JSON input</label>
+      <textarea
+        id="jf-input"
+        class="bc-textarea min-h-56"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste JSON here…"
+        aria-describedby="jf-status"></textarea>
+    </div>
+
+    {/* ── Status: validation result or error ── */}
+    <div id="jf-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Actions ── */}
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-action="format">Format</button>
+      <button type="button" class="bc-btn bc-btn-secondary" data-action="minify">Minify</button>
+      <button type="button" class="bc-btn bc-btn-secondary" data-action="validate">Validate</button>
+
+      <div class="ml-auto flex gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-output>
+          <span data-label>Copy</span>
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>
+          Download
+        </button>
+      </div>
+    </div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat"><div class="bc-stat-value" data-stat-size>—</div><div class="bc-stat-label">Size</div></div>
+      <div class="bc-stat"><div class="bc-stat-value" data-stat-keys>—</div><div class="bc-stat-label">Keys</div></div>
+      <div class="bc-stat"><div class="bc-stat-value" data-stat-depth>—</div><div class="bc-stat-label">Max depth</div></div>
+      <div class="bc-stat"><div class="bc-stat-value" data-stat-lines>—</div><div class="bc-stat-label">Lines</div></div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <div class="mb-1.5 flex items-center justify-between">
+        <span class="text-xs font-medium tracking-wide text-muted uppercase">Result</span>
+        <div class="flex items-center gap-1 text-xs">
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-view="code" aria-pressed="true">
+            Code
+          </button>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-view="tree" aria-pressed="false">
+            Tree
+          </button>
+        </div>
+      </div>
+
+      <pre
+        class="bc-output max-h-[32rem] min-h-40"
+        data-output-code
+        aria-live="off"
+        tabindex="0"></pre>
+
+      <div class="bc-output max-h-[32rem] min-h-40 hidden" data-output-tree tabindex="0"></div>
+
+      {/* Plain-text mirror of the result, used for copy and download. */}
+      <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Paste JSON and this formatter re-indents it into something readable, tells you immediately
+      whether it is valid, and — when it is not — points at the exact line and explains the
+      problem in plain language rather than repeating your browser's error message.
+    </p>
+    <p>
+      It also minifies, sorts keys, shows a collapsible tree, and reports the document's size,
+      key count and nesting depth. Everything runs in this tab, so it is safe to paste a
+      production API response.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Making a single-line API response readable — log output and <code>curl</code> results
+        almost never arrive formatted.
+      </li>
+      <li>
+        Finding why a config file is rejected. The error location matters more than the error
+        text, and a 4,000-character single line hides it completely.
+      </li>
+      <li>
+        Sorting keys on two versions of a response so a diff shows real changes instead of
+        reordered fields.
+      </li>
+      <li>Minifying before embedding JSON in an environment variable or a URL parameter.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>This input:</p>
+    <pre><code>{'{"user":{"id":7,"roles":["admin","editor"],"active":true}}'}</code></pre>
+    <p>becomes:</p>
+    <pre><code>{`{
+  "user": {
+    "id": 7,
+    "roles": [
+      "admin",
+      "editor"
+    ],
+    "active": true
+  }
+}`}</code></pre>
+
+    <h2>Mistakes that break JSON</h2>
+    <p>
+      Four problems account for most invalid documents, and all four are things that would be
+      perfectly legal in a JavaScript object literal:
+    </p>
+    <ul>
+      <li>
+        <strong>Trailing commas.</strong> <code>{'{"a": 1,}'}</code> is valid JavaScript and invalid
+        JSON.
+      </li>
+      <li>
+        <strong>Single quotes.</strong> JSON requires double quotes around both keys and string
+        values.
+      </li>
+      <li>
+        <strong>Unquoted keys.</strong> <code>{'{a: 1}'}</code> needs to be <code>{'{"a": 1}'}</code>.
+      </li>
+      <li>
+        <strong>Raw newlines inside strings.</strong> They must be escaped as <code>\n</code>.
+      </li>
+    </ul>
+    <p>
+      Comments are also invalid. If your config file has them, it is JSON5 or JSONC, not JSON —
+      strip them before parsing with a standard parser.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Formatting never changes your data, only whitespace. Key order is preserved unless you ask
+      for sorting. One caveat applies to very large integers: JavaScript numbers lose precision
+      above 2<sup>53</sup>, so an ID like <code>9007199254740993</code> can come back altered.
+      If your payload contains IDs that long, treat them as strings.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    wireStandardActions,
+    wireFileInput,
+    readFileText,
+    formatBytes,
+    markUsed,
+    escapeHtml,
+    debounce,
+  } from '~/lib/toolkit';
+  import {
+    parseJson,
+    formatJson,
+    minifyJson,
+    sortJsonKeys,
+    jsonStats,
+    highlightJson,
+    JsonParseError,
+  } from '~/lib/json';
+
+  /** Above this size, skip highlighting — the regex pass stops being cheap. */
+  const HIGHLIGHT_LIMIT = 300_000;
+
+  mount('json-formatter', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const codeOut = q<HTMLPreElement>('[data-output-code]', root)!;
+    const treeOut = q<HTMLElement>('[data-output-tree]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const indentSelect = q<HTMLSelectElement>('#jf-indent', root)!;
+    const sortKeys = q<HTMLInputElement>('[data-sort-keys]', root)!;
+
+    let view: 'code' | 'tree' = 'code';
+
+    const indent = (): number | '\t' =>
+      indentSelect.value === 'tab' ? '\t' : Number(indentSelect.value);
+
+    const setOutput = (text: string, value: unknown | undefined) => {
+      mirror.value = text;
+
+      if (text.length <= HIGHLIGHT_LIMIT) {
+        codeOut.innerHTML = highlightJson(text);
+      } else {
+        codeOut.textContent = text;
+      }
+
+      if (value !== undefined) {
+        const s = jsonStats(value, text);
+        stats.removeAttribute('hidden');
+        q('[data-stat-size]', root)!.textContent = formatBytes(s.bytes);
+        q('[data-stat-keys]', root)!.textContent = s.keys.toLocaleString();
+        q('[data-stat-depth]', root)!.textContent = String(s.depth);
+        q('[data-stat-lines]', root)!.textContent = s.lines.toLocaleString();
+        if (view === 'tree') renderTree(value);
+      }
+    };
+
+    /** Render a collapsible tree. Built with DOM nodes, never innerHTML of user data. */
+    const renderTree = (value: unknown) => {
+      treeOut.textContent = '';
+      treeOut.appendChild(node(value, null, true));
+    };
+
+    const node = (value: unknown, key: string | null, open: boolean): HTMLElement => {
+      const wrap = document.createElement('div');
+      wrap.className = 'pl-3';
+
+      const isArray = Array.isArray(value);
+      const isObject = !isArray && value !== null && typeof value === 'object';
+
+      if (!isArray && !isObject) {
+        const line = document.createElement('div');
+        if (key !== null) {
+          const k = document.createElement('span');
+          k.className = 'tok-key';
+          k.textContent = `"${key}"`;
+          line.append(k, document.createTextNode(': '));
+        }
+        const v = document.createElement('span');
+        v.className =
+          value === null
+            ? 'tok-null'
+            : typeof value === 'string'
+              ? 'tok-str'
+              : typeof value === 'boolean'
+                ? 'tok-bool'
+                : 'tok-num';
+        v.textContent = typeof value === 'string' ? `"${value}"` : String(value);
+        line.appendChild(v);
+        wrap.appendChild(line);
+        return wrap;
+      }
+
+      const entries = isArray
+        ? (value as unknown[]).map((v, i) => [String(i), v] as const)
+        : Object.entries(value as Record<string, unknown>);
+
+      const details = document.createElement('details');
+      details.open = open;
+      const summary = document.createElement('summary');
+      summary.className = 'cursor-pointer select-none';
+
+      if (key !== null) {
+        const k = document.createElement('span');
+        k.className = 'tok-key';
+        k.textContent = `"${key}"`;
+        summary.append(k, document.createTextNode(': '));
+      }
+      const brace = document.createElement('span');
+      brace.className = 'tok-punc';
+      brace.textContent = isArray ? `[${entries.length}]` : `{${entries.length}}`;
+      summary.appendChild(brace);
+      details.appendChild(summary);
+
+      for (const [k, v] of entries) details.appendChild(node(v, isArray ? null : k, false));
+      wrap.appendChild(details);
+      return wrap;
+    };
+
+    const fail = (err: unknown) => {
+      stats.setAttribute('hidden', '');
+      codeOut.textContent = '';
+      treeOut.textContent = '';
+      mirror.value = '';
+
+      if (err instanceof JsonParseError) {
+        const d = err.detail;
+        const where =
+          d.line !== undefined ? ` (line ${d.line}${d.column ? `, column ${d.column}` : ''})` : '';
+        setStatus(root, `${d.message}${where}`, 'error');
+
+        // Show the offending line with a caret, which is far easier to act on.
+        if (d.excerpt !== undefined && d.column !== undefined) {
+          const slot = q('[data-status]', root)!;
+          const pre = document.createElement('pre');
+          pre.className = 'bc-output mt-2 text-xs';
+          pre.textContent = `${d.excerpt}\n${' '.repeat(Math.max(0, d.column - 1))}^`;
+          slot.appendChild(pre);
+        }
+      } else {
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    const run = (mode: 'format' | 'minify' | 'validate') => {
+      const text = input.value;
+      if (!text.trim()) {
+        clearStatus(root);
+        stats.setAttribute('hidden', '');
+        codeOut.textContent = '';
+        treeOut.textContent = '';
+        mirror.value = '';
+        return;
+      }
+
+      try {
+        guardSize(text);
+        let value = parseJson(text);
+        if (sortKeys.checked) value = sortJsonKeys(value);
+
+        if (mode === 'validate') {
+          const s = jsonStats(value, JSON.stringify(value));
+          setStatus(
+            root,
+            `Valid JSON — ${s.keys.toLocaleString()} keys, ${s.objects.toLocaleString()} objects, ${s.arrays.toLocaleString()} arrays, max depth ${s.depth}.`,
+            'ok',
+          );
+          setOutput(JSON.stringify(value, null, indent()), value);
+        } else {
+          clearStatus(root);
+          const out =
+            mode === 'minify' ? JSON.stringify(value) : JSON.stringify(value, null, indent());
+          setOutput(out, value);
+        }
+        markUsed();
+      } catch (err) {
+        fail(err);
+      }
+    };
+
+    // Actions
+    for (const btn of ['format', 'minify', 'validate'] as const) {
+      on(q(`[data-action="${btn}"]`, root), 'click', () => run(btn));
+    }
+
+    // Re-run on option change so the visible result always matches the options.
+    on(indentSelect, 'change', () => mirror.value && run('format'));
+    on(sortKeys, 'change', () => mirror.value && run('format'));
+
+    // Live validation while typing, without reformatting under the cursor.
+    const liveCheck = debounce(() => {
+      const text = input.value;
+      if (!text.trim()) return clearStatus(root);
+      try {
+        guardSize(text);
+        parseJson(text);
+        clearStatus(root);
+      } catch (err) {
+        if (err instanceof JsonParseError) {
+          const d = err.detail;
+          setStatus(
+            root,
+            `${d.message}${d.line !== undefined ? ` (line ${d.line})` : ''}`,
+            'error',
+          );
+        }
+      }
+    }, 400);
+    on(input, 'input', liveCheck);
+
+    // View switch
+    for (const btn of ['code', 'tree'] as const) {
+      on(q(`[data-view="${btn}"]`, root), 'click', () => {
+        view = btn;
+        codeOut.classList.toggle('hidden', btn !== 'code');
+        treeOut.classList.toggle('hidden', btn !== 'tree');
+        q(`[data-view="code"]`, root)!.setAttribute('aria-pressed', String(btn === 'code'));
+        q(`[data-view="tree"]`, root)!.setAttribute('aria-pressed', String(btn === 'tree'));
+        if (btn === 'tree' && mirror.value) {
+          try {
+            renderTree(parseJson(mirror.value));
+          } catch {
+            /* mirror always holds valid output, so this cannot normally happen */
+          }
+        }
+      });
+    }
+
+    // Copy / download
+    on(q('[data-copy-output]', root), 'click', (e) => {
+      if (!mirror.value) return setStatus(root, 'Format some JSON first.', 'warn');
+      void copyText(mirror.value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-download]', root), 'click', () => {
+      if (!mirror.value) return setStatus(root, 'Format some JSON first.', 'warn');
+      downloadText('formatted.json', mirror.value, 'application/json');
+    });
+
+    // Upload
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          run('format');
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, {
+      onChange: () => {
+        stats.setAttribute('hidden', '');
+        codeOut.textContent = '';
+        treeOut.textContent = '';
+        if (input.value) run('format');
+      },
+    });
+  });
+</script>

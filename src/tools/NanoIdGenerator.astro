@@ -1,0 +1,341 @@
+---
+/**
+ * Nano ID generator.
+ *
+ * The headline figure is the birthday-bound estimate: how many IDs this
+ * size-and-alphabet combination can produce before there is a 1% chance that
+ * two of them are the same. That number is the whole argument for choosing a
+ * Nano ID over a UUID, so it is displayed as prominently as the IDs.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="nano-id-generator" class="space-y-4">
+    {/* ── Size and count ── */}
+    <div class="grid gap-3 sm:grid-cols-2">
+      <div>
+        <label for="nano-size" class="bc-label">
+          Size: <output for="nano-size" data-size-out class="font-semibold text-ink">21</output>
+          characters
+        </label>
+        <input
+          id="nano-size"
+          type="range"
+          min="2"
+          max="64"
+          step="1"
+          value="21"
+          class="w-full accent-accent"
+        />
+      </div>
+      <div>
+        <label for="nano-count" class="bc-label">How many (1–1000)</label>
+        <input
+          id="nano-count"
+          class="bc-input"
+          type="number"
+          min="1"
+          max="1000"
+          step="1"
+          value="5"
+          inputmode="numeric"
+        />
+      </div>
+    </div>
+
+    {/* ── Alphabet ── */}
+    <div class="grid gap-3 sm:grid-cols-2">
+      <div>
+        <label for="nano-preset" class="bc-label">Alphabet</label>
+        <select id="nano-preset" class="bc-select">
+          <option value="default" selected>Default — 64 URL-safe characters</option>
+          <option value="urlSafe">URL-safe, in sorted order</option>
+          <option value="alphanumeric">Alphanumeric (62)</option>
+          <option value="lowerNum">Lowercase and digits (36)</option>
+          <option value="hex">Hexadecimal (16)</option>
+          <option value="numbers">Digits only (10)</option>
+          <option value="noLookalikes">No look-alikes (50)</option>
+        </select>
+      </div>
+      <div>
+        <label for="nano-alphabet" class="bc-label">Characters used</label>
+        <input
+          id="nano-alphabet"
+          class="bc-input font-mono text-xs"
+          spellcheck="false"
+          autocomplete="off"
+        />
+      </div>
+    </div>
+
+    {/* ── The headline number ── */}
+    <div class="rounded-xl border border-accent-line bg-accent-soft p-4">
+      <p class="text-xs font-medium tracking-wide text-muted uppercase">
+        IDs before a 1% chance of one collision
+      </p>
+      <p class="mt-1 text-3xl font-semibold tabular-nums text-ink" data-collision>—</p>
+      <p class="mt-1 text-sm text-ink-soft" data-collision-time>—</p>
+      <div class="mt-3 flex flex-wrap items-center gap-2">
+        <label for="nano-rate" class="text-xs text-muted">Generated at</label>
+        <select id="nano-rate" class="bc-select w-auto py-1 text-xs">
+          <option value="0.2777777777777778">1,000 per hour</option>
+          <option value="1" selected>1 per second</option>
+          <option value="1000">1,000 per second</option>
+          <option value="1000000">1 million per second</option>
+        </select>
+      </div>
+    </div>
+
+    {/* ── Actions ── */}
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-generate>Generate</button>
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+          <span data-label>Copy</span>
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>
+          Download .txt
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      </div>
+    </div>
+
+    <div id="nano-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-bits>—</div>
+        <div class="bc-stat-label">Bits per ID</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-alphabet>—</div>
+        <div class="bc-stat-label">Alphabet size</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-vs-uuid>—</div>
+        <div class="bc-stat-label">Characters vs a UUID's 36</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <label for="nano-output" class="bc-label">Result</label>
+      <textarea
+        id="nano-output"
+        class="bc-textarea min-h-32"
+        data-output
+        readonly
+        spellcheck="false"
+        aria-live="off"></textarea>
+    </div>
+  </div>
+
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      It generates Nano IDs — compact, URL-safe identifiers built from a 64-character alphabet
+      instead of hexadecimal. The default 21 characters carry 126 bits of randomness, four more
+      than a UUID v4's 122, in 21 characters rather than 36. Size and alphabet are both
+      adjustable, and the panel above recalculates the collision figure as you change them.
+    </p>
+    <p>
+      Every ID comes from <code>crypto.getRandomValues()</code> with rejection sampling, so the
+      character distribution is genuinely flat.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Public-facing record IDs in a URL, where <code>/p/V1StGXR8_Z5jdHi6B</code> beats a UUID.</li>
+      <li>Short share links and invite codes that a person might retype.</li>
+      <li>React keys, upload filenames and correlation IDs generated client-side.</li>
+      <li>Primary keys in a document store that does not care about index locality.</li>
+      <li>Replacing a sequence so IDs stop revealing how many rows you have.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>Three IDs at the default size, with the UUID they would replace underneath:</p>
+    <pre><code>{`V1StGXR8_Z5jdHi6B-myT
+FyxG7q2LkPd0WnBc4tRhZ
+qO6mEwT1_aXsKdR9yB3uV
+
+1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed`}</code></pre>
+
+    <h2>What the collision number means</h2>
+    <p>
+      Nobody can promise random IDs never repeat, so the honest question is how many you can mint
+      before a repeat becomes plausible. That is the birthday problem: with <em>N</em> possible
+      IDs, the chance that <em>n</em> of them contain a duplicate is roughly 1 −
+      e<sup>−n²/2N</sup>. Inverting it for a 1% risk gives n = √(2N · ln(1/0.99)).
+    </p>
+    <p>
+      For the 21-character default that is about 1.3 × 10<sup>18</sup> IDs — at a million a second
+      you would pass it in roughly forty thousand years. Drop to 12 characters and the same 1%
+      risk arrives after about 9.7 billion IDs; drop to 8 and it arrives after 2.4 million, which
+      a busy table can reach inside a year. Each character you remove divides the safe count by
+      eight, because the keyspace shrinks 64-fold and the bound takes its square root.
+    </p>
+
+    <h2>Nano ID against the alternatives</h2>
+    <p>
+      Against UUID v4, Nano ID is shorter for equal or better entropy and needs no hyphens, which
+      is the whole pitch. Against UUID v7 it loses the time ordering, so for a primary key on a
+      large table v7's index locality is worth more than fifteen saved characters. Against an
+      auto-increment integer it gives up sortability and gains the property that nobody can
+      enumerate your records by counting upwards.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      The default alphabet includes <code>-</code> and <code>_</code>, which are URL-safe but will
+      be broken by a double-click selection in some terminals, and an ID can begin with a digit or
+      a hyphen — so quote it in YAML and never use one as a bare CSS identifier. If IDs will be
+      read aloud or copied off a screen,
+      switch to the no-look-alikes alphabet, which removes the characters people confuse, and add
+      a couple of characters to the size to make up the lost entropy.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    downloadText,
+    wireCopyButtons,
+    markUsed,
+  } from '~/lib/toolkit';
+  import {
+    nanoId,
+    dedupeChars,
+    entropyBits,
+    idsForCollisionProbability,
+    formatCount,
+    formatDuration,
+    NANO_ID_ALPHABET,
+    NANO_ID_ALPHABET_SORTED,
+    CHARSETS,
+  } from '~/lib/random';
+
+  const ALPHABETS: Record<string, string> = {
+    default: NANO_ID_ALPHABET,
+    urlSafe: NANO_ID_ALPHABET_SORTED,
+    alphanumeric: CHARSETS.alphanumeric,
+    lowerNum: 'abcdefghijklmnopqrstuvwxyz0123456789',
+    hex: CHARSETS.hexLower,
+    numbers: CHARSETS.digits,
+    // Digits and letters with the characters people transcribe wrongly
+    // removed — 0/O, 1/l/I, 5/S and 2/Z all go.
+    noLookalikes: '346789ABCDEFGHJKLMNPQRTUVWXYZabcdefghijkmnpqrtwxyz',
+  };
+
+  const MAX_COUNT = 1000;
+
+  mount('nano-id-generator', (root) => {
+    const sizeInput = q<HTMLInputElement>('#nano-size', root)!;
+    const sizeOut = q('[data-size-out]', root)!;
+    const countInput = q<HTMLInputElement>('#nano-count', root)!;
+    const presetSel = q<HTMLSelectElement>('#nano-preset', root)!;
+    const alphabetInput = q<HTMLInputElement>('#nano-alphabet', root)!;
+    const rateSel = q<HTMLSelectElement>('#nano-rate', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const stats = q('[data-stats]', root)!;
+
+    alphabetInput.value = ALPHABETS.default!;
+
+    const alphabet = () => dedupeChars(alphabetInput.value);
+    const size = () => Number(sizeInput.value);
+
+    /** Recompute the headline figure. Cheap, so it runs on every change. */
+    const updateCollision = () => {
+      const chars = [...alphabet()].length;
+      const big = q('[data-collision]', root)!;
+      const time = q('[data-collision-time]', root)!;
+
+      if (chars < 2) {
+        big.textContent = '—';
+        time.textContent = 'An alphabet needs at least two characters to be random at all.';
+        return;
+      }
+
+      const ids = idsForCollisionProbability(chars, size(), 0.01);
+      const rate = Number(rateSel.value);
+      big.textContent = formatCount(ids);
+      time.textContent = `At ${rateSel.options[rateSel.selectedIndex]!.text.toLowerCase()}, that is ${formatDuration(ids / rate)} of continuous generation.`;
+
+      stats.removeAttribute('hidden');
+      q('[data-stat-bits]', root)!.textContent = entropyBits(chars, size()).toFixed(1);
+      q('[data-stat-alphabet]', root)!.textContent = String(chars);
+      q('[data-stat-vs-uuid]', root)!.textContent = `${size()} vs 36`;
+    };
+
+    const generate = () => {
+      const chars = alphabet();
+      const count = Number(countInput.value);
+
+      if ([...chars].length < 2) {
+        output.value = '';
+        return setStatus(
+          root,
+          'Give the alphabet at least two distinct characters — one character produces the same ID every time.',
+          'error',
+        );
+      }
+      if (!Number.isInteger(count) || count < 1 || count > MAX_COUNT) {
+        output.value = '';
+        return setStatus(root, `Generate between 1 and ${MAX_COUNT} IDs at a time.`, 'error');
+      }
+
+      try {
+        output.value = Array.from({ length: count }, () => nanoId(size(), chars)).join('\n');
+        clearStatus(root);
+        markUsed();
+      } catch (err) {
+        output.value = '';
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    const refresh = () => {
+      updateCollision();
+      generate();
+    };
+
+    on(sizeInput, 'input', () => {
+      sizeOut.textContent = sizeInput.value;
+      refresh();
+    });
+    on(countInput, 'change', generate);
+    on(presetSel, 'change', () => {
+      alphabetInput.value = ALPHABETS[presetSel.value] ?? NANO_ID_ALPHABET;
+      refresh();
+    });
+    on(alphabetInput, 'change', refresh);
+    on(rateSel, 'change', updateCollision);
+    on(q('[data-generate]', root), 'click', generate);
+
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Generate some IDs first.', 'warn');
+      downloadText('nano-ids.txt', output.value + '\n', 'text/plain;charset=utf-8');
+    });
+
+    on(q('[data-clear]', root), 'click', () => {
+      output.value = '';
+      clearStatus(root);
+    });
+
+    wireCopyButtons(root);
+    refresh();
+  });
+</script>

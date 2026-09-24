@@ -1,0 +1,142 @@
+---
+import { SITE } from '~/consts';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import Breadcrumbs from '~/components/Breadcrumbs.astro';
+import ToolCard from '~/components/ToolCard.astro';
+import Icon from '~/components/Icon.astro';
+import type { Crumb } from '~/types';
+import { TOOLS, toolsInCategory } from '~/data/tools';
+import { sortedCategories } from '~/data/categories';
+
+const categories = sortedCategories();
+const count = TOOLS.length;
+
+const crumbs: Crumb[] = [{ label: 'Home', href: '/' }, { label: 'All tools' }];
+
+const schema = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: SITE.url },
+      { '@type': 'ListItem', position: 2, name: 'All tools', item: `${SITE.url}/tools` },
+    ],
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: `All ${SITE.name} developer tools`,
+    numberOfItems: count,
+    itemListElement: TOOLS.map((t, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: t.name,
+      url: `${SITE.url}/tools/${t.slug}`,
+    })),
+  },
+];
+---
+
+<BaseLayout
+  title={`All ${count} Developer Tools`}
+  description={`Browse all ${count} ByteCabin developer tools across JSON, encoding, generators, hashing, date and time, text and web development. Every tool runs locally in your browser.`}
+  canonical="/tools"
+  wide
+  schema={schema}
+>
+  <div class="py-6 sm:py-8">
+    <Breadcrumbs items={crumbs} />
+
+    <header class="mb-6">
+      <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">All tools</h1>
+      <p class="mt-2 max-w-2xl text-[0.9375rem] leading-relaxed text-muted">
+        Every ByteCabin utility, grouped by category. {count} tools, all free, all running entirely
+        in your browser. Start typing to filter the list.
+      </p>
+    </header>
+
+    <div class="sticky top-14 z-30 -mx-4 mb-8 bg-canvas/90 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6">
+      <label for="tool-filter" class="sr-only">Filter tools by name</label>
+      <input
+        type="search"
+        id="tool-filter"
+        class="bc-input"
+        placeholder="Filter tools — try json, hash, date…"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <p id="filter-status" role="status" aria-live="polite" class="sr-only"></p>
+    </div>
+
+    <div id="tool-groups" class="space-y-12">
+      {
+        categories.map((c) => {
+          const tools = toolsInCategory(c.id);
+          return (
+            <section aria-labelledby={`cat-${c.id}`} data-group={c.id}>
+              <div class="mb-4 flex items-baseline gap-3">
+                <h2 id={`cat-${c.id}`} class="flex items-center gap-2 text-lg font-semibold">
+                  <Icon name={c.icon} size={18} class="text-accent" />
+                  <a href={`/${c.slug}`} class="hover:text-accent">
+                    {c.name}
+                  </a>
+                </h2>
+                <span class="text-sm text-muted">{tools.length} tools</span>
+              </div>
+              <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {tools.map((tool) => (
+                  <div data-tool-item data-name={`${tool.name} ${tool.keywords.join(' ')} ${tool.aliases.join(' ')}`.toLowerCase()}>
+                    <ToolCard tool={tool} showCategory={false} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          );
+        })
+      }
+    </div>
+
+    <p id="no-results" hidden class="py-12 text-center text-muted">
+      No tool matches that filter. <a href="/tools" class="text-accent underline">Show all tools</a>.
+    </p>
+  </div>
+</BaseLayout>
+
+<script>
+  const input = document.getElementById('tool-filter') as HTMLInputElement | null;
+  const groups = document.querySelectorAll<HTMLElement>('[data-group]');
+  const items = document.querySelectorAll<HTMLElement>('[data-tool-item]');
+  const empty = document.getElementById('no-results');
+  const status = document.getElementById('filter-status');
+
+  if (input) {
+    const apply = () => {
+      const q = input.value.trim().toLowerCase();
+      let visible = 0;
+
+      for (const item of items) {
+        const match = !q || (item.dataset.name ?? '').includes(q);
+        item.hidden = !match;
+        if (match) visible++;
+      }
+
+      // Hide a category heading once all of its tools are filtered out.
+      for (const group of groups) {
+        const anyVisible = group.querySelector('[data-tool-item]:not([hidden])');
+        group.hidden = !anyVisible;
+      }
+
+      if (empty) empty.hidden = visible > 0;
+      if (status) status.textContent = `${visible} tool${visible === 1 ? '' : 's'} shown`;
+    };
+
+    input.addEventListener('input', apply);
+
+    // Support /tools?q=json so the homepage SearchAction target resolves.
+    const initial = new URLSearchParams(location.search).get('q');
+    if (initial) {
+      input.value = initial;
+      apply();
+    }
+  }
+</script>

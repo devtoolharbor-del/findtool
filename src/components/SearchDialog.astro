@@ -1,0 +1,238 @@
+---
+/**
+ * Command-palette style tool search.
+ *
+ * Opens on click, on "/" and on ⌘K / Ctrl-K. The index is fetched once from
+ * /search.json the first time the dialog opens, so the catalogue never weighs
+ * down initial page load — and the same code serves 50 tools or 5,000.
+ */
+---
+
+<button
+  type="button"
+  data-search-open
+  class="bc-btn bc-btn-secondary w-9 justify-center p-0 sm:w-56 sm:justify-between sm:px-3"
+  aria-label="Search tools"
+>
+  <span class="flex items-center gap-2 text-muted">
+    <svg
+      class="size-[18px] shrink-0"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.75"
+      stroke-linecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="7"></circle>
+      <path d="m20 20-3.5-3.5"></path>
+    </svg>
+    <span class="hidden font-normal sm:inline">Search tools</span>
+  </span>
+  <kbd
+    class="hidden rounded border border-line-strong px-1.5 py-0.5 font-sans text-[11px] text-muted sm:inline"
+    >⌘K</kbd
+  >
+</button>
+
+<dialog
+  id="bc-search"
+  class="m-0 w-full max-w-xl rounded-xl border border-line bg-surface p-0 text-ink shadow-2xl backdrop:bg-black/40 sm:mt-[12vh] sm:ml-[calc(50vw-20rem)] max-sm:mt-0 max-sm:h-full max-sm:max-w-none max-sm:rounded-none"
+  aria-label="Search tools"
+>
+  <div class="flex items-center gap-2 border-b border-line px-4">
+    <svg
+      class="size-[18px] shrink-0 text-muted"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.75"
+      stroke-linecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="7"></circle>
+      <path d="m20 20-3.5-3.5"></path>
+    </svg>
+    <input
+      type="search"
+      id="bc-search-input"
+      class="w-full bg-transparent py-3.5 text-[0.95rem] text-ink outline-none placeholder:text-muted"
+      placeholder="Search 50 tools — try json, jwt, epoch, uuid…"
+      autocomplete="off"
+      spellcheck="false"
+      aria-controls="bc-search-results"
+      aria-expanded="true"
+    />
+    <button type="button" data-search-close class="bc-btn bc-btn-ghost bc-btn-sm" aria-label="Close search">
+      Esc
+    </button>
+  </div>
+
+  <ul
+    id="bc-search-results"
+    role="listbox"
+    aria-label="Search results"
+    class="max-h-[60vh] overflow-y-auto p-2 max-sm:max-h-[calc(100vh-3.5rem)]"
+  >
+  </ul>
+</dialog>
+
+<script>
+  import { search, highlight, type SearchEntry } from '~/lib/search';
+  import { track } from '~/lib/toolkit';
+
+  const dialog = document.getElementById('bc-search') as HTMLDialogElement | null;
+  const input = document.getElementById('bc-search-input') as HTMLInputElement | null;
+  const results = document.getElementById('bc-search-results');
+  if (dialog && input && results) {
+    let index: SearchEntry[] | null = null;
+    let loading: Promise<void> | null = null;
+    let active = 0;
+    let current: SearchEntry[] = [];
+    let searchedThisSession = false;
+
+    const loadIndex = () => {
+      loading ??= fetch('/search.json')
+        .then((r) => r.json())
+        .then((data) => {
+          index = data as SearchEntry[];
+        })
+        .catch(() => {
+          index = [];
+          results.innerHTML =
+            '<li class="px-3 py-6 text-center text-sm text-muted">Search is unavailable. ' +
+            '<a class="text-accent underline" href="/tools">Browse all tools</a> instead.</li>';
+        });
+      return loading;
+    };
+
+    const open = async () => {
+      if (dialog.open) return;
+      dialog.showModal();
+      void loadIndex().then(render);
+      input.value = '';
+      input.focus();
+      render();
+    };
+
+    const close = () => dialog.close();
+
+    const render = () => {
+      const query = input.value.trim();
+
+      if (!index) {
+        results.innerHTML =
+          '<li class="px-3 py-6 text-center text-sm text-muted">Loading…</li>';
+        return;
+      }
+
+      if (!query) {
+        current = index.slice(0, 6);
+        results.innerHTML =
+          '<li class="px-3 pt-2 pb-1 text-xs font-medium uppercase tracking-wide text-muted">Popular</li>' +
+          current.map((e, i) => row(e, i, '')).join('');
+        active = 0;
+        markActive();
+        return;
+      }
+
+      const hits = search(query, index, 8);
+      current = hits.map((h) => h.entry);
+
+      if (!current.length) {
+        results.innerHTML =
+          `<li class="px-3 py-6 text-center text-sm text-muted">No tool matches “${escapeHtml(query)}”. ` +
+          '<a class="text-accent underline" href="/tools">Browse all 50 tools</a>.</li>';
+        return;
+      }
+
+      results.innerHTML = current.map((e, i) => row(e, i, query)).join('');
+      active = 0;
+      markActive();
+
+      if (!searchedThisSession) {
+        searchedThisSession = true;
+        track('search_used');
+      }
+    };
+
+    const row = (e: SearchEntry, i: number, query: string) => `
+      <li role="option" id="bc-opt-${i}" aria-selected="false" data-idx="${i}">
+        <a href="/tools/${e.s}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-surface-2 data-[active]:bg-surface-2">
+          <span class="min-w-0 flex-1">
+            <span class="block text-sm font-medium text-ink">${highlight(e.n, query)}</span>
+            <span class="block truncate text-xs text-muted">${escapeHtml(e.d)}</span>
+          </span>
+          <span class="shrink-0 rounded border border-line px-1.5 py-0.5 text-[10px] text-muted">${escapeHtml(e.c)}</span>
+        </a>
+      </li>`;
+
+    const markActive = () => {
+      results.querySelectorAll('a').forEach((a, i) => {
+        const li = a.closest('li');
+        if (i === active) {
+          a.setAttribute('data-active', '');
+          li?.setAttribute('aria-selected', 'true');
+          input.setAttribute('aria-activedescendant', `bc-opt-${i}`);
+          a.scrollIntoView({ block: 'nearest' });
+        } else {
+          a.removeAttribute('data-active');
+          li?.setAttribute('aria-selected', 'false');
+        }
+      });
+    };
+
+    function escapeHtml(s: string) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    input.addEventListener('input', render);
+
+    input.addEventListener('keydown', (e) => {
+      const links = results.querySelectorAll('a');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        active = Math.min(active + 1, links.length - 1);
+        markActive();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        active = Math.max(active - 1, 0);
+        markActive();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        (links[active] as HTMLAnchorElement | undefined)?.click();
+      }
+    });
+
+    document.querySelectorAll('[data-search-open]').forEach((b) =>
+      b.addEventListener('click', () => void open()),
+    );
+    document
+      .querySelectorAll('[data-search-close]')
+      .forEach((b) => b.addEventListener('click', close));
+
+    // Click on the backdrop closes the dialog.
+    dialog.addEventListener('click', (e) => {
+      if (e.target === dialog) close();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      const el = document.activeElement;
+      const typing =
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLTextAreaElement ||
+        (el as HTMLElement | null)?.isContentEditable;
+
+      if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        void open();
+      } else if (e.key === '/' && !typing && !dialog.open) {
+        e.preventDefault();
+        void open();
+      }
+    });
+  }
+
+</script>

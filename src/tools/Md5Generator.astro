@@ -1,0 +1,373 @@
+---
+/**
+ * MD5 generator.
+ *
+ * The one hash on this site that cannot use `crypto.subtle` — Web Crypto has
+ * never implemented MD5 — so it runs the pure-TypeScript implementation in
+ * src/lib/md5.ts. Still entirely local: the file is read off disk into an
+ * ArrayBuffer and hashed in this tab.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+const EXAMPLE = 'The quick brown fox jumps over the lazy dog';
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="md5-generator" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <span class="text-xs text-muted">
+        MD5 detects accidental corruption. It is not a security function.
+      </span>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={EXAMPLE}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>
+          Hash a file
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input type="file" class="hidden" data-file-input />
+      </div>
+    </div>
+
+    {/* ── Input: text ── */}
+    <div>
+      <label for="md5-input" class="bc-label">Text to hash</label>
+      <textarea
+        id="md5-input"
+        class="bc-textarea min-h-40"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste text here, or use “Hash a file” to check a download…"
+        aria-describedby="md5-status"></textarea>
+    </div>
+
+    {/* ── Input: file ── */}
+    <div
+      class="flex flex-wrap items-center gap-3 rounded-lg border border-line-strong bg-surface-2 px-3 py-2 text-sm"
+      data-file-banner
+      hidden
+    >
+      <span class="text-xs font-medium tracking-wide text-muted uppercase">Hashing file</span>
+      <span class="font-medium text-ink" data-file-name></span>
+      <span class="text-muted" data-file-size></span>
+      <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm ml-auto" data-file-remove>
+        Use text instead
+      </button>
+    </div>
+
+    {/* ── Status ── */}
+    <div id="md5-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Output ── */}
+    <div>
+      <div class="bc-toolbar mb-1.5">
+        <span class="text-xs font-medium tracking-wide text-muted uppercase">MD5 checksum</span>
+
+        <label for="md5-encoding" class="sr-only">Output encoding</label>
+        <select id="md5-encoding" class="bc-select w-auto py-1 text-xs" data-encoding>
+          <option value="hex" selected>Hex</option>
+          <option value="base64">Base64</option>
+        </select>
+
+        <label class="bc-check-label text-xs">
+          <input type="checkbox" class="bc-checkbox" data-uppercase />
+          Uppercase
+        </label>
+
+        <div class="ml-auto flex gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+            <span data-label>Copy</span>
+          </button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>
+            Download
+          </button>
+        </div>
+      </div>
+
+      <pre class="bc-output min-h-16 break-all" data-output-display tabindex="0"></pre>
+      <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+    </div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-3 gap-2" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value">128 bits</div>
+        <div class="bc-stat-label">Digest size</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-input>—</div>
+        <div class="bc-stat-label">Input</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-source>Text</div>
+        <div class="bc-stat-label">Source</div>
+      </div>
+    </div>
+
+    {/* ── Checksum comparison ── */}
+    <div class="rounded-lg border border-line bg-surface-2 p-3">
+      <label for="md5-expected" class="bc-label">Compare with the published checksum</label>
+      <input
+        id="md5-expected"
+        type="text"
+        class="bc-input font-mono text-[0.8125rem]"
+        data-expected
+        data-clear-target
+        spellcheck="false"
+        autocomplete="off"
+        placeholder="Paste the 32-character MD5 from the download page…"
+      />
+      <p class="mt-1.5 text-xs text-muted">
+        A full line from an <code>.md5</code> file works — the file name is ignored.
+      </p>
+      <div class="mt-2" data-compare hidden></div>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Pick a file — or paste text — and this page prints its MD5 checksum as 32 hex characters, or
+      as Base64 for the systems that publish it that way. Paste the checksum the project published
+      next to the download and you get a plain yes or no, with no squinting at two long strings.
+    </p>
+    <p>
+      Web Crypto does not implement MD5, so unlike the SHA tools on this site the arithmetic here
+      is done in JavaScript. It is still local: the file is read from your disk into memory and
+      never sent anywhere.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Checking a download against the <code>.md5</code> file next to it, which many mirrors,
+        firmware vendors and older Linux distributions still publish.
+      </li>
+      <li>Confirming a large file survived an upload, an FTP transfer or a burn to physical media.</li>
+      <li>
+        Matching an <code>ETag</code> — S3 returns the object's MD5 for single-part uploads, a
+        quick way to confirm what landed in a bucket.
+      </li>
+      <li>Spotting duplicate files in a set you control and trust.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>Input:</p>
+    <pre><code>The quick brown fox jumps over the lazy dog</code></pre>
+    <p>MD5:</p>
+    <pre><code>9e107d9d372bb6826bd81d3542a419d6</code></pre>
+    <p>Add one full stop at the end and the whole digest changes:</p>
+    <pre><code>e4d909c290d0fb1ca068ffaddf22cbd0</code></pre>
+
+    <h2>Why MD5 is safe for corruption and unsafe for everything else</h2>
+    <p>
+      MD5 is cryptographically broken. Collisions — two different inputs with the same checksum —
+      can be generated in <strong>seconds on ordinary hardware</strong>; the first practical attack
+      was published by Wang and Yu in 2004, and a chosen-prefix collision was used in the wild by
+      the Flame malware in 2012 to forge a Microsoft code-signing certificate. There are famous
+      128-byte block pairs with identical MD5 digests that fit in a tweet.
+    </p>
+    <p>
+      That makes it useless whenever someone might <em>want</em> two files to collide: signatures,
+      certificates, deduplicating untrusted uploads. It stays good at the job it does here —
+      noticing that a file was truncated, corrupted in transit, or written to a failing disk, none
+      of which produce a matching checksum by accident.
+    </p>
+    <p>
+      MD5 is never a password hash, and it does not encrypt anything. A hash has no key and no
+      inverse, so "MD5 decrypt" services simply look your digest up in a table of previously hashed
+      common strings. Against a hostile network use SHA-256; for passwords use Argon2id, scrypt or
+      bcrypt.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Hex is case-insensitive, so <code>9E107D…</code> and <code>9e107d…</code> are the same value
+      and the comparison above accepts either. Base64 is not, which is why the uppercase toggle
+      applies to hex only.
+    </p>
+    <p>
+      One thing that catches people out: <code>md5sum file</code> hashes the file's bytes, while
+      <code>echo hello | md5sum</code> hashes <code>hello</code> plus the newline <code>echo</code>
+      adds. If a text comparison fails by a hair, that trailing <code>\n</code> is usually the
+      reason — use <code>printf</code> or <code>echo -n</code> instead.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    downloadText,
+    wireStandardActions,
+    wireFileInput,
+    readFileBuffer,
+    formatBytes,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { md5 } from '~/lib/md5';
+  import {
+    formatDigest,
+    compareChecksum,
+    toHex,
+    utf8,
+    type DigestEncoding,
+  } from '~/lib/hash';
+
+  mount('md5-generator', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const display = q<HTMLElement>('[data-output-display]', root)!;
+    const encodingSelect = q<HTMLSelectElement>('[data-encoding]', root)!;
+    const uppercase = q<HTMLInputElement>('[data-uppercase]', root)!;
+    const expected = q<HTMLInputElement>('[data-expected]', root)!;
+    const compareSlot = q<HTMLElement>('[data-compare]', root)!;
+    const stats = q<HTMLElement>('[data-stats]', root)!;
+    const banner = q<HTMLElement>('[data-file-banner]', root)!;
+
+    let digest: Uint8Array | null = null;
+    let file: { name: string; bytes: Uint8Array } | null = null;
+
+    const encoding = () => encodingSelect.value as DigestEncoding;
+
+    const clearOutput = () => {
+      digest = null;
+      display.textContent = '';
+      mirror.value = '';
+      stats.setAttribute('hidden', '');
+      compareSlot.setAttribute('hidden', '');
+      compareSlot.textContent = '';
+    };
+
+    const paint = () => {
+      if (!digest) return clearOutput();
+
+      const text = formatDigest(digest, encoding(), uppercase.checked);
+      display.textContent = text;
+      mirror.value = text;
+
+      stats.removeAttribute('hidden');
+      q('[data-stat-input]', root)!.textContent = formatBytes(
+        file ? file.bytes.length : utf8(input.value).length,
+      );
+      q('[data-stat-source]', root)!.textContent = file ? 'File' : 'Text';
+
+      renderComparison();
+    };
+
+    const renderComparison = () => {
+      const raw = expected.value;
+      if (!digest || !raw.trim()) {
+        compareSlot.setAttribute('hidden', '');
+        compareSlot.textContent = '';
+        return;
+      }
+
+      const result = compareChecksum(raw, digest, 'MD5');
+      const tone =
+        result.status === 'match'
+          ? 'bc-alert-ok'
+          : result.status === 'mismatch'
+            ? 'bc-alert-error'
+            : 'bc-alert-warn';
+
+      const box = document.createElement('div');
+      box.className = `bc-alert ${tone}`;
+      const strong = document.createElement('strong');
+      strong.textContent = result.status === 'match' ? 'Match' : 'No match';
+      const span = document.createElement('span');
+      span.textContent = result.message.replace(/^(Match|No match)\s*—\s*/, '');
+      box.append(strong, span);
+
+      compareSlot.textContent = '';
+      compareSlot.appendChild(box);
+      compareSlot.removeAttribute('hidden');
+    };
+
+    const run = () => {
+      try {
+        if (file) {
+          digest = md5(file.bytes);
+        } else {
+          const text = input.value;
+          if (!text) {
+            clearStatus(root);
+            clearOutput();
+            return;
+          }
+          guardSize(text);
+          digest = md5(utf8(text));
+        }
+        clearStatus(root);
+        markUsed();
+        paint();
+      } catch (err) {
+        clearOutput();
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    const useFile = (name: string, bytes: Uint8Array | null) => {
+      if (!bytes) {
+        file = null;
+        banner.setAttribute('hidden', '');
+        input.disabled = false;
+      } else {
+        file = { name, bytes };
+        q('[data-file-name]', root)!.textContent = name;
+        q('[data-file-size]', root)!.textContent = formatBytes(bytes.length);
+        banner.removeAttribute('hidden');
+        input.disabled = true;
+      }
+      run();
+    };
+
+    on(input, 'input', debounce(run, 180));
+    on(encodingSelect, 'change', () => {
+      uppercase.disabled = encoding() === 'base64';
+      paint();
+    });
+    on(uppercase, 'change', paint);
+    on(expected, 'input', debounce(renderComparison, 120));
+    on(q('[data-file-remove]', root), 'click', () => useFile('', null));
+
+    on(q('[data-download]', root), 'click', () => {
+      if (!mirror.value || !digest) return setStatus(root, 'Hash something first.', 'warn');
+      const line = file ? `${toHex(digest)}  ${file.name}\n` : `${mirror.value}\n`;
+      downloadText(`${file ? file.name : 'digest'}.md5`, line);
+    });
+
+    wireFileInput(
+      root,
+      async (chosen) => {
+        try {
+          const buffer = await readFileBuffer(chosen);
+          useFile(chosen.name, new Uint8Array(buffer));
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, { onChange: () => useFile('', null) });
+  });
+</script>

@@ -1,0 +1,323 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_SORT_LIST } from '~/lib/text';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="sort-lines" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="sl-mode" class="text-xs font-medium tracking-wide text-muted uppercase">Order</label>
+        <select id="sl-mode" class="bc-select w-auto py-1.5 text-xs" data-mode>
+          <option value="alpha" selected>Alphabetical</option>
+          <option value="natural">Natural (file2 before file10)</option>
+          <option value="numeric">Numeric (by leading number)</option>
+          <option value="length">By line length</option>
+          <option value="random">Shuffle</option>
+        </select>
+      </div>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-opt="reverse" />
+        Reverse
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-opt="caseSensitive" />
+        Case sensitive
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-opt="ignoreLeadingWhitespace" />
+        Ignore indentation
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-opt="removeBlank" />
+        Remove blank lines
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_SORT_LIST}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>Upload file</button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input type="file" accept=".txt,.csv,.log,text/plain" class="hidden" data-file-input />
+      </div>
+    </div>
+
+    {/* ── Panes ── */}
+    <div class="grid gap-3 lg:grid-cols-2">
+      <div>
+        <label for="sl-input" class="bc-label">Lines</label>
+        <textarea
+          id="sl-input"
+          class="bc-textarea min-h-56"
+          data-primary-input
+          data-clear-target
+          spellcheck="false"
+          placeholder="Paste lines to sort…"
+          aria-describedby="sl-status"></textarea>
+      </div>
+
+      <div>
+        <div class="mb-1.5 flex items-center justify-between">
+          <span class="text-xs font-medium tracking-wide text-muted uppercase">Sorted</span>
+          <div class="flex gap-2">
+            <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-output>
+              <span data-label>Copy</span>
+            </button>
+            <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>Download</button>
+          </div>
+        </div>
+        <textarea
+          class="bc-textarea min-h-56"
+          data-output
+          readonly
+          spellcheck="false"
+          aria-label="Sorted result"></textarea>
+      </div>
+    </div>
+
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-action="sort">Sort</button>
+      <button type="button" class="bc-btn bc-btn-secondary" data-action="reshuffle" hidden>
+        Shuffle again
+      </button>
+      <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-swap>Use result as input</button>
+      <span class="ml-auto text-xs text-muted" data-count></span>
+    </div>
+
+    <div id="sl-status" data-status role="status" aria-live="polite" hidden></div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Sorts a list of lines five different ways: alphabetically, in natural order, by the number
+      each line starts with, by line length, or shuffled into a random order. Each mode can be
+      reversed, made case-sensitive, told to ignore indentation, and told to throw away blank
+      lines first.
+    </p>
+    <p>
+      Natural order is the one worth the visit. Plain alphabetical sorting compares text character
+      by character, so <code>file10</code> lands before <code>file2</code> — because
+      <code>1</code> precedes <code>2</code>. Natural order reads runs of digits as numbers and
+      puts them where a human expects.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Alphabetising a list of imports, environment variables, dependencies or CSS custom
+        properties so the next diff is readable.
+      </li>
+      <li>
+        Ordering filenames or version strings correctly — <code>v1.9.0</code> before
+        <code>v1.10.0</code>, which alphabetical sorting gets backwards.
+      </li>
+      <li>
+        Ranking log lines by a leading duration or count with numeric mode.
+      </li>
+      <li>
+        Sorting by length to find the outlier — the one 300-character row in a file of 40-character
+        rows is almost always the malformed one.
+      </li>
+      <li>Shuffling a list to pick a random order for a rota, a test fixture or a draw.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>Alphabetical order gives:</p>
+    <pre><code>{`file1.txt
+file10.txt
+file2.txt
+file20.txt
+file3.txt`}</code></pre>
+    <p>Natural order gives what you meant:</p>
+    <pre><code>{`file1.txt
+file2.txt
+file3.txt
+file10.txt
+file20.txt`}</code></pre>
+
+    <h2>How each mode compares</h2>
+    <p>
+      <strong>Alphabetical</strong> compares by Unicode code unit, lowercased unless "case
+      sensitive" is on. With case sensitivity enabled, every uppercase ASCII letter sorts before
+      every lowercase one, so <code>Zebra</code> precedes <code>apple</code> — that is how
+      <code>sort</code> behaves in the C locale, and it surprises people every time.
+    </p>
+    <p>
+      <strong>Natural</strong> walks both strings as alternating runs of digits and non-digits.
+      Digit runs compare by value, and because they are compared by length-then-text rather than
+      by parsing to a float, IDs longer than 15 digits still order correctly — a real problem for
+      any implementation that reaches for <code>parseInt</code>. Zero-padded forms are kept
+      deterministic: <code>img001</code> groups just ahead of <code>img1</code>.
+    </p>
+    <p>
+      <strong>Numeric</strong> reads a number from the start of each line, understanding a leading
+      sign, a decimal point and thousands separators, and sends lines with no number to the bottom
+      in their original order. <strong>Length</strong> counts UTF-16 units. <strong>Shuffle</strong>
+      uses a Fisher-Yates pass, which is uniform — unlike the <code>sort(() =&gt; Math.random() -
+      0.5)</code> trick, which is measurably biased.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Every sort here is stable, so lines that compare equal keep their original relative order.
+      That lets you chain passes: sort by one key, then by another, and the first ordering survives
+      inside each group of the second. "Use result as input" makes that a single click.
+    </p>
+    <p>
+      Sorting is done on the line's text, not on a locale collation. <code>ä</code> therefore sorts
+      after <code>z</code> rather than beside <code>a</code>, which is right for identifiers and
+      wrong for a German phone book. For human-language lists in a non-English locale, your
+      spreadsheet's locale-aware sort is the better tool.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    wireStandardActions,
+    wireSwap,
+    wireFileInput,
+    readFileText,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { sortLines, type SortMode, type SortOptions } from '~/lib/text';
+
+  mount('sort-lines', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const modeSelect = q<HTMLSelectElement>('[data-mode]', root)!;
+    const reshuffle = q('[data-action="reshuffle"]', root)!;
+    const count = q('[data-count]', root)!;
+
+    const checked = (name: string) => q<HTMLInputElement>(`[data-opt="${name}"]`, root)!.checked;
+
+    const options = (): SortOptions => ({
+      mode: modeSelect.value as SortMode,
+      reverse: checked('reverse'),
+      caseSensitive: checked('caseSensitive'),
+      ignoreLeadingWhitespace: checked('ignoreLeadingWhitespace'),
+      removeBlank: checked('removeBlank'),
+    });
+
+    const run = () => {
+      const text = input.value;
+
+      if (!text.trim()) {
+        clearStatus(root);
+        output.value = '';
+        count.textContent = '';
+        return;
+      }
+
+      try {
+        guardSize(text);
+      } catch (err) {
+        setStatus(root, messageFor(err), 'error');
+        return;
+      }
+
+      const mode = modeSelect.value as SortMode;
+      const result = sortLines(text, options());
+      output.value = result.lines.join('\n');
+
+      count.textContent =
+        `${result.lines.length.toLocaleString()} line${result.lines.length === 1 ? '' : 's'}` +
+        (result.blanksRemoved ? `, ${result.blanksRemoved.toLocaleString()} blank removed` : '');
+
+      if (mode === 'numeric') {
+        const unparsed = result.lines.filter((l) => !/^\s*[+-]?[\d,]/.test(l)).length;
+        if (unparsed > 0) {
+          setStatus(
+            root,
+            `${unparsed.toLocaleString()} line${unparsed === 1 ? ' does' : 's do'} not start with a number ` +
+              `and ${unparsed === 1 ? 'was' : 'were'} moved to the end in the original order.`,
+            'warn',
+          );
+        } else {
+          clearStatus(root);
+        }
+      } else {
+        clearStatus(root);
+      }
+
+      markUsed();
+    };
+
+    const syncMode = () => {
+      const isRandom = modeSelect.value === 'random';
+      reshuffle.toggleAttribute('hidden', !isRandom);
+      // Reverse is meaningless for a shuffle, so say so rather than lying.
+      const reverseBox = q<HTMLInputElement>('[data-opt="reverse"]', root)!;
+      reverseBox.disabled = isRandom;
+      reverseBox.closest('label')?.classList.toggle('opacity-45', isRandom);
+    };
+
+    on(q('[data-action="sort"]', root), 'click', run);
+    on(reshuffle, 'click', run);
+    on(modeSelect, 'change', () => {
+      syncMode();
+      if (output.value) run();
+    });
+    for (const box of qa('[data-opt]', root)) {
+      on(box, 'change', () => output.value && run());
+    }
+    // Re-sort while typing, but only once the list is already sorted once.
+    on(
+      input,
+      'input',
+      debounce(() => output.value && run(), 200),
+    );
+
+    on(q('[data-copy-output]', root), 'click', (e) => {
+      if (!output.value) return setStatus(root, 'Sort something first.', 'warn');
+      void copyText(output.value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Sort something first.', 'warn');
+      downloadText('sorted.txt', output.value);
+    });
+
+    wireSwap(root, '[data-primary-input]', '[data-output]', () => {
+      output.value = '';
+      clearStatus(root);
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          run();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, { onChange: run });
+    syncMode();
+  });
+</script>

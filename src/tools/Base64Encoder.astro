@@ -1,0 +1,415 @@
+---
+/**
+ * Base64 Encoder.
+ *
+ * Text or file in, Base64 out. All logic lives in src/lib/base64.ts so it can
+ * be unit-tested without a DOM; this file is markup plus wiring.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_TEXT } from '~/lib/base64';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="base64-encoder" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="b64e-alphabet" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Alphabet
+        </label>
+        <select id="b64e-alphabet" class="bc-select w-auto py-1.5 text-xs">
+          <option value="standard" selected>Standard (+ /)</option>
+          <option value="urlsafe">URL-safe (- _)</option>
+        </select>
+      </div>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-padding checked />
+        Padding (=)
+      </label>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-wrap />
+        Wrap at 76
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_TEXT}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>
+          Encode a file
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input type="file" class="hidden" data-file-input />
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="b64e-input" class="bc-label">Text to encode</label>
+      <textarea
+        id="b64e-input"
+        class="bc-textarea min-h-40"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Type or paste anything — Unicode and emoji are handled correctly…"
+        aria-describedby="b64e-status"></textarea>
+      <p class="mt-1.5 text-xs text-muted">
+        You can also drop a file onto this box to encode its bytes.
+      </p>
+    </div>
+
+    {/* ── Status ── */}
+    <div id="b64e-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── File summary, shown only after a file is encoded ── */}
+    <div class="bc-card p-3" data-file-summary hidden>
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm font-medium text-ink" data-file-name></p>
+          <p class="text-xs text-muted" data-file-meta></p>
+        </div>
+        <img
+          class="max-h-24 rounded border border-line"
+          data-file-preview
+          alt="Preview of the encoded image"
+          hidden
+        />
+      </div>
+    </div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-input>—</div>
+        <div class="bc-stat-label">Input</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-bytes>—</div>
+        <div class="bc-stat-label">Bytes encoded</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-output>—</div>
+        <div class="bc-stat-label">Output length</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-growth>—</div>
+        <div class="bc-stat-label">Size change</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+        <label for="b64e-output" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Base64 result
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+            <span data-label>Copy</span>
+          </button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>
+            Download
+          </button>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-swap>
+            Swap fields
+          </button>
+        </div>
+      </div>
+      <textarea
+        id="b64e-output"
+        class="bc-textarea min-h-40 font-mono"
+        data-output
+        readonly
+        spellcheck="false"
+        aria-label="Base64 result"></textarea>
+    </div>
+
+    {/* ── Data URI ── */}
+    <div class="bc-card p-3">
+      <div class="bc-toolbar mb-2">
+        <label class="bc-check-label">
+          <input type="checkbox" class="bc-checkbox" data-datauri />
+          Build a data URI
+        </label>
+        <label for="b64e-mime" class="sr-only">MIME type</label>
+        <input
+          id="b64e-mime"
+          type="text"
+          class="bc-input w-auto flex-1 py-1.5 text-xs"
+          data-mime
+          value="text/plain"
+          spellcheck="false"
+          placeholder="text/plain"
+        />
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-datauri-output]">
+          <span data-label>Copy URI</span>
+        </button>
+      </div>
+      <pre class="bc-output max-h-32 text-xs" data-datauri-output tabindex="0"></pre>
+      <p class="mt-2 text-xs text-muted">
+        Paste the result into a CSS <code>url()</code> or an <code>&lt;img src&gt;</code> to embed
+        the file with no extra request. Encoding a file above fills the MIME type in for you.
+      </p>
+    </div>
+
+    <p class="text-xs text-muted">
+      Need the other direction? Use the <a class="text-accent underline" href="/tools/base64-decoder">Base64 Decoder</a>.
+    </p>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Base64 rewrites arbitrary bytes using only 64 characters that survive systems built for text.
+      This encoder takes what you type — or a file you drop on it — and produces that
+      representation, with control over the alphabet, the padding and the line width.
+    </p>
+    <p>
+      Non-ASCII input is handled properly. The text is encoded as UTF-8 first, so an em dash or an
+      emoji becomes the right sequence of bytes rather than throwing the way the browser's own
+      <code>btoa()</code> does on anything above U+00FF.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Embedding a small image or font directly in CSS or HTML as a data URI, removing one network
+        round trip on a critical asset.
+      </li>
+      <li>
+        Building an HTTP Basic credential: the header value is <code>Basic</code> followed by the
+        Base64 of <code>username:password</code>.
+      </li>
+      <li>
+        Putting binary into a JSON field, a YAML value or an environment variable, none of which can
+        hold raw bytes.
+      </li>
+      <li>Encoding a certificate or key body for a Kubernetes secret, which expects Base64 values.</li>
+      <li>Attaching a file to a MIME email body, where the 76-character line rule applies.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>Three ASCII characters become four Base64 characters, exactly:</p>
+    <pre><code>foo   →  Zm9v
+fo    →  Zm8=
+f     →  Zg==</code></pre>
+    <p>And a character outside ASCII becomes its UTF-8 bytes first:</p>
+    <pre><code>é  →  C3 A9  →  w6k=</code></pre>
+
+    <h2>Choosing the alphabet and the padding</h2>
+    <p>
+      The standard alphabet ends with <code>+</code> and <code>/</code>. Both have meaning inside a
+      URL — <code>+</code> is a space in a form-encoded query, and <code>/</code> is a path
+      separator — so RFC 4648 §5 defines a URL-safe variant that uses <code>-</code> and
+      <code>_</code> instead. Pick it whenever the value will appear in a path, a query parameter or
+      a filename.
+    </p>
+    <p>
+      The trailing <code>=</code> characters pad the output to a multiple of four. They carry no
+      data, and JSON Web Tokens omit them entirely. Turn padding off when the consumer expects it
+      off; leave it on when you are not sure, since almost every decoder accepts padded input.
+    </p>
+    <p>
+      Line wrapping exists for the same historical reason: RFC 2045 limits an encoded MIME body to
+      76 characters per line. It is cosmetic — decoders ignore the newlines — but some older mail
+      and PEM parsers insist on it.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Base64 is an encoding, not encryption. Anyone can reverse it in one step, so it hides nothing.
+      It also costs space: every three bytes become four characters, so the output is about 33%
+      larger than the input, before line breaks. For a 2 MB image that is 700 KB of extra payload
+      that cannot be cached separately from the document it sits in — which is why data URIs are
+      worth it for icons and rarely worth it for photographs.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    downloadText,
+    wireStandardActions,
+    wireSwap,
+    wireFileInput,
+    readFileBuffer,
+    formatBytes,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { encodeBytes, toDataUri, sniffMimeType, MIME_LINE_LENGTH } from '~/lib/base64';
+
+  mount('base64-encoder', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const alphabet = q<HTMLSelectElement>('#b64e-alphabet', root)!;
+    const padding = q<HTMLInputElement>('[data-padding]', root)!;
+    const wrap = q<HTMLInputElement>('[data-wrap]', root)!;
+    const dataUriToggle = q<HTMLInputElement>('[data-datauri]', root)!;
+    const mimeField = q<HTMLInputElement>('[data-mime]', root)!;
+    const dataUriOut = q<HTMLElement>('[data-datauri-output]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const fileSummary = q('[data-file-summary]', root)!;
+    const preview = q<HTMLImageElement>('[data-file-preview]', root)!;
+
+    /** Set when the current output came from a file rather than the textarea. */
+    let fileBytes: Uint8Array | null = null;
+    let fileName = '';
+
+    const options = () => ({
+      urlSafe: alphabet.value === 'urlsafe',
+      padding: padding.checked,
+      wrap: wrap.checked ? MIME_LINE_LENGTH : 0,
+    });
+
+    const reset = () => {
+      output.value = '';
+      dataUriOut.textContent = '';
+      stats.setAttribute('hidden', '');
+    };
+
+    const showStats = (sourceLabel: string, byteCount: number, encodedLength: number) => {
+      stats.removeAttribute('hidden');
+      q('[data-stat-input]', root)!.textContent = sourceLabel;
+      q('[data-stat-bytes]', root)!.textContent = formatBytes(byteCount);
+      q('[data-stat-output]', root)!.textContent = `${encodedLength.toLocaleString()} chars`;
+      const growth = byteCount === 0 ? 0 : Math.round(((encodedLength - byteCount) / byteCount) * 100);
+      q('[data-stat-growth]', root)!.textContent = `+${growth}%`;
+    };
+
+    const renderDataUri = (base64: string) => {
+      if (!dataUriToggle.checked || !base64) {
+        dataUriOut.textContent = '';
+        return;
+      }
+      // Padding is required inside a data URI; browsers are strict about it.
+      dataUriOut.textContent = toDataUri(mimeField.value, base64);
+    };
+
+    const runText = () => {
+      fileBytes = null;
+      fileSummary.setAttribute('hidden', '');
+      preview.setAttribute('hidden', '');
+      preview.removeAttribute('src');
+
+      const text = input.value;
+      if (!text) {
+        clearStatus(root);
+        reset();
+        return;
+      }
+
+      try {
+        guardSize(text);
+        const bytes = new TextEncoder().encode(text);
+        const encoded = encodeBytes(bytes, options());
+        output.value = encoded;
+        showStats(`${text.length.toLocaleString()} chars`, bytes.length, encoded.replace(/\n/g, '').length);
+        renderDataUri(encoded.replace(/\n/g, ''));
+        clearStatus(root);
+        markUsed();
+      } catch (err) {
+        reset();
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    const runFile = () => {
+      if (!fileBytes) return;
+      const encoded = encodeBytes(fileBytes, options());
+      output.value = encoded;
+      showStats(fileName || 'file', fileBytes.length, encoded.replace(/\n/g, '').length);
+      renderDataUri(encoded.replace(/\n/g, ''));
+      markUsed();
+    };
+
+    const rerun = () => (fileBytes ? runFile() : runText());
+
+    on(input, 'input', debounce(runText, 200));
+    for (const control of [alphabet, padding, wrap]) on(control, 'change', rerun);
+    on(dataUriToggle, 'change', () => renderDataUri(output.value.replace(/\n/g, '')));
+    on(mimeField, 'input', debounce(() => renderDataUri(output.value.replace(/\n/g, '')), 250));
+
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Encode something first.', 'warn');
+      downloadText(`${fileName || 'encoded'}.base64.txt`, output.value);
+    });
+
+    // Swap lets you recover from pasting Base64 into the text box by mistake.
+    wireSwap(root, '[data-primary-input]', '[data-output]', () => {
+      fileBytes = null;
+      fileSummary.setAttribute('hidden', '');
+      setStatus(
+        root,
+        'Fields swapped. To turn Base64 back into text, open the Base64 Decoder.',
+        'warn',
+      );
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          const buffer = await readFileBuffer(file);
+          fileBytes = new Uint8Array(buffer);
+          fileName = file.name;
+
+          const sniffed = sniffMimeType(fileBytes);
+          const mime = file.type || sniffed.mime;
+          mimeField.value = mime;
+          dataUriToggle.checked = true;
+
+          input.value = '';
+          runFile();
+
+          fileSummary.removeAttribute('hidden');
+          q('[data-file-name]', root)!.textContent = file.name;
+          q('[data-file-meta]', root)!.textContent =
+            `${formatBytes(file.size)} · ${mime}${file.type ? '' : ' (detected from the file header)'}`;
+
+          if (mime.startsWith('image/')) {
+            preview.src = toDataUri(mime, encodeBytes(fileBytes, { padding: true }));
+            preview.removeAttribute('hidden');
+          } else {
+            preview.setAttribute('hidden', '');
+            preview.removeAttribute('src');
+          }
+
+          clearStatus(root);
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, {
+      onChange: () => {
+        fileBytes = null;
+        fileName = '';
+        fileSummary.setAttribute('hidden', '');
+        preview.setAttribute('hidden', '');
+        preview.removeAttribute('src');
+        reset();
+        if (input.value) runText();
+      },
+    });
+  });
+</script>

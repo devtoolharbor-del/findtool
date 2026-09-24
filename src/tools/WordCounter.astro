@@ -1,0 +1,372 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_PROSE } from '~/lib/text';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="word-counter" class="space-y-4">
+    {/* ── Input ── */}
+    <div>
+      <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+        <label for="wc-input" class="bc-label mb-0">Your text</label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_PROSE}>
+            Example
+          </button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>
+            Upload file
+          </button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+          <input type="file" accept=".txt,.md,.markdown,.csv,text/plain" class="hidden" data-file-input />
+        </div>
+      </div>
+      <textarea
+        id="wc-input"
+        class="bc-textarea min-h-56"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Start typing or paste a draft — every count below updates as you go…"
+        aria-describedby="wc-status"></textarea>
+    </div>
+
+    <div id="wc-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Primary counts ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Document counts">
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="words">0</div>
+        <div class="bc-stat-label">Words</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="characters">0</div>
+        <div class="bc-stat-label">Characters</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="sentences">0</div>
+        <div class="bc-stat-label">Sentences</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="paragraphs">0</div>
+        <div class="bc-stat-label">Paragraphs</div>
+      </div>
+    </div>
+
+    {/* ── Secondary counts ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="lines">0</div>
+        <div class="bc-stat-label">Lines</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="avgSentence">0</div>
+        <div class="bc-stat-label">Avg words / sentence</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="reading">0s</div>
+        <div class="bc-stat-label">Reading time</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="speaking">0s</div>
+        <div class="bc-stat-label">Speaking time</div>
+      </div>
+    </div>
+
+    {/* ── Keyword frequency ── */}
+    <div class="bc-panel p-4">
+      <div class="bc-toolbar mb-3">
+        <h2 class="text-sm font-semibold text-ink">Most used words</h2>
+        <label class="bc-check-label ml-auto">
+          <input type="checkbox" class="bc-checkbox" data-include-stop />
+          Include common words
+        </label>
+      </div>
+
+      <table class="w-full text-sm" data-keyword-table>
+        <caption class="sr-only">The ten most frequent words in your text</caption>
+        <thead>
+          <tr class="text-xs tracking-wide text-muted uppercase">
+            <th scope="col" class="py-1 text-left font-medium">Word</th>
+            <th scope="col" class="py-1 text-right font-medium">Count</th>
+            <th scope="col" class="py-1 text-right font-medium">Share</th>
+          </tr>
+        </thead>
+        <tbody data-keyword-body></tbody>
+      </table>
+
+      <p class="mt-2 text-sm text-muted" data-keyword-empty>
+        Frequency appears here once you have typed a few words.
+      </p>
+    </div>
+
+    {/* ── Report ── */}
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-report>
+        <span data-label>Copy summary</span>
+      </button>
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>
+        Download summary
+      </button>
+      <span class="text-xs text-muted">Counts update as you type. Nothing is uploaded.</span>
+    </div>
+
+    {/* Plain-text mirror of the summary, used for copy and download. */}
+    <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Type or paste anything and this counter reports words, sentences, paragraphs, lines and how
+      long the piece takes to read or to say out loud. Every number recalculates on each keystroke,
+      so you can watch a 900-word draft come down to the 750 an editor asked for without pasting it
+      anywhere else.
+    </p>
+    <p>
+      Below the counts it breaks your text into its ten most frequent words. That table is the part
+      people keep coming back for: repetition is invisible while you are writing and obvious the
+      moment it is ranked.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Hitting a hard limit — a 500-word blog submission, a 4,000-character cover letter, a
+        university essay with a ±10% tolerance.
+      </li>
+      <li>
+        Sizing a talk. At a measured 150 words per minute, a 15-minute conference slot is about
+        2,250 words, and scripts run long far more often than short.
+      </li>
+      <li>
+        Catching a tic before a reader does. If <em>leverage</em> appears eleven times in 600 words,
+        the frequency table says so immediately.
+      </li>
+      <li>
+        Checking sentence length. An average above roughly 25 words usually means several sentences
+        need splitting.
+      </li>
+      <li>Estimating a reading-time label for an article page without guessing.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>For this paragraph:</p>
+    <pre><code>{`The cache stores the response. The response cache is warm,
+so the cache wins.`}</code></pre>
+    <p>you get:</p>
+    <pre><code>{`Words        14
+Sentences     2
+Avg words/sentence  7
+Top words    cache ×3, response ×2, stores ×1`}</code></pre>
+    <p>
+      With "include common words" switched on, <code>the</code> jumps to the top with four
+      occurrences — useful when you are checking rhythm rather than subject matter.
+    </p>
+
+    <h2>How the counting rules work</h2>
+    <p>
+      A <strong>word</strong> is any whitespace-separated run containing at least one letter or
+      digit. <code>state-of-the-art</code> counts once, matching Microsoft Word and Google Docs; a
+      lone em dash counts as nothing. Chinese and Japanese text is handled separately, one word per
+      ideograph or kana, because those scripts are not space-separated and a whitespace count would
+      report an entire paragraph as a single word.
+    </p>
+    <p>
+      A <strong>sentence</strong> ends at <code>.</code>, <code>!</code>, <code>?</code> or
+      <code>…</code> when the next visible character is not lowercase, which keeps
+      <code>Hi… there!</code> as one sentence. A line break also ends one, so headings and bullet
+      lists are not silently merged into the paragraph that follows. Abbreviations remain the known
+      weakness of every heuristic of this kind: <code>Dr. Smith arrived</code> counts as two.
+    </p>
+    <p>
+      A <strong>paragraph</strong> is a block separated by at least one blank line. Single newlines
+      inside a block do not start a new one, so hard-wrapped text is not over-counted.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Reading time uses 238 words per minute, the mean for silent reading of English non-fiction in
+      Brysbaert's 2019 review of 190 studies — a better default than the round 200 or 250 most
+      tools assert. Speaking time uses 150 words per minute, near the middle of the 140–160 range
+      for a clear presentation pace. Both are population averages: dense technical prose with code
+      in it reads considerably slower, and a nervous speaker runs considerably faster.
+    </p>
+    <p>
+      The frequency table excludes about 130 English function words by default. The list
+      deliberately keeps <em>no</em> and <em>not</em>, because dropping negations changes what a
+      passage appears to say — which matters when you are auditing marketing copy rather than
+      writing it.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    wireStandardActions,
+    wireFileInput,
+    readFileText,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { textStats, keywordFrequency, formatDuration } from '~/lib/text';
+
+  mount('word-counter', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const includeStop = q<HTMLInputElement>('[data-include-stop]', root)!;
+    const tbody = q<HTMLTableSectionElement>('[data-keyword-body]', root)!;
+    const table = q<HTMLTableElement>('[data-keyword-table]', root)!;
+    const emptyNote = q('[data-keyword-empty]', root)!;
+
+    const stat = (name: string, value: string) => {
+      const el = q(`[data-stat="${name}"]`, root);
+      if (el) el.textContent = value;
+    };
+
+    const reset = () => {
+      for (const el of qa('[data-stat]', root)) {
+        el.textContent = el.dataset.stat === 'reading' || el.dataset.stat === 'speaking' ? '0s' : '0';
+      }
+      tbody.textContent = '';
+      table.classList.add('hidden');
+      emptyNote.removeAttribute('hidden');
+      mirror.value = '';
+    };
+
+    /** Build the frequency table with DOM nodes — never innerHTML of user text. */
+    const renderKeywords = (text: string) => {
+      const rows = keywordFrequency(text, {
+        includeStopWords: includeStop.checked,
+        limit: 10,
+      });
+
+      tbody.textContent = '';
+      if (rows.length === 0) {
+        table.classList.add('hidden');
+        emptyNote.removeAttribute('hidden');
+        return;
+      }
+
+      table.classList.remove('hidden');
+      emptyNote.setAttribute('hidden', '');
+
+      for (const row of rows) {
+        const tr = document.createElement('tr');
+        tr.className = 'border-t border-line';
+
+        const word = document.createElement('td');
+        word.className = 'py-1.5 pr-2 font-mono break-all';
+        word.textContent = row.word;
+
+        const count = document.createElement('td');
+        count.className = 'py-1.5 text-right tabular-nums';
+        count.textContent = String(row.count);
+
+        const share = document.createElement('td');
+        share.className = 'py-1.5 text-right tabular-nums text-muted';
+        share.textContent = `${row.percent}%`;
+
+        tr.append(word, count, share);
+        tbody.appendChild(tr);
+      }
+
+      return rows;
+    };
+
+    const update = () => {
+      const text = input.value;
+
+      if (!text) {
+        clearStatus(root);
+        reset();
+        return;
+      }
+
+      try {
+        guardSize(text);
+      } catch (err) {
+        setStatus(root, messageFor(err), 'error');
+        reset();
+        return;
+      }
+      clearStatus(root);
+
+      const s = textStats(text);
+      stat('words', s.words.toLocaleString());
+      stat('characters', s.characters.toLocaleString());
+      stat('sentences', s.sentences.toLocaleString());
+      stat('paragraphs', s.paragraphs.toLocaleString());
+      stat('lines', s.lines.toLocaleString());
+      stat('avgSentence', s.averageWordsPerSentence ? String(s.averageWordsPerSentence) : '—');
+      stat('reading', formatDuration(s.readingSeconds));
+      stat('speaking', formatDuration(s.speakingSeconds));
+
+      const keywords = renderKeywords(text) ?? [];
+
+      mirror.value = [
+        `Words                ${s.words.toLocaleString()}`,
+        `Characters           ${s.characters.toLocaleString()}`,
+        `Characters (no spaces) ${s.charactersNoSpaces.toLocaleString()}`,
+        `Sentences            ${s.sentences.toLocaleString()}`,
+        `Paragraphs           ${s.paragraphs.toLocaleString()}`,
+        `Lines                ${s.lines.toLocaleString()}`,
+        `Avg words / sentence ${s.averageWordsPerSentence}`,
+        `Avg word length      ${s.averageWordLength}`,
+        `Reading time         ${formatDuration(s.readingSeconds)} at 238 wpm`,
+        `Speaking time        ${formatDuration(s.speakingSeconds)} at 150 wpm`,
+        '',
+        'Most used words',
+        ...keywords.map((k) => `  ${k.word} — ${k.count} (${k.percent}%)`),
+      ].join('\n');
+
+      if (s.words > 0) markUsed();
+    };
+
+    const live = debounce(update, 120);
+    on(input, 'input', live);
+    on(includeStop, 'change', update);
+
+    on(q('[data-copy-report]', root), 'click', (e) => {
+      if (!mirror.value) return setStatus(root, 'Type or paste some text first.', 'warn');
+      void copyText(mirror.value, e.currentTarget as HTMLElement);
+    });
+
+    on(q('[data-download]', root), 'click', () => {
+      if (!mirror.value) return setStatus(root, 'Type or paste some text first.', 'warn');
+      downloadText('word-count.txt', mirror.value);
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          update();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, { onChange: update });
+    update();
+  });
+</script>

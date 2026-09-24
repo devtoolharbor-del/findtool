@@ -1,0 +1,390 @@
+---
+/**
+ * SHA-1 generator.
+ *
+ * Kept for compatibility work — Git object IDs, old checksum files, legacy
+ * API signatures — and the page says so in every place it can. The digest is
+ * computed by `crypto.subtle`, which still offers SHA-1 precisely because so
+ * much existing data depends on it.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+const EXAMPLE = 'hello';
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="sha1-generator" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-git-object />
+        Git blob ID
+      </label>
+      <span class="text-xs text-muted">
+        Prefixes <code>blob &lt;size&gt;\0</code>, the way <code>git hash-object</code> does.
+      </span>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={EXAMPLE}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>
+          Hash a file
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input type="file" class="hidden" data-file-input />
+      </div>
+    </div>
+
+    {/* ── Input: text ── */}
+    <div>
+      <label for="sha1-input" class="bc-label">Text to hash</label>
+      <textarea
+        id="sha1-input"
+        class="bc-textarea min-h-40"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste text here, or use “Hash a file”…"
+        aria-describedby="sha1-status"></textarea>
+    </div>
+
+    {/* ── Input: file ── */}
+    <div
+      class="flex flex-wrap items-center gap-3 rounded-lg border border-line-strong bg-surface-2 px-3 py-2 text-sm"
+      data-file-banner
+      hidden
+    >
+      <span class="text-xs font-medium tracking-wide text-muted uppercase">Hashing file</span>
+      <span class="font-medium text-ink" data-file-name></span>
+      <span class="text-muted" data-file-size></span>
+      <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm ml-auto" data-file-remove>
+        Use text instead
+      </button>
+    </div>
+
+    {/* ── Status ── */}
+    <div id="sha1-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Output ── */}
+    <div>
+      <div class="bc-toolbar mb-1.5">
+        <span class="text-xs font-medium tracking-wide text-muted uppercase">SHA-1 digest</span>
+
+        <label for="sha1-encoding" class="sr-only">Output encoding</label>
+        <select id="sha1-encoding" class="bc-select w-auto py-1 text-xs" data-encoding>
+          <option value="hex" selected>Hex</option>
+          <option value="base64">Base64</option>
+        </select>
+
+        <label class="bc-check-label text-xs">
+          <input type="checkbox" class="bc-checkbox" data-uppercase />
+          Uppercase
+        </label>
+
+        <div class="ml-auto flex gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+            <span data-label>Copy</span>
+          </button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>
+            Download
+          </button>
+        </div>
+      </div>
+
+      <pre class="bc-output min-h-16 break-all" data-output-display tabindex="0"></pre>
+      <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+    </div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-3 gap-2" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-bits>160 bits</div>
+        <div class="bc-stat-label">Digest size</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-input>—</div>
+        <div class="bc-stat-label">Input</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-mode>Raw</div>
+        <div class="bc-stat-label">Mode</div>
+      </div>
+    </div>
+
+    {/* ── Checksum comparison ── */}
+    <div class="rounded-lg border border-line bg-surface-2 p-3">
+      <label for="sha1-expected" class="bc-label">Compare with an expected hash</label>
+      <input
+        id="sha1-expected"
+        type="text"
+        class="bc-input font-mono text-[0.8125rem]"
+        data-expected
+        data-clear-target
+        spellcheck="false"
+        autocomplete="off"
+        placeholder="Paste the 40-character SHA-1 you are checking against…"
+      />
+      <p class="mt-1.5 text-xs text-muted">
+        Whole <code>sha1sum</code> lines and Git object IDs both work.
+      </p>
+      <div class="mt-2" data-compare hidden></div>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      This page computes the 160-bit SHA-1 digest of text you paste or a file you pick, and shows
+      it as 40 hex characters or as Base64. It also compares the result against a hash you already
+      have, which is usually why someone needs SHA-1 at all: something old emitted one, and you
+      need to know whether it still matches.
+    </p>
+    <p>
+      SHA-1 is not safe against a determined attacker and this tool will not pretend otherwise. It
+      is here for compatibility with systems that already committed to it, and for spotting
+      accidental corruption. Anything new should use SHA-256.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Reproducing a Git object ID. Tick <em>Git blob ID</em> and the content is prefixed with
+        <code>blob &lt;size&gt;\0</code> before hashing, which is exactly what
+        <code>git hash-object</code> does.
+      </li>
+      <li>Checking a file against a <code>.sha1</code> published by a Maven or Apache mirror.</li>
+      <li>Debugging a legacy API that signs requests with SHA-1.</li>
+      <li>Matching values stored by an older system — cache keys, ETags, lookup tables.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>
+      The string <code>hello</code> hashes to:
+    </p>
+    <pre><code>aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d</code></pre>
+    <p>The same five bytes as a Git blob — note the prefix, and therefore the different result:</p>
+    <pre><code>{'blob 5\\0hello  →  b6fc4c620b67d95f953a5c1c1230aaab5db5a1b0'}</code></pre>
+    <p>
+      That second value is what <code>git hash-object</code> prints, and what Git would use as the
+      object name if you staged a file containing <code>hello</code> with no trailing newline.
+    </p>
+
+    <h2>SHA-1 has been practically broken since 2017</h2>
+    <p>
+      In February 2017 the SHAttered research produced two different PDF files with the same SHA-1
+      digest — the first public collision, at a cost of roughly 6,500 CPU-years and 110 GPU-years.
+      In 2020 the SHA-1 is a Shambles work went further with a chosen-prefix collision, the
+      stronger and more dangerous kind, for a rented-hardware cost in the tens of thousands of
+      dollars. That price has only fallen since.
+    </p>
+    <p>
+      The consequence: a SHA-1 digest no longer proves two files are the same when someone wanted
+      them to collide. Certificate authorities stopped issuing SHA-1 certificates in 2016,
+      browsers stopped trusting them in 2017, and NIST disallowed it for signatures. Git added a
+      SHA-256 object format for the same reason.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      None of that makes SHA-1 useless for accident detection. A corrupted or truncated transfer
+      will not produce a matching digest by chance — that needs around 2<sup>80</sup> tries. What
+      changed is that it no longer withstands a collision built on purpose.
+    </p>
+    <p>
+      Two things SHA-1 is never for: passwords, being fast and unsalted by nature, and new
+      signatures of any kind. It also does not encrypt — a hash has no key and no inverse, so
+      nothing here turns a digest back into the text that produced it.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    downloadText,
+    wireStandardActions,
+    wireFileInput,
+    readFileBuffer,
+    formatBytes,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import {
+    hashBytes,
+    formatDigest,
+    compareChecksum,
+    toHex,
+    utf8,
+    type DigestEncoding,
+  } from '~/lib/hash';
+
+  mount('sha1-generator', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const display = q<HTMLElement>('[data-output-display]', root)!;
+    const encodingSelect = q<HTMLSelectElement>('[data-encoding]', root)!;
+    const uppercase = q<HTMLInputElement>('[data-uppercase]', root)!;
+    const gitMode = q<HTMLInputElement>('[data-git-object]', root)!;
+    const expected = q<HTMLInputElement>('[data-expected]', root)!;
+    const compareSlot = q<HTMLElement>('[data-compare]', root)!;
+    const stats = q<HTMLElement>('[data-stats]', root)!;
+    const banner = q<HTMLElement>('[data-file-banner]', root)!;
+
+    let digest: Uint8Array | null = null;
+    let file: { name: string; bytes: Uint8Array } | null = null;
+
+    const encoding = () => encodingSelect.value as DigestEncoding;
+
+    const clearOutput = () => {
+      digest = null;
+      display.textContent = '';
+      mirror.value = '';
+      stats.setAttribute('hidden', '');
+      compareSlot.setAttribute('hidden', '');
+      compareSlot.textContent = '';
+    };
+
+    /**
+     * Git names an object by hashing `<type> <size>\0<content>`, not the
+     * content alone. Building that header here is the whole feature.
+     */
+    const gitWrap = (content: Uint8Array): Uint8Array => {
+      const header = utf8(`blob ${content.length}\0`);
+      const out = new Uint8Array(header.length + content.length);
+      out.set(header, 0);
+      out.set(content, header.length);
+      return out;
+    };
+
+    const paint = () => {
+      if (!digest) return clearOutput();
+
+      const text = formatDigest(digest, encoding(), uppercase.checked);
+      display.textContent = text;
+      mirror.value = text;
+
+      stats.removeAttribute('hidden');
+      q('[data-stat-input]', root)!.textContent = formatBytes(
+        file ? file.bytes.length : utf8(input.value).length,
+      );
+      q('[data-stat-mode]', root)!.textContent = gitMode.checked ? 'Git blob' : 'Raw';
+
+      renderComparison();
+    };
+
+    const renderComparison = () => {
+      const raw = expected.value;
+      if (!digest || !raw.trim()) {
+        compareSlot.setAttribute('hidden', '');
+        compareSlot.textContent = '';
+        return;
+      }
+
+      const result = compareChecksum(raw, digest, 'SHA-1');
+      const tone =
+        result.status === 'match'
+          ? 'bc-alert-ok'
+          : result.status === 'mismatch'
+            ? 'bc-alert-error'
+            : 'bc-alert-warn';
+
+      const box = document.createElement('div');
+      box.className = `bc-alert ${tone}`;
+      const strong = document.createElement('strong');
+      strong.textContent = result.status === 'match' ? 'Match' : 'No match';
+      const span = document.createElement('span');
+      span.textContent = result.message.replace(/^(Match|No match)\s*—\s*/, '');
+      box.append(strong, span);
+
+      compareSlot.textContent = '';
+      compareSlot.appendChild(box);
+      compareSlot.removeAttribute('hidden');
+    };
+
+    const run = async () => {
+      try {
+        let bytes: Uint8Array;
+        if (file) {
+          bytes = file.bytes;
+        } else {
+          const text = input.value;
+          if (!text) {
+            clearStatus(root);
+            clearOutput();
+            return;
+          }
+          guardSize(text);
+          bytes = utf8(text);
+        }
+
+        digest = await hashBytes(gitMode.checked ? gitWrap(bytes) : bytes, 'SHA-1');
+        clearStatus(root);
+        markUsed();
+        paint();
+      } catch (err) {
+        clearOutput();
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    const useFile = (name: string, bytes: Uint8Array | null) => {
+      if (!bytes) {
+        file = null;
+        banner.setAttribute('hidden', '');
+        input.disabled = false;
+      } else {
+        file = { name, bytes };
+        q('[data-file-name]', root)!.textContent = name;
+        q('[data-file-size]', root)!.textContent = formatBytes(bytes.length);
+        banner.removeAttribute('hidden');
+        input.disabled = true;
+      }
+      void run();
+    };
+
+    on(input, 'input', debounce(run, 180));
+    on(gitMode, 'change', run);
+    on(encodingSelect, 'change', () => {
+      uppercase.disabled = encoding() === 'base64';
+      paint();
+    });
+    on(uppercase, 'change', paint);
+    on(expected, 'input', debounce(renderComparison, 120));
+    on(q('[data-file-remove]', root), 'click', () => useFile('', null));
+
+    on(q('[data-download]', root), 'click', () => {
+      if (!mirror.value || !digest) return setStatus(root, 'Hash something first.', 'warn');
+      const line = file ? `${toHex(digest)}  ${file.name}\n` : `${mirror.value}\n`;
+      downloadText(`${file ? file.name : 'digest'}.sha1`, line);
+    });
+
+    wireFileInput(
+      root,
+      async (chosen) => {
+        try {
+          const buffer = await readFileBuffer(chosen);
+          useFile(chosen.name, new Uint8Array(buffer));
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, { onChange: () => useFile('', null) });
+  });
+</script>

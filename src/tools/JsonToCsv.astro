@@ -1,0 +1,393 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_JSON_ROWS } from '~/lib/csv';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="json-to-csv" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="jc-delim" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Delimiter
+        </label>
+        <select id="jc-delim" class="bc-select w-auto py-1.5 text-xs" data-delimiter>
+          <option value="," selected>Comma</option>
+          <option value=";">Semicolon</option>
+          <option value="\t">Tab</option>
+          <option value="|">Pipe</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label for="jc-arrays" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Arrays
+        </label>
+        <select id="jc-arrays" class="bc-select w-auto py-1.5 text-xs" data-arrays>
+          <option value="index" selected>One column each</option>
+          <option value="join">Joined in one cell</option>
+          <option value="json">JSON in one cell</option>
+        </select>
+      </div>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-header checked />
+        Header row
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-quote-all />
+        Quote every field
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-bom />
+        Excel BOM
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_JSON_ROWS}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>Upload file</button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input
+          type="file"
+          accept=".json,.txt,application/json,text/plain"
+          class="hidden"
+          data-file-input
+        />
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="jc-input" class="bc-label">JSON array</label>
+      <textarea
+        id="jc-input"
+        class="bc-textarea min-h-48"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste an array of objects here…"
+        aria-describedby="jc-status"></textarea>
+    </div>
+
+    <div id="jc-status" data-status role="status" aria-live="polite" hidden></div>
+
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-action="convert">Convert to CSV</button>
+      <div class="ml-auto flex gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-output>
+          <span data-label>Copy</span>
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>
+          Download .csv
+        </button>
+      </div>
+    </div>
+
+    {/* ── Column picker ── */}
+    <fieldset class="bc-panel p-3" data-columns-panel hidden>
+      <legend class="px-1 text-xs font-medium tracking-wide text-muted uppercase">
+        Columns to include
+      </legend>
+      <div class="mb-2 flex gap-2">
+        <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-select-all>Select all</button>
+        <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-select-none>Select none</button>
+      </div>
+      <div class="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3" data-columns></div>
+    </fieldset>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-rows>—</div>
+        <div class="bc-stat-label">Rows</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-cols>—</div>
+        <div class="bc-stat-label">Columns</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-dropped>—</div>
+        <div class="bc-stat-label">Excluded</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-size>—</div>
+        <div class="bc-stat-label">CSV size</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <label for="jc-output" class="bc-label">CSV result</label>
+      <textarea
+        id="jc-output"
+        class="bc-textarea max-h-96 min-h-40"
+        data-output
+        readonly
+        spellcheck="false"
+        placeholder="The CSV appears here."></textarea>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      CSV is flat and JSON is not, so the interesting part of this conversion is deciding what
+      happens to the nesting. This tool flattens each record into dotted column names —
+      <code>contact.email</code>, <code>settings.alerts.slack</code> — and builds the header from
+      the union of every key it finds, so a record that is missing a field gets an empty cell in the
+      right column instead of shifting the rest of the row.
+    </p>
+    <p>
+      You pick the delimiter, decide whether arrays become numbered columns or a single joined cell,
+      and untick any column you do not want before downloading. Quoting follows RFC 4180: a field is
+      wrapped in double quotes when it contains the delimiter, a quote, a line break or padding
+      whitespace, and an embedded quote is doubled.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Handing an API export to someone who works in Excel, Numbers or Google Sheets.</li>
+      <li>
+        Preparing a file for <code>COPY FROM</code> in PostgreSQL or <code>LOAD DATA INFILE</code>
+        in MySQL, both of which want one flat table.
+      </li>
+      <li>Turning a paginated list response into a table you can sort and pivot.</li>
+      <li>Feeding a BI tool or a CSV-only import form that has no JSON option.</li>
+      <li>Diffing two exports as text, where fixed column order makes the change obvious.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>Two records with different shapes:</p>
+    <pre><code>{`[
+  { "id": 1042, "contact": { "email": "ada@example.com" }, "seats": 3 },
+  { "id": 1043, "contact": { "email": "grace@example.com" }, "trial_ends": "2026-05-01" }
+]`}</code></pre>
+    <p>produce one table whose header is the union of both:</p>
+    <pre><code>{`id,contact.email,seats,trial_ends
+1042,ada@example.com,3,
+1043,grace@example.com,,2026-05-01`}</code></pre>
+
+    <h2>Choosing a delimiter, and the spreadsheet trap</h2>
+    <p>
+      A comma is only the default. Excel reads and writes CSV using the list separator of the
+      operating system's locale, which is a semicolon across most of continental Europe — the same
+      file opens as one column per row on a German machine and correctly on a US one. If the
+      recipient is on a European locale, pick <strong>Semicolon</strong>; if you do not know, tab
+      is the safest choice because no locale reassigns it.
+    </p>
+    <p>
+      Tick <strong>Excel BOM</strong> when the data contains non-ASCII characters. Excel assumes the
+      system's legacy code page for a plain CSV file, so <code>Müller</code> arrives as
+      <code>MÃ¼ller</code>; the three-byte UTF-8 BOM is what tells it otherwise. Other tools —
+      <code>pandas.read_csv</code>, <code>psql</code>, <code>csvkit</code> — need no BOM and are
+      happier without one.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      A cell whose text begins with <code>=</code>, <code>+</code>, <code>-</code> or
+      <code>@</code> is treated as a formula by Excel and Sheets. That is CSV injection: a value
+      like <code>=HYPERLINK(…)</code> stored by a user in your database becomes executable content
+      in a colleague's spreadsheet. This tool writes values verbatim rather than quietly mangling
+      your data, so if the CSV is built from untrusted input and will be opened in a spreadsheet,
+      prefix such fields with an apostrophe yourself — or send the file to a tool that imports
+      rather than opens it. Note also that CSV has no types: <code>true</code>, <code>42</code> and
+      the string <code>"42"</code> all land as bare text, which is why the round trip back through a
+      CSV-to-JSON converter has to guess.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    wireStandardActions,
+    wireFileInput,
+    readFileText,
+    formatBytes,
+    byteLength,
+    markUsed,
+  } from '~/lib/toolkit';
+  import { parseJson, JsonParseError } from '~/lib/json';
+  import { jsonToCsv, csvColumnsFor, toRecordArray, type JsonToCsvOptions } from '~/lib/csv';
+
+  mount('json-to-csv', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const panel = q('[data-columns-panel]', root)!;
+    const columnList = q('[data-columns]', root)!;
+
+    /** Columns the user has explicitly unticked, remembered across re-runs. */
+    const excluded = new Set<string>();
+    let columns: string[] = [];
+
+    const options = (): JsonToCsvOptions => ({
+      delimiter: q<HTMLSelectElement>('[data-delimiter]', root)!.value.replace('\\t', '\t'),
+      arrayMode: q<HTMLSelectElement>('[data-arrays]', root)!.value as 'index' | 'join' | 'json',
+      header: q<HTMLInputElement>('[data-header]', root)!.checked,
+      quoteAll: q<HTMLInputElement>('[data-quote-all]', root)!.checked,
+      bom: q<HTMLInputElement>('[data-bom]', root)!.checked,
+    });
+
+    const renderColumnPicker = () => {
+      columnList.textContent = '';
+      for (const column of columns) {
+        const label = document.createElement('label');
+        label.className = 'bc-check-label';
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.className = 'bc-checkbox';
+        box.checked = !excluded.has(column);
+        box.value = column;
+        on(box, 'change', () => {
+          if (box.checked) excluded.delete(column);
+          else excluded.add(column);
+          convert();
+        });
+        const text = document.createElement('span');
+        text.className = 'truncate';
+        text.textContent = column; // user data — textContent, never innerHTML
+        text.title = column;
+        label.append(box, text);
+        columnList.appendChild(label);
+      }
+      panel.removeAttribute('hidden');
+    };
+
+    const reset = () => {
+      output.value = '';
+      stats.setAttribute('hidden', '');
+      panel.setAttribute('hidden', '');
+      columnList.textContent = '';
+      columns = [];
+    };
+
+    const convert = () => {
+      const text = input.value;
+      if (!text.trim()) {
+        clearStatus(root);
+        reset();
+        return;
+      }
+
+      try {
+        guardSize(text);
+        const value = parseJson(text);
+        const opts = options();
+
+        const records = toRecordArray(value);
+        if (records.length === 0) {
+          clearStatus(root);
+          reset();
+          setStatus(root, 'That array is empty, so there is nothing to tabulate.', 'warn');
+          return;
+        }
+
+        const discovered = csvColumnsFor(value, opts);
+        if (discovered.join(' ') !== columns.join(' ')) {
+          columns = discovered;
+          renderColumnPicker();
+        }
+
+        const selected = columns.filter((c) => !excluded.has(c));
+        if (selected.length === 0) {
+          output.value = '';
+          setStatus(root, 'Every column is unticked — pick at least one.', 'warn');
+          return;
+        }
+
+        const csv = jsonToCsv(value, { ...opts, columns: selected });
+        output.value = csv;
+        clearStatus(root);
+
+        stats.removeAttribute('hidden');
+        q('[data-stat-rows]', root)!.textContent = records.length.toLocaleString();
+        q('[data-stat-cols]', root)!.textContent = String(selected.length);
+        q('[data-stat-dropped]', root)!.textContent = String(columns.length - selected.length);
+        q('[data-stat-size]', root)!.textContent = formatBytes(byteLength(csv));
+
+        if (records.length === 1 && !Array.isArray(value)) {
+          setStatus(root, 'The top level is a single object, so the CSV has one data row.', 'ok');
+        }
+        markUsed();
+      } catch (err) {
+        reset();
+        if (err instanceof JsonParseError) {
+          const d = err.detail;
+          setStatus(
+            root,
+            `${d.message}${d.line !== undefined ? ` (line ${d.line}, column ${d.column ?? 1})` : ''}`,
+            'error',
+          );
+        } else {
+          setStatus(root, messageFor(err), 'error');
+        }
+      }
+    };
+
+    on(q('[data-action="convert"]', root), 'click', convert);
+    for (const control of qa('[data-delimiter], [data-arrays], [data-header], [data-quote-all], [data-bom]', root)) {
+      on(control, 'change', () => input.value && convert());
+    }
+
+    on(q('[data-select-all]', root), 'click', () => {
+      excluded.clear();
+      renderColumnPicker();
+      convert();
+    });
+    on(q('[data-select-none]', root), 'click', () => {
+      for (const column of columns) excluded.add(column);
+      renderColumnPicker();
+      convert();
+    });
+
+    on(q('[data-copy-output]', root), 'click', (e) => {
+      if (!output.value) return setStatus(root, 'Convert something first.', 'warn');
+      void copyText(output.value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Convert something first.', 'warn');
+      downloadText('data.csv', output.value, 'text/csv;charset=utf-8');
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          convert();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, {
+      onChange: () => {
+        excluded.clear();
+        reset();
+        if (input.value) convert();
+      },
+    });
+  });
+</script>

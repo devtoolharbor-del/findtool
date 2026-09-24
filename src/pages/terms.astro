@@ -1,0 +1,119 @@
+---
+import { SITE, CONTACT } from '~/consts';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import Breadcrumbs from '~/components/Breadcrumbs.astro';
+import type { Crumb } from '~/types';
+
+const crumbs: Crumb[] = [{ label: 'Home', href: '/' }, { label: 'Terms' }];
+const updated = 'September 24, 2026';
+---
+
+<BaseLayout
+  title="Terms of Use"
+  description="The terms that apply when you use ByteCabin's free developer tools, including the limits of warranty and acceptable use."
+  canonical="/terms"
+>
+  <div class="py-6 sm:py-8">
+    <Breadcrumbs items={crumbs} />
+    <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">Terms of Use</h1>
+    <p class="mt-2 text-sm text-muted">Last updated: {updated}</p>
+
+    <div class="bc-prose mt-6">
+      <h2>1. Agreement</h2>
+      <p>
+        These terms apply to your use of {SITE.domain} and the tools it provides. Using the site
+        means you accept them. If you do not accept them, please do not use the site.
+      </p>
+
+      <h2>2. The service</h2>
+      <p>
+        ByteCabin provides free developer utilities that run in your web browser. No account is
+        required and no payment is taken. We may add, change, or remove tools at any time, and we
+        may stop providing the service altogether.
+      </p>
+
+      <h2>3. No warranty</h2>
+      <p>
+        <strong>The tools are provided "as is", without warranty of any kind.</strong> We work hard
+        to make them correct, but we do not guarantee that any tool is free of errors, that its
+        output is accurate or fit for a particular purpose, or that the site will be available
+        without interruption.
+      </p>
+      <p>
+        This matters in practice. Do not rely on a ByteCabin tool as the only check on something
+        important. In particular: a successful JWT signature verification here does not replace
+        proper verification in your application; a hash computed here should be confirmed with
+        your platform's own tooling before it gates a release; and generated passwords should be
+        stored in a password manager rather than trusted to a browser tab.
+      </p>
+
+      <h2>4. Limitation of liability</h2>
+      <p>
+        To the fullest extent permitted by law, ByteCabin and its operators are not liable for any
+        direct, indirect, incidental, consequential or special damages arising from your use of,
+        or inability to use, the site — including data loss, lost profits, or business
+        interruption. Because the service is free, the total liability for any claim is limited to
+        zero.
+      </p>
+
+      <h2>5. Acceptable use</h2>
+      <p>You agree not to:</p>
+      <ul>
+        <li>
+          use the site to process data you do not have the right to process, or for any unlawful
+          purpose
+        </li>
+        <li>
+          attempt to disrupt the site, its hosting infrastructure, or other people's use of it
+        </li>
+        <li>
+          scrape or automate the site at a volume that degrades it for others; the content is
+          static and cheap to serve, but sustained automated traffic is not what it is for
+        </li>
+        <li>
+          misrepresent ByteCabin output as certified, audited, or as a substitute for professional
+          security or legal advice
+        </li>
+      </ul>
+
+      <h2>6. Your data</h2>
+      <p>
+        The content you enter into a tool stays in your browser and is not transmitted to us. You
+        remain responsible for it, including for ensuring you are permitted to process it. See the
+        <a href="/privacy">privacy policy</a> for the full picture.
+      </p>
+
+      <h2>7. Intellectual property</h2>
+      <p>
+        The ByteCabin name, logo, site design and written explanations on tool pages are owned by
+        the operators of the site. The output a tool produces from your input is yours — we claim
+        no rights over it. You may not copy the site's explanatory content wholesale for a
+        competing site.
+      </p>
+
+      <h2>8. Third-party links</h2>
+      <p>
+        Pages may link to external documentation and specifications. We do not control those sites
+        and are not responsible for their content or their privacy practices.
+      </p>
+
+      <h2>9. Advertising</h2>
+      <p>
+        The site may display advertising in future. Where it does, ads will be clearly labelled
+        and visually separated from tool controls. Any transaction you enter into with an
+        advertiser is between you and them.
+      </p>
+
+      <h2>10. Changes</h2>
+      <p>
+        We may update these terms. The "last updated" date above will change when we do, and
+        continued use of the site after that date means you accept the revised terms.
+      </p>
+
+      <h2>11. Contact</h2>
+      <p>
+        Questions about these terms: <a href={`mailto:${CONTACT.general}`}>{CONTACT.general}</a>.
+      </p>
+    </div>
+  </div>
+</BaseLayout>

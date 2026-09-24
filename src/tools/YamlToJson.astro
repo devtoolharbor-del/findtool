@@ -1,0 +1,393 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_YAML } from '~/lib/yaml';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="yaml-to-json" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="yj-indent" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Indent
+        </label>
+        <select id="yj-indent" class="bc-select w-auto py-1.5 text-xs" data-indent>
+          <option value="2" selected>2 spaces</option>
+          <option value="4">4 spaces</option>
+          <option value="tab">Tab</option>
+          <option value="0">Minified</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label for="yj-docs" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Documents
+        </label>
+        <select id="yj-docs" class="bc-select w-auto py-1.5 text-xs" data-docs>
+          <option value="all" selected>All, as an array</option>
+          <option value="first">First only</option>
+        </select>
+      </div>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-sort-keys />
+        Sort keys
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_YAML}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>Upload file</button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input
+          type="file"
+          accept=".yaml,.yml,.json,.txt,text/yaml,text/plain"
+          class="hidden"
+          data-file-input
+        />
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="yj-input" class="bc-label" data-input-label>YAML input</label>
+      <textarea
+        id="yj-input"
+        class="bc-textarea min-h-48"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste YAML here…"
+        aria-describedby="yj-status"></textarea>
+    </div>
+
+    <div id="yj-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* The exact line js-yaml objected to, with its own pointer. */}
+    <pre class="bc-output text-xs" data-snippet hidden aria-label="Location of the error" tabindex="0"></pre>
+
+    {/* ── Actions ── */}
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-action="convert" data-convert-label>
+        Convert to JSON
+      </button>
+      <button type="button" class="bc-btn bc-btn-secondary" data-swap data-swap-label>
+        Swap — JSON to YAML
+      </button>
+      <div class="ml-auto flex gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-output>
+          <span data-label>Copy</span>
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>Download</button>
+      </div>
+    </div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-docs>—</div>
+        <div class="bc-stat-label">Documents</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-keys>—</div>
+        <div class="bc-stat-label">Keys</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-depth>—</div>
+        <div class="bc-stat-label">Max depth</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-size>—</div>
+        <div class="bc-stat-label">JSON size</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <label for="yj-output" class="bc-label" data-output-label>JSON result</label>
+      <textarea
+        id="yj-output"
+        class="bc-textarea max-h-96 min-h-40"
+        data-output
+        readonly
+        spellcheck="false"
+        placeholder="The JSON appears here."></textarea>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Paste YAML and get JSON, with anchors expanded, block scalars folded into strings and
+      multi-document streams turned into an array — one element per <code>---</code> section. When
+      the YAML does not parse, you get the line number, the column and the parser's own pointer
+      under the offending character, plus an explanation of what that error usually means.
+    </p>
+    <p>
+      Parsing uses js-yaml's default schema, which supports the standard tags only. No tag in a
+      pasted document can construct a JavaScript object, call a function or touch anything outside
+      this page.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Feeding a Kubernetes manifest, a Compose file or a CI config to a tool that only reads JSON.</li>
+      <li>
+        Finding the indentation mistake in a 400-line <code>values.yaml</code> that a CI job
+        rejected with an unhelpful message.
+      </li>
+      <li>Checking what a chain of <code>&amp;anchor</code> and <code>*alias</code> references actually expands to.</li>
+      <li>Reading OpenAPI or AsyncAPI specifications with JSON-oriented tooling.</li>
+      <li>Converting front matter into data for a script.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>This YAML, with an anchor and an alias:</p>
+    <pre><code>{`limits: &res
+  cpu: 500m
+  memory: 512Mi
+requests: *res`}</code></pre>
+    <p>becomes JSON with the value written out twice:</p>
+    <pre><code>{`{
+  "limits": { "cpu": "500m", "memory": "512Mi" },
+  "requests": { "cpu": "500m", "memory": "512Mi" }
+}`}</code></pre>
+
+    <h2>Values that change type on the way through</h2>
+    <p>
+      YAML infers types from unquoted text, and the rules differ between YAML 1.1 and 1.2. This
+      converter follows the 1.2 core schema. Four cases are worth checking in your own files:
+    </p>
+    <ul>
+      <li>
+        <strong>Dates become strings.</strong> <code>when: 2026-09-24</code> is a timestamp in YAML,
+        so it arrives in JSON as <code>"2026-09-24T00:00:00.000Z"</code> — a full UTC instant, not
+        the date you typed. Quote it to keep the original text.
+      </li>
+      <li>
+        <strong>Leading zeros are decimal here.</strong> <code>010</code> converts to
+        <code>10</code>. A YAML 1.1 parser such as PyYAML or Go's <code>yaml.v2</code> reads the
+        same text as octal <code>8</code>.
+      </li>
+      <li>
+        <strong><code>yes</code>, <code>no</code>, <code>on</code> and <code>off</code> stay
+        strings</strong> under the 1.2 core schema. Under 1.1 they are booleans — the reason a
+        country code of <code>NO</code> famously turns into <code>false</code> in some pipelines.
+      </li>
+      <li>
+        <strong>Version numbers lose a digit.</strong> <code>1.10</code> is the float 1.1. Always
+        quote versions.
+      </li>
+    </ul>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Two things are rejected rather than guessed at. A tab character used for indentation is an
+      error in YAML at any version — the spec allows tabs inside a scalar but never as indentation
+      — and a key repeated inside the same mapping is refused here, because silently keeping the
+      last value is how a config change disappears without trace. Comments are discarded, since
+      JSON has nowhere to put them. And if a stream contains several documents, converting with
+      <strong>First only</strong> deliberately drops the rest; the default wraps them in an array
+      so nothing is lost.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    wireStandardActions,
+    wireSwap,
+    wireFileInput,
+    readFileText,
+    formatBytes,
+    byteLength,
+    markUsed,
+  } from '~/lib/toolkit';
+  import { parseJson, jsonStats, sortJsonKeys, JsonParseError } from '~/lib/json';
+  import { parseAllYaml, jsonToYaml, YamlParseError } from '~/lib/yaml';
+
+  type Direction = 'to-json' | 'to-yaml';
+
+  mount('yaml-to-json', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const snippet = q<HTMLPreElement>('[data-snippet]', root)!;
+
+    let direction: Direction = 'to-json';
+
+    const labels = () => {
+      const toJson = direction === 'to-json';
+      q('[data-input-label]', root)!.textContent = toJson ? 'YAML input' : 'JSON input';
+      q('[data-output-label]', root)!.textContent = toJson ? 'JSON result' : 'YAML result';
+      q('[data-convert-label]', root)!.textContent = toJson ? 'Convert to JSON' : 'Convert to YAML';
+      q('[data-swap-label]', root)!.textContent = toJson
+        ? 'Swap — JSON to YAML'
+        : 'Swap — YAML to JSON';
+      input.placeholder = toJson ? 'Paste YAML here…' : 'Paste JSON here…';
+    };
+
+    const indent = (): number | '\t' => {
+      const value = q<HTMLSelectElement>('[data-indent]', root)!.value;
+      return value === 'tab' ? '\t' : Number(value);
+    };
+
+    const reset = () => {
+      output.value = '';
+      stats.setAttribute('hidden', '');
+      snippet.setAttribute('hidden', '');
+      snippet.textContent = '';
+    };
+
+    const run = () => {
+      const text = input.value;
+      if (!text.trim()) {
+        clearStatus(root);
+        reset();
+        return;
+      }
+
+      const sortKeys = q<HTMLInputElement>('[data-sort-keys]', root)!.checked;
+
+      try {
+        guardSize(text);
+        snippet.setAttribute('hidden', '');
+
+        if (direction === 'to-json') {
+          const docs = parseAllYaml(text);
+          const keepFirst = q<HTMLSelectElement>('[data-docs]', root)!.value === 'first';
+
+          let value: unknown =
+            docs.length === 0 ? null : docs.length === 1 || keepFirst ? docs[0] : docs;
+          if (sortKeys) value = sortJsonKeys(value);
+
+          const width = indent();
+          const json = JSON.stringify(value === undefined ? null : value, null, width);
+          output.value = json;
+
+          const s = jsonStats(value, json);
+          stats.removeAttribute('hidden');
+          q('[data-stat-docs]', root)!.textContent = String(docs.length);
+          q('[data-stat-keys]', root)!.textContent = s.keys.toLocaleString();
+          q('[data-stat-depth]', root)!.textContent = String(s.depth);
+          q('[data-stat-size]', root)!.textContent = formatBytes(byteLength(json));
+
+          if (docs.length > 1 && keepFirst) {
+            setStatus(
+              root,
+              `This stream holds ${docs.length} documents and ${docs.length - 1} were dropped. Switch Documents to “All” to keep them.`,
+              'warn',
+            );
+          } else if (docs.length > 1) {
+            setStatus(root, `${docs.length} documents converted into a JSON array.`, 'ok');
+          } else {
+            clearStatus(root);
+          }
+        } else {
+          let value = parseJson(text);
+          if (sortKeys) value = sortJsonKeys(value);
+          const width = indent();
+          output.value = jsonToYaml(value, { indent: typeof width === 'number' && width > 0 ? width : 2 });
+          stats.setAttribute('hidden', '');
+          clearStatus(root);
+        }
+        markUsed();
+      } catch (err) {
+        reset();
+        if (err instanceof YamlParseError) {
+          const d = err.detail;
+          setStatus(
+            root,
+            `${d.message}${d.line !== undefined ? ` (line ${d.line}, column ${d.column ?? 1})` : ''}`,
+            'error',
+          );
+          if (d.snippet) {
+            snippet.textContent = d.snippet; // js-yaml's own caret snippet
+            snippet.removeAttribute('hidden');
+          }
+        } else if (err instanceof JsonParseError) {
+          const d = err.detail;
+          setStatus(
+            root,
+            `This is not valid JSON: ${d.message}${d.line !== undefined ? ` (line ${d.line})` : ''}`,
+            'error',
+          );
+        } else {
+          setStatus(root, messageFor(err), 'error');
+        }
+      }
+    };
+
+    on(q('[data-action="convert"]', root), 'click', run);
+    for (const control of qa('[data-indent], [data-docs], [data-sort-keys]', root)) {
+      on(control, 'change', () => input.value && run());
+    }
+
+    wireSwap(root, '[data-primary-input]', '[data-output]', () => {
+      direction = direction === 'to-json' ? 'to-yaml' : 'to-json';
+      labels();
+      output.value = '';
+      run();
+    });
+
+    on(q('[data-copy-output]', root), 'click', (e) => {
+      if (!output.value) return setStatus(root, 'Convert something first.', 'warn');
+      void copyText(output.value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Convert something first.', 'warn');
+      const toJson = direction === 'to-json';
+      downloadText(
+        toJson ? 'converted.json' : 'converted.yaml',
+        output.value,
+        toJson ? 'application/json' : 'text/yaml;charset=utf-8',
+      );
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          if (/\.json$/i.test(file.name) && direction === 'to-json') {
+            direction = 'to-yaml';
+            labels();
+          }
+          run();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, {
+      onChange: () => {
+        direction = 'to-json';
+        labels();
+        reset();
+        if (input.value) run();
+      },
+    });
+
+    labels();
+  });
+</script>

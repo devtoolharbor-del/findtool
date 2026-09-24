@@ -1,0 +1,358 @@
+---
+/**
+ * Random number generator — integers or decimals, in bulk, optionally unique.
+ *
+ * Draws come from src/lib/random.ts, where the rejection sampling that keeps
+ * every value in the range equally likely is unit-tested. A modulo-based
+ * generator would quietly favour the low end of most ranges.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="random-number-generator" class="space-y-4">
+    {/* ── Presets ── */}
+    <div>
+      <span class="bc-label" id="rn-preset-label">Presets</span>
+      <div class="bc-toolbar" role="group" aria-labelledby="rn-preset-label">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-dice="6" data-dice-count="1">
+          Roll 1d6
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-dice="6" data-dice-count="2">
+          Roll 2d6
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-dice="20" data-dice-count="1">
+          Roll 1d20
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-dice="2" data-dice-count="1">
+          Coin flip
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-lottery>
+          Lottery: 6 of 49
+        </button>
+      </div>
+    </div>
+
+    {/* ── Range ── */}
+    <div class="grid gap-3 sm:grid-cols-3">
+      <div>
+        <label for="rn-min" class="bc-label">Minimum</label>
+        <input id="rn-min" class="bc-input" type="number" value="1" step="any" data-range />
+      </div>
+      <div>
+        <label for="rn-max" class="bc-label">Maximum</label>
+        <input id="rn-max" class="bc-input" type="number" value="100" step="any" data-range />
+      </div>
+      <div>
+        <label for="rn-count" class="bc-label">How many</label>
+        <input
+          id="rn-count"
+          class="bc-input"
+          type="number"
+          min="1"
+          max="100000"
+          step="1"
+          value="5"
+          inputmode="numeric"
+        />
+      </div>
+    </div>
+
+    {/* ── Shape of the result ── */}
+    <div class="grid gap-3 sm:grid-cols-3">
+      <div>
+        <label for="rn-precision" class="bc-label">Type</label>
+        <select id="rn-precision" class="bc-select" data-range>
+          <option value="0" selected>Whole numbers</option>
+          <option value="1">1 decimal place</option>
+          <option value="2">2 decimal places</option>
+          <option value="3">3 decimal places</option>
+          <option value="6">6 decimal places</option>
+        </select>
+      </div>
+      <div>
+        <label for="rn-sort" class="bc-label">Order</label>
+        <select id="rn-sort" class="bc-select">
+          <option value="none" selected>As drawn</option>
+          <option value="asc">Lowest first</option>
+          <option value="desc">Highest first</option>
+        </select>
+      </div>
+      <div>
+        <label for="rn-separator" class="bc-label">Separator</label>
+        <select id="rn-separator" class="bc-select">
+          <option value="\n" selected>One per line</option>
+          <option value=", ">Comma</option>
+          <option value=" ">Space</option>
+          <option value="\t">Tab</option>
+        </select>
+      </div>
+    </div>
+
+    <label class="bc-check-label">
+      <input type="checkbox" class="bc-checkbox" data-opt="unique" data-range />
+      No repeats — every number drawn only once
+    </label>
+
+    {/* ── Actions ── */}
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-generate>Generate</button>
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+          <span data-label>Copy</span>
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>
+          Download .txt
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      </div>
+    </div>
+
+    <div id="rn-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-count>—</div>
+        <div class="bc-stat-label">Numbers</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-sum>—</div>
+        <div class="bc-stat-label">Sum</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-mean>—</div>
+        <div class="bc-stat-label">Mean</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-range>—</div>
+        <div class="bc-stat-label">Lowest / highest</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <label for="rn-output" class="bc-label">Result</label>
+      <textarea
+        id="rn-output"
+        class="bc-textarea min-h-32"
+        data-output
+        readonly
+        spellcheck="false"
+        aria-live="off"></textarea>
+    </div>
+  </div>
+
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      It draws numbers from a range you define — one, or a hundred thousand — as whole numbers or
+      with up to six decimal places. Switch on <em>no repeats</em> for lottery-style picks, sort the
+      output, and choose how the numbers are separated so the result pastes cleanly into a
+      spreadsheet, a SQL <code>IN</code> clause or a test fixture.
+    </p>
+    <p>
+      The draws use <code>crypto.getRandomValues()</code>, so results are not reproducible from a
+      seed. If you need the same sequence twice — a deterministic test, a replayable simulation —
+      use a seeded PRNG in your own code.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Picking a winner, a reviewer or a pairing from a numbered list.</li>
+      <li>Six unique numbers from 1 to 49, or any other draw without replacement.</li>
+      <li>Rolling dice when the physical ones are in the other room.</li>
+      <li>Generating test data: ages, prices, latencies, coordinates.</li>
+      <li>Choosing a random port above 1024 or a random delay for a retry backoff.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>Six unique whole numbers from 1 to 49, lowest first:</p>
+    <pre><code>3, 11, 17, 28, 34, 45</code></pre>
+
+    <h2>Inclusive, exclusive, and where the bias hides</h2>
+    <p>
+      Whole numbers include both ends: 1 to 6 can return 1 and can return 6, which is what people
+      mean by a dice roll. Decimals include the minimum and exclude the maximum, because rounding a
+      half-open interval is the only way to keep every value in it equally likely — with 0 to 1 at
+      one decimal place, an inclusive maximum would make 0.0 and 1.0 half as likely as every other
+      value.
+    </p>
+    <p>
+      The subtler issue is how the integer is drawn. The obvious approach — a random 32-bit number
+      modulo the range size — is biased whenever the range does not divide 2<sup>32</sup> evenly,
+      making the low end of the range slightly more likely. This tool instead discards draws that
+      land in the leftover block and takes another.
+    </p>
+
+    <h2>Unique mode and the range you need</h2>
+    <p>
+      Unique mode can only give you as many numbers as the range holds. Asking for 10 unique values
+      between 1 and 5 is impossible, and this tool says so with the actual arithmetic rather than
+      returning a short list or looping forever. For decimals, the number of distinct values depends
+      on the precision: 0 to 1 at one decimal place holds only ten of them.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Randomness looks less random than people expect. In 20 draws from 1 to 100 a repeat is more
+      likely than not — about 87% — so seeing one is evidence of correct behaviour, not a bug. If
+      your result must avoid repeats, say so with the no-repeats option.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    downloadText,
+    wireCopyButtons,
+    markUsed,
+  } from '~/lib/toolkit';
+  import { drawNumbers, rollDice } from '~/lib/random';
+
+  const MAX_COUNT = 100_000;
+
+  mount('random-number-generator', (root) => {
+    const minInput = q<HTMLInputElement>('#rn-min', root)!;
+    const maxInput = q<HTMLInputElement>('#rn-max', root)!;
+    const countInput = q<HTMLInputElement>('#rn-count', root)!;
+    const precisionSel = q<HTMLSelectElement>('#rn-precision', root)!;
+    const sortSel = q<HTMLSelectElement>('#rn-sort', root)!;
+    const separatorSel = q<HTMLSelectElement>('#rn-separator', root)!;
+    const unique = q<HTMLInputElement>('[data-opt="unique"]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const stats = q('[data-stats]', root)!;
+
+    /** Non-null while a dice preset is active; any manual range edit clears it. */
+    let diceSides: number | null = null;
+
+    const separator = () =>
+      separatorSel.value.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+
+    const showStats = (values: number[], precision: number) => {
+      const sum = values.reduce((a, b) => a + b, 0);
+      const round = (n: number) => Number(n.toFixed(Math.max(precision, 2)));
+      stats.removeAttribute('hidden');
+      q('[data-stat-count]', root)!.textContent = values.length.toLocaleString();
+      q('[data-stat-sum]', root)!.textContent = round(sum).toLocaleString();
+      q('[data-stat-mean]', root)!.textContent = round(sum / values.length).toLocaleString();
+      q('[data-stat-range]', root)!.textContent =
+        `${Math.min(...values).toLocaleString()} / ${Math.max(...values).toLocaleString()}`;
+    };
+
+    const fail = (message: string) => {
+      output.value = '';
+      stats.setAttribute('hidden', '');
+      setStatus(root, message, 'error');
+    };
+
+    const generate = () => {
+      const min = Number(minInput.value);
+      const max = Number(maxInput.value);
+      const count = Number(countInput.value);
+      const precision = Number(precisionSel.value);
+
+      if (!Number.isFinite(min) || !Number.isFinite(max)) {
+        return fail('Enter a number for both the minimum and the maximum.');
+      }
+      if (max < min) {
+        return fail('The maximum is below the minimum — swap them and try again.');
+      }
+      if (!Number.isInteger(count) || count < 1 || count > MAX_COUNT) {
+        return fail(`Ask for between 1 and ${MAX_COUNT.toLocaleString()} numbers.`);
+      }
+      if (precision === 0 && (!Number.isInteger(min) || !Number.isInteger(max))) {
+        return fail(
+          'Whole-number mode needs whole-number bounds. Round them, or choose a decimal precision.',
+        );
+      }
+
+      try {
+        const values =
+          diceSides !== null && precision === 0 && !unique.checked
+            ? rollDice(count, diceSides)
+            : drawNumbers({
+                min,
+                max,
+                count,
+                precision,
+                unique: unique.checked,
+                sort: sortSel.value as 'none' | 'asc' | 'desc',
+              });
+
+        if (diceSides !== null && sortSel.value !== 'none') {
+          values.sort((a, b) => (sortSel.value === 'asc' ? a - b : b - a));
+        }
+
+        output.value = values.join(separator());
+        showStats(values, precision);
+        clearStatus(root);
+        markUsed();
+      } catch (err) {
+        // uniqueIntegers and drawNumbers throw messages written for a reader,
+        // including the exact counts that make the request impossible.
+        fail(messageFor(err));
+      }
+    };
+
+    // Manual edits to the range mean this is no longer a dice roll.
+    for (const el of qa('[data-range]', root)) on(el, 'change', () => (diceSides = null));
+
+    for (const el of [minInput, maxInput, countInput, precisionSel, sortSel, unique]) {
+      on(el, 'change', generate);
+    }
+    on(separatorSel, 'change', () => output.value && generate());
+    on(q('[data-generate]', root), 'click', generate);
+
+    for (const btn of qa('[data-dice]', root)) {
+      on(btn, 'click', () => {
+        const sides = Number(btn.dataset.dice);
+        minInput.value = '1';
+        maxInput.value = String(sides);
+        countInput.value = btn.dataset.diceCount ?? '1';
+        precisionSel.value = '0';
+        unique.checked = false;
+        diceSides = sides;
+        generate();
+      });
+    }
+
+    on(q('[data-lottery]', root), 'click', () => {
+      minInput.value = '1';
+      maxInput.value = '49';
+      countInput.value = '6';
+      precisionSel.value = '0';
+      sortSel.value = 'asc';
+      unique.checked = true;
+      diceSides = null;
+      generate();
+    });
+
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Generate some numbers first.', 'warn');
+      downloadText('random-numbers.txt', output.value + '\n', 'text/plain;charset=utf-8');
+    });
+
+    on(q('[data-clear]', root), 'click', () => {
+      output.value = '';
+      stats.setAttribute('hidden', '');
+      clearStatus(root);
+    });
+
+    wireCopyButtons(root);
+    generate();
+  });
+</script>

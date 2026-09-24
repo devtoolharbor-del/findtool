@@ -1,0 +1,280 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { CASE_VARIANTS, SAMPLE_IDENTIFIER } from '~/lib/text';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="text-case-converter" class="space-y-4">
+    {/* ── Input ── */}
+    <div>
+      <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+        <label for="tc-input" class="bc-label mb-0">Text to convert</label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_IDENTIFIER}>
+            Example
+          </button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        </div>
+      </div>
+      <textarea
+        id="tc-input"
+        class="bc-textarea min-h-28"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="XMLHttpRequest retry policy v2"
+        aria-describedby="tc-status"></textarea>
+    </div>
+
+    <div class="bc-toolbar">
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-per-line />
+        Convert each line separately
+      </label>
+      <span class="text-xs text-muted">
+        Useful for a column of identifiers pasted out of a spreadsheet.
+      </span>
+    </div>
+
+    <div id="tc-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Every variant at once ── */}
+    <div class="bc-panel divide-y divide-line" data-variants>
+      {
+        CASE_VARIANTS.map((variant) => (
+          <div class="flex flex-col gap-1 p-3 sm:flex-row sm:items-center sm:gap-4" data-variant={variant.id}>
+            <div class="sm:w-52 sm:shrink-0">
+              <div class="text-sm font-medium text-ink">{variant.label}</div>
+              <div class="text-xs text-muted">{variant.hint}</div>
+            </div>
+            <output
+              class="min-w-0 flex-1 truncate rounded-md bg-surface-2 px-2.5 py-1.5 font-mono text-[0.8125rem] text-ink"
+              data-variant-value
+              title=""
+              aria-label={`${variant.label} result`}
+            >
+              —
+            </output>
+            <button
+              type="button"
+              class="bc-btn bc-btn-secondary bc-btn-sm self-start sm:self-auto"
+              data-variant-copy
+              aria-label={`Copy ${variant.label} result`}
+            >
+              <span data-label>Copy</span>
+            </button>
+          </div>
+        ))
+      }
+    </div>
+
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-all>
+        <span data-label>Copy all variants</span>
+      </button>
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>Download all</button>
+      <span class="text-xs text-muted" data-word-split></span>
+    </div>
+
+    <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Type once and every case style appears at the same time, each with its own copy button.
+      There is no dropdown, because the usual problem is not converting to a case you have in mind
+      — it is that you know the shape you want and not its name. Seeing
+      <code>screaming_snake</code> beside <code>Train-Case</code> beside <code>dot.case</code>
+      settles that in a glance.
+    </p>
+    <p>
+      The interesting work happens before any conversion: deciding where the words are. That step
+      is what separates a converter that turns <code>XMLHttpRequest</code> into
+      <code>xml_http_request</code> from one that produces <code>x_m_l_http_request</code>.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Renaming an API field across a stack — <code>userAccountId</code> in TypeScript,
+        <code>user_account_id</code> in Postgres, <code>USER_ACCOUNT_ID</code> in the environment
+        file, <code>user-account-id</code> in the URL.
+      </li>
+      <li>
+        Turning a Jira ticket title into a branch name, or a heading into a CSS class.
+      </li>
+      <li>
+        Converting a column of spreadsheet headers into identifiers — switch on "convert each line
+        separately" and paste the whole column.
+      </li>
+      <li>
+        Writing an HTTP header name correctly: <code>Content-Type</code> is Train-Case, not
+        <code>content-type</code> or <code>Content_Type</code>.
+      </li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>Given <code>getHTTPResponseCode</code>, the splitter finds four words and produces:</p>
+    <pre><code>{`camelCase             getHttpResponseCode
+PascalCase            GetHttpResponseCode
+snake_case            get_http_response_code
+SCREAMING_SNAKE_CASE  GET_HTTP_RESPONSE_CODE
+kebab-case            get-http-response-code
+Train-Case            Get-Http-Response-Code
+dot.case              get.http.response.code
+path/case             get/http/response/code`}</code></pre>
+
+    <h2>How the word splitter handles acronyms</h2>
+    <p>
+      Splitting is done with an ordered set of rules, and the order is the whole trick. The first
+      rule peels a capital run off the front of a following capitalised word, which is why
+      <code>XMLHttpRequest</code> becomes <code>XML</code> + <code>Http</code> +
+      <code>Request</code> rather than <code>XMLHttp</code> + <code>Request</code>. The same rule
+      recovers <code>HTTP</code> from the middle of <code>getHTTPResponseCode</code> and
+      <code>URL</code> from the end of <code>parseURL</code>.
+    </p>
+    <p>
+      Digits attach to the word they follow, so <code>utf8Encoder</code> splits as
+      <code>utf8</code> + <code>Encoder</code> and <code>useHTTP2Pool</code> as <code>use</code> +
+      <code>HTTP2</code> + <code>Pool</code> — not as a stray number in the middle. Existing
+      delimiters (space, <code>_</code>, <code>-</code>, <code>.</code>, <code>/</code> and any
+      punctuation) are boundaries, so already-converted input round-trips cleanly. Apostrophes are
+      removed rather than split on, so <code>user's profile</code> gives
+      <code>usersProfile</code> instead of <code>userSProfile</code>.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Title Case and Sentence case work differently from the rest. They operate on your original
+      text rather than on the split words, because punctuation and spacing carry meaning in a
+      sentence and would be destroyed by rejoining. Title Case applies the usual convention of
+      leaving short function words — <em>a</em>, <em>of</em>, <em>the</em>, <em>to</em> — lowercase
+      unless they start or end the title, and leaves any word with an interior capital alone, so
+      <code>iPhone</code> and <code>macOS</code> survive.
+    </p>
+    <p>
+      The delimiter conversions are lossy in one specific way: case boundaries are the only record
+      of where words begin, so converting <code>ID</code> to camelCase and back yields
+      <code>id</code>, not <code>ID</code>. Acronym capitalisation cannot be recovered once it has
+      been flattened into <code>snake_case</code>.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    wireStandardActions,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { CASE_VARIANTS, splitWords } from '~/lib/text';
+
+  mount('text-case-converter', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const perLine = q<HTMLInputElement>('[data-per-line]', root)!;
+    const splitNote = q('[data-word-split]', root)!;
+
+    /** Apply a conversion to the whole text, or line by line. */
+    const applyVariant = (convert: (s: string) => string, text: string) =>
+      perLine.checked
+        ? text
+            .split(/\r\n|\r|\n/)
+            .map((line) => (line.trim() ? convert(line) : ''))
+            .join('\n')
+        : convert(text);
+
+    const update = () => {
+      const text = input.value;
+
+      if (!text.trim()) {
+        clearStatus(root);
+        for (const out of qa('[data-variant-value]', root)) {
+          out.textContent = '—';
+          out.setAttribute('title', '');
+        }
+        splitNote.textContent = '';
+        mirror.value = '';
+        return;
+      }
+
+      try {
+        guardSize(text);
+      } catch (err) {
+        setStatus(root, messageFor(err), 'error');
+        return;
+      }
+      clearStatus(root);
+
+      const report: string[] = [];
+
+      for (const variant of CASE_VARIANTS) {
+        const row = q(`[data-variant="${variant.id}"]`, root);
+        if (!row) continue;
+        const out = q('[data-variant-value]', row)!;
+        let value: string;
+        try {
+          value = applyVariant(variant.convert, text);
+        } catch (err) {
+          value = '';
+          setStatus(root, messageFor(err), 'error');
+        }
+        out.textContent = value || '—';
+        // The title shows the full value when the row is truncated.
+        out.setAttribute('title', value);
+        report.push(`${variant.label.padEnd(22)}${value.split('\n')[0] ?? ''}`);
+      }
+
+      // Show the detected word boundaries: the single most useful debugging aid.
+      const words = splitWords(perLine.checked ? (text.split('\n')[0] ?? '') : text);
+      splitNote.textContent = words.length
+        ? `Detected ${words.length} word${words.length === 1 ? '' : 's'}: ${words.join(' · ')}`
+        : 'No words detected — the input is punctuation only.';
+
+      mirror.value = report.join('\n');
+      markUsed();
+    };
+
+    // One copy button per row.
+    for (const row of qa('[data-variant]', root)) {
+      on(q('[data-variant-copy]', row), 'click', (e) => {
+        const value = q('[data-variant-value]', row)?.getAttribute('title') ?? '';
+        if (!value) return setStatus(root, 'Enter some text first.', 'warn');
+        void copyText(value, e.currentTarget as HTMLElement);
+      });
+    }
+
+    on(q('[data-copy-all]', root), 'click', (e) => {
+      if (!mirror.value) return setStatus(root, 'Enter some text first.', 'warn');
+      void copyText(mirror.value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-download]', root), 'click', () => {
+      if (!mirror.value) return setStatus(root, 'Enter some text first.', 'warn');
+      downloadText('case-variants.txt', mirror.value);
+    });
+
+    on(input, 'input', debounce(update, 100));
+    on(perLine, 'change', update);
+
+    wireStandardActions(root, { onChange: update });
+    update();
+  });
+</script>

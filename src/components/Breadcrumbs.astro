@@ -1,0 +1,48 @@
+---
+/**
+ * Visible breadcrumb trail. The matching BreadcrumbList JSON-LD is emitted by
+ * the page that renders this, so the two can never drift apart — both read the
+ * same `items` array.
+ */
+import type { Crumb } from '~/types';
+
+interface Props {
+  items: Crumb[];
+}
+
+const { items } = Astro.props;
+---
+
+<nav aria-label="Breadcrumb" class="mb-4">
+  <ol class="flex flex-wrap items-center gap-1.5 text-sm text-muted">
+    {
+      items.map((item, i) => (
+        <li class="flex items-center gap-1.5">
+          {i > 0 && (
+            <svg
+              class="size-3.5 shrink-0 text-line-strong"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="m9 6 6 6-6 6" />
+            </svg>
+          )}
+          {item.href ? (
+            <a href={item.href} class="transition-colors hover:text-accent">
+              {item.label}
+            </a>
+          ) : (
+            <span aria-current="page" class="text-ink-soft">
+              {item.label}
+            </span>
+          )}
+        </li>
+      ))
+    }
+  </ol>
+</nav>

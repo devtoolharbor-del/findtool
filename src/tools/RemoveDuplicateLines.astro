@@ -1,0 +1,338 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_LIST } from '~/lib/text';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="remove-duplicate-lines" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="rd-keep" class="text-xs font-medium tracking-wide text-muted uppercase">Keep</label>
+        <select id="rd-keep" class="bc-select w-auto py-1.5 text-xs" data-keep>
+          <option value="first" selected>First occurrence</option>
+          <option value="last">Last occurrence</option>
+        </select>
+      </div>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-opt="caseInsensitive" />
+        Ignore case
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-opt="trim" />
+        Trim before comparing
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-opt="removeBlank" />
+        Drop blank lines
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_LIST}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>Upload file</button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input type="file" accept=".txt,.csv,.log,text/plain" class="hidden" data-file-input />
+      </div>
+    </div>
+
+    {/* ── Mode ── */}
+    <div class="bc-toolbar" role="group" aria-label="Output mode">
+      <button type="button" class="bc-btn bc-btn-primary bc-btn-sm" data-mode="unique" aria-pressed="true">
+        Remove duplicates
+      </button>
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-mode="duplicates" aria-pressed="false">
+        Show only duplicates
+      </button>
+      <span class="text-xs text-muted" data-mode-note>
+        Keeps one copy of every line, in the original order.
+      </span>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="rd-input" class="bc-label">Lines</label>
+      <textarea
+        id="rd-input"
+        class="bc-textarea min-h-48"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste a list — one entry per line…"
+        aria-describedby="rd-status"></textarea>
+    </div>
+
+    <div id="rd-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="in">0</div>
+        <div class="bc-stat-label">Lines in</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="out">0</div>
+        <div class="bc-stat-label">Lines out</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="removed">0</div>
+        <div class="bc-stat-label">Removed</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat="repeated">0</div>
+        <div class="bc-stat-label">Values repeated</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <div class="mb-1.5 flex items-center justify-between">
+        <span class="text-xs font-medium tracking-wide text-muted uppercase">Result</span>
+        <div class="flex gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-output>
+            <span data-label>Copy</span>
+          </button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>Download</button>
+        </div>
+      </div>
+      <textarea
+        class="bc-textarea max-h-[32rem] min-h-48"
+        data-output
+        readonly
+        spellcheck="false"
+        aria-label="Deduplicated result"></textarea>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Paste a list and get it back with the repeats gone and the original order intact. That last
+      part matters: <code>sort | uniq</code> is the usual shell answer and it reorders everything,
+      which is wrong when the list is a changelog, a queue or a ranked set of results.
+    </p>
+    <p>
+      The second mode inverts the question and returns only the values that appeared more than
+      once. That is the faster way to answer "what is duplicated in this export?", and it is
+      usually the reason someone opened a deduplicator in the first place.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Cleaning a mailing list where the same address was collected from three forms, often with
+        different capitalisation.
+      </li>
+      <li>
+        Finding duplicate IDs in a CSV column before a unique-constraint violation finds them
+        for you.
+      </li>
+      <li>
+        Collapsing a repetitive log file down to its distinct messages to see what is actually
+        happening.
+      </li>
+      <li>
+        Merging two lists of dependencies, tags or feature flags without hand-checking the overlap.
+      </li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>With "ignore case" on, this input:</p>
+    <pre><code>{`alice@example.com
+bob@example.com
+ALICE@example.com
+carol@example.com
+bob@example.com`}</code></pre>
+    <p>becomes three lines, and the report says two values were repeated:</p>
+    <pre><code>{`alice@example.com
+bob@example.com
+carol@example.com`}</code></pre>
+    <p>
+      Switch to "show only duplicates" and the same input returns
+      <code>alice@example.com</code> and <code>bob@example.com</code> — one copy of each repeated
+      value, not every copy of it.
+    </p>
+
+    <h2>What "duplicate" means here</h2>
+    <p>
+      By default, two lines are duplicates only when they are byte-for-byte identical. That is
+      strict on purpose, because whitespace and capitalisation are meaningful in code and in file
+      paths. Three toggles loosen it:
+    </p>
+    <ul>
+      <li>
+        <strong>Ignore case</strong> compares in lowercase. Correct for email addresses, whose
+        domain part is case-insensitive by specification; wrong for Linux file paths.
+      </li>
+      <li>
+        <strong>Trim before comparing</strong> strips leading and trailing whitespace before the
+        comparison but keeps it in the output. This is what catches the trailing space that a
+        spreadsheet export leaves on every third row.
+      </li>
+      <li>
+        <strong>Keep first vs keep last</strong> chooses which copy survives. Keep last is the one
+        you want when later lines are the corrected versions — an audit log, or an append-only
+        settings file where the final value wins.
+      </li>
+    </ul>
+
+    <h2>Worth knowing</h2>
+    <p>
+      A trailing newline in your input produces a final empty line, and two of them count as
+      duplicates of each other. Enable "drop blank lines" if that skews the count. Invisible
+      characters are the other common surprise: two lines that look identical but differ by a
+      zero-width space or a non-breaking space are genuinely different strings and will both
+      survive. If the numbers here do not match what your eyes say, run the text through the
+      <a href="/tools/remove-extra-spaces">extra-space remover</a> first.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    wireStandardActions,
+    wireFileInput,
+    readFileText,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { dedupeLines, type DedupeOptions } from '~/lib/text';
+
+  mount('remove-duplicate-lines', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const keep = q<HTMLSelectElement>('[data-keep]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const modeNote = q('[data-mode-note]', root)!;
+
+    let mode: 'unique' | 'duplicates' = 'unique';
+
+    const options = (): DedupeOptions => ({
+      keep: keep.value === 'last' ? 'last' : 'first',
+      caseInsensitive: q<HTMLInputElement>('[data-opt="caseInsensitive"]', root)!.checked,
+      trim: q<HTMLInputElement>('[data-opt="trim"]', root)!.checked,
+      removeBlank: q<HTMLInputElement>('[data-opt="removeBlank"]', root)!.checked,
+      invert: mode === 'duplicates',
+    });
+
+    const stat = (name: string, value: number) => {
+      const el = q(`[data-stat="${name}"]`, root);
+      if (el) el.textContent = value.toLocaleString();
+    };
+
+    const run = () => {
+      const text = input.value;
+
+      if (!text) {
+        clearStatus(root);
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        return;
+      }
+
+      try {
+        guardSize(text);
+      } catch (err) {
+        setStatus(root, messageFor(err), 'error');
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        return;
+      }
+
+      const result = dedupeLines(text, options());
+      output.value = result.lines.join('\n');
+
+      stats.removeAttribute('hidden');
+      stat('in', result.total);
+      stat('out', result.lines.length);
+      stat('removed', result.removed);
+      stat('repeated', result.duplicateValues);
+
+      if (mode === 'duplicates') {
+        setStatus(
+          root,
+          result.duplicateValues === 0
+            ? 'Every line is unique — nothing appears more than once.'
+            : `${result.duplicateValues.toLocaleString()} value${result.duplicateValues === 1 ? '' : 's'} ` +
+              `appear more than once. One copy of each is shown.`,
+          result.duplicateValues === 0 ? 'ok' : 'warn',
+        );
+      } else if (result.removed === 0) {
+        setStatus(root, 'No duplicates found — every line is already unique.', 'ok');
+      } else {
+        setStatus(
+          root,
+          `Removed ${result.removed.toLocaleString()} duplicate line${result.removed === 1 ? '' : 's'}, ` +
+            `leaving ${result.lines.length.toLocaleString()} of ${result.total.toLocaleString()}.`,
+          'ok',
+        );
+      }
+
+      markUsed();
+    };
+
+    for (const btn of qa('[data-mode]', root)) {
+      on(btn, 'click', () => {
+        mode = btn.dataset.mode === 'duplicates' ? 'duplicates' : 'unique';
+        for (const other of qa('[data-mode]', root)) {
+          const active = other === btn;
+          other.setAttribute('aria-pressed', String(active));
+          other.classList.toggle('bc-btn-primary', active);
+          other.classList.toggle('bc-btn-secondary', !active);
+        }
+        modeNote.textContent =
+          mode === 'duplicates'
+            ? 'Shows one copy of every line that occurs more than once.'
+            : 'Keeps one copy of every line, in the original order.';
+        run();
+      });
+    }
+
+    on(input, 'input', debounce(run, 150));
+    on(keep, 'change', run);
+    for (const box of qa('[data-opt]', root)) on(box, 'change', run);
+
+    on(q('[data-copy-output]', root), 'click', (e) => {
+      if (!output.value) return setStatus(root, 'Paste a list first.', 'warn');
+      void copyText(output.value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Paste a list first.', 'warn');
+      downloadText('deduplicated.txt', output.value);
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          run();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, { onChange: run });
+  });
+</script>

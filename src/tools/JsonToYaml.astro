@@ -1,0 +1,346 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_JSON_FOR_YAML } from '~/lib/yaml';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="json-to-yaml" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="jy-indent" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Indent
+        </label>
+        <select id="jy-indent" class="bc-select w-auto py-1.5 text-xs" data-indent>
+          <option value="2" selected>2 spaces</option>
+          <option value="4">4 spaces</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label for="jy-quotes" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Quotes
+        </label>
+        <select id="jy-quotes" class="bc-select w-auto py-1.5 text-xs" data-quotes>
+          <option value="min" selected>Only where needed</option>
+          <option value="single">Always single</option>
+          <option value="double">Always double</option>
+        </select>
+      </div>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-sort-keys />
+        Sort keys
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-wrap />
+        Wrap at 80 columns
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-multi />
+        Array → one document each
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button
+          type="button"
+          class="bc-btn bc-btn-secondary bc-btn-sm"
+          data-example={SAMPLE_JSON_FOR_YAML}
+        >
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>Upload file</button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input
+          type="file"
+          accept=".json,.yaml,.yml,.txt,application/json,text/plain"
+          class="hidden"
+          data-file-input
+        />
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="jy-input" class="bc-label" data-input-label>JSON input</label>
+      <textarea
+        id="jy-input"
+        class="bc-textarea min-h-48"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste JSON here…"
+        aria-describedby="jy-status"></textarea>
+    </div>
+
+    <div id="jy-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Actions ── */}
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-action="convert" data-convert-label>
+        Convert to YAML
+      </button>
+      <button type="button" class="bc-btn bc-btn-secondary" data-swap data-swap-label>
+        Swap — YAML to JSON
+      </button>
+      <div class="ml-auto flex gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-output>
+          <span data-label>Copy</span>
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>Download</button>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <label for="jy-output" class="bc-label" data-output-label>YAML result</label>
+      <textarea
+        id="jy-output"
+        class="bc-textarea max-h-96 min-h-40"
+        data-output
+        readonly
+        spellcheck="false"
+        placeholder="The YAML appears here."></textarea>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      YAML 1.2 is a superset of JSON, so every valid JSON document is already valid YAML — but
+      nobody wants to read braces and quotes in a Kubernetes manifest. This converter rewrites the
+      document in YAML's block style: nesting becomes indentation, arrays become
+      <code>-</code> items, and quotes disappear from every string that does not need them.
+    </p>
+    <p>
+      You choose the indent width, whether keys are sorted, how aggressively strings are quoted, and
+      whether a top-level array is emitted as one document per element — the form
+      <code>kubectl apply -f</code> expects from a file holding several manifests. The Swap button
+      sends the result back through the other way, so you can check the round trip immediately.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Converting a JSON manifest exported by <code>kubectl get -o json</code> back into the YAML
+        you keep in Git.
+      </li>
+      <li>Rewriting a generated JSON config as a GitHub Actions workflow or a Docker Compose file.</li>
+      <li>Producing a readable, commentable version of settings your tooling emits as JSON.</li>
+      <li>Sorting keys so two large configs can be diffed without field order getting in the way.</li>
+      <li>Pasting a nested value into a Helm <code>values.yaml</code> at the right indentation.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>This JSON:</p>
+    <pre><code>{`{"jobs":{"test":{"runs-on":"ubuntu-latest","steps":[{"uses":"actions/checkout@v4"},{"run":"npm test"}]}}}`}</code></pre>
+    <p>becomes:</p>
+    <pre><code>{`jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm test`}</code></pre>
+
+    <h2>Which strings end up quoted, and why</h2>
+    <p>
+      A YAML scalar is only quoted when leaving it bare would change its meaning, which is why the
+      output looks inconsistent at first glance. The converter quotes a string when it would
+      otherwise be read as another type — <code>'true'</code>, <code>'null'</code>,
+      <code>'42'</code>, <code>'1.0'</code> — or when it starts with a character that has structural
+      meaning: <code>&#123;</code> <code>[</code> <code>&amp;</code> <code>*</code> <code>#</code>
+      <code>!</code> <code>|</code> <code>&gt;</code> <code>%</code> <code>@</code>, a leading or
+      trailing space, or an embedded <code>: </code>. Anything else stays bare.
+    </p>
+    <p>
+      This matters for version numbers in particular. <code>version: 1.10</code> is the number
+      1.1 in every YAML parser; <code>version: '1.10'</code> is the string you meant. Since the
+      input here is JSON, the type is already unambiguous and the quoting is chosen to preserve it.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Three things do not survive the conversion, because JSON has no way to express them. Comments
+      are lost — JSON has none to carry, so a round trip through JSON strips every
+      <code>#</code> line from your original file. Anchors and aliases are not emitted: JSON cannot
+      represent a shared reference, so two identical sub-objects are written out twice rather than
+      as <code>&amp;anchor</code> and <code>*alias</code>. And key order is preserved exactly as it
+      appears in the JSON unless you tick Sort keys — YAML mappings are formally unordered, and some
+      tools will reorder them again on their own.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    wireStandardActions,
+    wireSwap,
+    wireFileInput,
+    readFileText,
+    markUsed,
+  } from '~/lib/toolkit';
+  import { parseJson, sortJsonKeys, JsonParseError } from '~/lib/json';
+  import { jsonToYaml, yamlToJson, YamlParseError } from '~/lib/yaml';
+
+  type Direction = 'to-yaml' | 'to-json';
+
+  mount('json-to-yaml', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+
+    let direction: Direction = 'to-yaml';
+
+    const labels = () => {
+      const toYaml = direction === 'to-yaml';
+      q('[data-input-label]', root)!.textContent = toYaml ? 'JSON input' : 'YAML input';
+      q('[data-output-label]', root)!.textContent = toYaml ? 'YAML result' : 'JSON result';
+      q('[data-convert-label]', root)!.textContent = toYaml ? 'Convert to YAML' : 'Convert to JSON';
+      q('[data-swap-label]', root)!.textContent = toYaml
+        ? 'Swap — YAML to JSON'
+        : 'Swap — JSON to YAML';
+      input.placeholder = toYaml ? 'Paste JSON here…' : 'Paste YAML here…';
+    };
+
+    const run = () => {
+      const text = input.value;
+      if (!text.trim()) {
+        clearStatus(root);
+        output.value = '';
+        return;
+      }
+
+      const indent = Number(q<HTMLSelectElement>('[data-indent]', root)!.value);
+      const sortKeys = q<HTMLInputElement>('[data-sort-keys]', root)!.checked;
+      const quotes = q<HTMLSelectElement>('[data-quotes]', root)!.value;
+      const wrap = q<HTMLInputElement>('[data-wrap]', root)!.checked;
+      const multi = q<HTMLInputElement>('[data-multi]', root)!.checked;
+
+      try {
+        guardSize(text);
+
+        if (direction === 'to-yaml') {
+          const value = parseJson(text);
+          const yaml = jsonToYaml(value, {
+            indent,
+            sortKeys,
+            lineWidth: wrap ? 80 : -1,
+            forceQuotes: quotes !== 'min',
+            quotingType: quotes === 'double' ? '"' : "'",
+            multiDocument: multi,
+          });
+          output.value = yaml;
+          clearStatus(root);
+          if (multi && !Array.isArray(value)) {
+            setStatus(
+              root,
+              'One document per element only applies to a top-level array — this input is a single value.',
+              'warn',
+            );
+          }
+        } else {
+          let json = yamlToJson(text, { indent, multiDocument: true });
+          if (sortKeys) json = JSON.stringify(sortJsonKeys(JSON.parse(json)), null, indent);
+          output.value = json;
+          clearStatus(root);
+        }
+        markUsed();
+      } catch (err) {
+        output.value = '';
+        if (err instanceof JsonParseError) {
+          const d = err.detail;
+          setStatus(
+            root,
+            `This is not valid JSON: ${d.message}${d.line !== undefined ? ` (line ${d.line}, column ${d.column ?? 1})` : ''}`,
+            'error',
+          );
+        } else if (err instanceof YamlParseError) {
+          const d = err.detail;
+          setStatus(
+            root,
+            `This is not valid YAML: ${d.message}${d.line !== undefined ? ` (line ${d.line}, column ${d.column ?? 1})` : ''}`,
+            'error',
+          );
+        } else {
+          setStatus(root, messageFor(err), 'error');
+        }
+      }
+    };
+
+    on(q('[data-action="convert"]', root), 'click', run);
+    for (const control of qa(
+      '[data-indent], [data-quotes], [data-sort-keys], [data-wrap], [data-multi]',
+      root,
+    )) {
+      on(control, 'change', () => input.value && run());
+    }
+
+    // Swap moves the result back into the input and flips the direction, so the
+    // page works as a two-way converter without leaving this tool.
+    wireSwap(root, '[data-primary-input]', '[data-output]', () => {
+      direction = direction === 'to-yaml' ? 'to-json' : 'to-yaml';
+      labels();
+      output.value = '';
+      run();
+    });
+
+    on(q('[data-copy-output]', root), 'click', (e) => {
+      if (!output.value) return setStatus(root, 'Convert something first.', 'warn');
+      void copyText(output.value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Convert something first.', 'warn');
+      const toYaml = direction === 'to-yaml';
+      downloadText(
+        toYaml ? 'converted.yaml' : 'converted.json',
+        output.value,
+        toYaml ? 'text/yaml;charset=utf-8' : 'application/json',
+      );
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          // A dropped .yaml file is almost certainly meant to go the other way.
+          if (/\.ya?ml$/i.test(file.name) && direction === 'to-yaml') {
+            direction = 'to-json';
+            labels();
+          }
+          run();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, {
+      onChange: () => {
+        // Clear and Example both return the tool to its documented direction.
+        direction = 'to-yaml';
+        labels();
+        if (input.value) run();
+      },
+    });
+
+    labels();
+  });
+</script>

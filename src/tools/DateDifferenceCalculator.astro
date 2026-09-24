@@ -1,0 +1,361 @@
+---
+/**
+ * Date Difference Calculator.
+ *
+ * Two datetimes in, two answers out: the calendar breakdown a person expects
+ * (years / months / days) and the flat totals a spreadsheet expects. Plus a
+ * business-day count that excludes Saturdays and Sundays.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+const TOTALS = [
+  { key: 'weeks', label: 'Weeks' },
+  { key: 'days', label: 'Days' },
+  { key: 'hours', label: 'Hours' },
+  { key: 'minutes', label: 'Minutes' },
+  { key: 'seconds', label: 'Seconds' },
+  { key: 'months', label: 'Whole months' },
+];
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="date-difference-calculator" class="space-y-4">
+    {/* ── The two dates ── */}
+    <div class="grid gap-3 sm:grid-cols-2">
+      <div>
+        <div class="flex items-end justify-between gap-2">
+          <label for="dd-start" class="bc-label">Start</label>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm mb-1.5" data-now="start">
+            Now
+          </button>
+        </div>
+        <input
+          id="dd-start"
+          type="datetime-local"
+          step="1"
+          class="bc-input"
+          data-primary-input
+          data-clear-target
+          data-field="start"
+        />
+      </div>
+
+      <div>
+        <div class="flex items-end justify-between gap-2">
+          <label for="dd-end" class="bc-label">End</label>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm mb-1.5" data-now="end">
+            Now
+          </button>
+        </div>
+        <input
+          id="dd-end"
+          type="datetime-local"
+          step="1"
+          class="bc-input"
+          data-clear-target
+          data-field="end"
+        />
+      </div>
+    </div>
+
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-business />
+        Business days only (exclude Saturday and Sunday)
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-inclusive />
+        Count the end day as well
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example-pair>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      </div>
+    </div>
+
+    <div data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Calendar breakdown ── */}
+    <div class="bc-panel p-4" data-results hidden>
+      <div class="text-xs font-medium tracking-wide text-muted uppercase">Calendar difference</div>
+      <p class="mt-2 text-xl font-semibold tracking-tight" data-calendar>—</p>
+      <p class="mt-1 text-sm text-muted" data-summary></p>
+
+      <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {
+          TOTALS.map((total) => (
+            <div class="bc-stat">
+              <div class="bc-stat-value tabular-nums" data-total={total.key}>
+                —
+              </div>
+              <div class="bc-stat-label">{total.label}</div>
+            </div>
+          ))
+        }
+      </div>
+
+      <div class="mt-3 grid gap-2 sm:grid-cols-3" data-business-block hidden>
+        <div class="bc-stat">
+          <div class="bc-stat-value tabular-nums" data-business-days>—</div>
+          <div class="bc-stat-label">Business days</div>
+        </div>
+        <div class="bc-stat">
+          <div class="bc-stat-value tabular-nums" data-weekend-days>—</div>
+          <div class="bc-stat-label">Weekend days</div>
+        </div>
+        <div class="bc-stat">
+          <div class="bc-stat-value tabular-nums" data-total-days>—</div>
+          <div class="bc-stat-label">Calendar days</div>
+        </div>
+      </div>
+
+      <div class="mt-4 flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-all>
+          <span data-label>Copy result</span>
+        </button>
+      </div>
+
+      <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Give it two moments and it measures the gap twice, because there are two honest answers.
+      The calendar answer — "2 years, 4 months and 9 days" — is how people talk about age,
+      tenure and contract length. The total answer — "856 days" or "20,544 hours" — is what you
+      need when the unit has to stay constant, as in billing, SLA windows and retention policies.
+    </p>
+    <p>
+      Both are computed from the same pair of instants, so they never disagree; they simply
+      describe the same span with different rulers.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Working out someone's exact age, or how long an employee has been in post.</li>
+      <li>
+        Counting the working days available before a deadline, which is nearly always what a
+        project plan means by "ten days".
+      </li>
+      <li>Checking whether a certificate, token or licence has an acceptable remaining life.</li>
+      <li>
+        Converting a retention rule expressed in months into the day count a cron job or a
+        database <code>DELETE</code> actually needs.
+      </li>
+      <li>Reconciling two log entries that are hours apart and establishing exactly how far.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>From 31 January to 1 March in a leap year:</p>
+    <pre><code>{`Calendar   1 month, 1 day
+Totals     30 days · 4 weeks · 720 hours
+Business   22 business days, 8 weekend days`}</code></pre>
+    <p>
+      One month, not thirty days. Adding a month to 31 January lands on 29 February — the
+      31st does not exist in February, so the date is clamped to the end of the month — and
+      one further day reaches 1 March.
+    </p>
+
+    <h2>Why months are the awkward unit</h2>
+    <p>
+      A month has 28, 29, 30 or 31 days, so "one month" is only defined relative to a starting
+      date. Every serious date library resolves this the same way, and so does this tool: walk
+      whole months forward from the start date, clamping the day-of-month when the target month
+      is shorter, then measure whatever is left in exact days, hours, minutes and seconds. That
+      is why the calendar breakdown never shows a number of days larger than the shortest month
+      involved, and why "whole months" in the totals grid can differ from
+      <code>days ÷ 30</code>.
+    </p>
+    <p>
+      Business days are counted on the half-open interval: the start day counts and the end day
+      does not, which is what makes Monday to Tuesday a single business day. Tick "count the end
+      day as well" for the payroll convention, where Monday to Friday is five. Public holidays
+      are not deducted — they differ by country, region and year, and guessing at them would be
+      worse than leaving the number honest.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Both inputs are read as plain wall-clock readings in the same zone, so daylight saving
+      never adds or removes an hour from the result. That is almost always what you want: if a
+      meeting moves from 09:00 on 1 March to 09:00 on 1 April, the calendar answer should be one
+      month exactly, not "one month minus an hour". If you genuinely need the elapsed physical
+      time across a DST boundary in a specific zone, convert both ends to UTC first with the
+      timezone converter and compare those.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import { mount, q, on, setStatus, clearStatus, copyText, markUsed, wireStandardActions } from '~/lib/toolkit';
+  import {
+    businessDaysBetween,
+    calendarDiff,
+    durationTotals,
+    formatDuration,
+    formatShort,
+    localTimeZone,
+    toDatetimeLocalValue,
+    utcFromFields,
+  } from '~/lib/datetime';
+
+  mount('date-difference-calculator', (root) => {
+    const startInput = q<HTMLInputElement>('[data-field="start"]', root)!;
+    const endInput = q<HTMLInputElement>('[data-field="end"]', root)!;
+    const businessToggle = q<HTMLInputElement>('[data-business]', root)!;
+    const inclusiveToggle = q<HTMLInputElement>('[data-inclusive]', root)!;
+    const results = q('[data-results]', root)!;
+    const businessBlock = q('[data-business-block]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const zone = localTimeZone();
+
+    /**
+     * Read a datetime-local value as UTC fields. Both ends use the same rule,
+     * so the difference is a pure calendar difference with no DST in it.
+     */
+    const toMs = (value: string): number | null => {
+      const m = value.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+      if (!m) return null;
+      return utcFromFields(
+        Number(m[1]),
+        Number(m[2]),
+        Number(m[3]),
+        Number(m[4] ?? 0),
+        Number(m[5] ?? 0),
+        Number(m[6] ?? 0),
+      );
+    };
+
+    const plural = (n: number, unit: string) => `${n.toLocaleString()} ${unit}${n === 1 ? '' : 's'}`;
+
+    const run = () => {
+      const a = toMs(startInput.value);
+      const b = toMs(endInput.value);
+
+      if (a === null || b === null) {
+        results.setAttribute('hidden', '');
+        mirror.value = '';
+        if (!startInput.value && !endInput.value) return clearStatus(root);
+        return setStatus(root, 'Fill in both dates to see the difference.', 'warn');
+      }
+
+      const cal = calendarDiff(a, b);
+      const totals = durationTotals(a, b);
+      const inclusive = inclusiveToggle.checked;
+      const business = businessDaysBetween(a, b, { inclusive });
+
+      results.removeAttribute('hidden');
+
+      const calendarParts: string[] = [];
+      if (cal.years) calendarParts.push(plural(cal.years, 'year'));
+      if (cal.months) calendarParts.push(plural(cal.months, 'month'));
+      if (cal.days) calendarParts.push(plural(cal.days, 'day'));
+      if (cal.hours) calendarParts.push(plural(cal.hours, 'hour'));
+      if (cal.minutes) calendarParts.push(plural(cal.minutes, 'minute'));
+      if (cal.seconds) calendarParts.push(plural(cal.seconds, 'second'));
+      const calendarText = calendarParts.length
+        ? calendarParts.join(', ')
+        : 'No difference — the two moments are identical.';
+
+      q('[data-calendar]', root)!.textContent = calendarText;
+      q('[data-summary]', root)!.textContent =
+        `${formatShort(Math.min(a, b))} → ${formatShort(Math.max(a, b))} · ${formatDuration(
+          totals.milliseconds,
+        )}${cal.reversed ? ' · the end is earlier than the start, so the span is shown unsigned' : ''}`;
+
+      const setTotal = (key: string, value: number) => {
+        q(`[data-total="${key}"]`, root)!.textContent = value.toLocaleString();
+      };
+      setTotal('weeks', totals.weeks);
+      setTotal('days', totals.days);
+      setTotal('hours', totals.hours);
+      setTotal('minutes', totals.minutes);
+      setTotal('seconds', totals.seconds);
+      setTotal('months', totals.months);
+
+      if (businessToggle.checked) {
+        businessBlock.removeAttribute('hidden');
+        q('[data-business-days]', root)!.textContent = business.businessDays.toLocaleString();
+        q('[data-weekend-days]', root)!.textContent = business.weekendDays.toLocaleString();
+        q('[data-total-days]', root)!.textContent = business.totalDays.toLocaleString();
+      } else {
+        businessBlock.setAttribute('hidden', '');
+      }
+
+      mirror.value = [
+        `Start: ${formatShort(Math.min(a, b))}`,
+        `End:   ${formatShort(Math.max(a, b))}`,
+        `Calendar: ${calendarText}`,
+        `Totals: ${totals.weeks} weeks, ${totals.days} days, ${totals.hours} hours, ${totals.minutes} minutes, ${totals.seconds} seconds`,
+        businessToggle.checked
+          ? `Business days: ${business.businessDays} (${business.weekendDays} weekend days of ${business.totalDays} calendar days${inclusive ? ', end day included' : ''})`
+          : '',
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      if (cal.reversed) {
+        setStatus(
+          root,
+          'The end date is earlier than the start date. The span is shown as a positive length rather than as a negative number of months.',
+          'warn',
+        );
+      } else {
+        clearStatus(root);
+      }
+      markUsed();
+    };
+
+    on(startInput, 'input', run);
+    on(endInput, 'input', run);
+    on(businessToggle, 'change', run);
+    on(inclusiveToggle, 'change', run);
+
+    for (const which of ['start', 'end'] as const) {
+      on(q(`[data-now="${which}"]`, root), 'click', () => {
+        const field = which === 'start' ? startInput : endInput;
+        field.value = toDatetimeLocalValue(Date.now(), zone, true);
+        run();
+      });
+    }
+
+    on(q('[data-example-pair]', root), 'click', () => {
+      // A real span people ask about: a leap-year month end.
+      startInput.value = '2024-01-31T09:00:00';
+      endInput.value = '2024-03-01T17:30:00';
+      businessToggle.checked = true;
+      run();
+    });
+
+    on(q('[data-copy-all]', root), 'click', (e) => {
+      if (!mirror.value) return setStatus(root, 'Enter two dates first.', 'warn');
+      void copyText(mirror.value, e.currentTarget as HTMLElement);
+    });
+
+    wireStandardActions(root, {
+      onChange: () => {
+        results.setAttribute('hidden', '');
+        clearStatus(root);
+      },
+    });
+
+    // Start with today and this time next week, so the page is never blank.
+    const now = Date.now();
+    startInput.value = toDatetimeLocalValue(now, zone, true);
+    endInput.value = toDatetimeLocalValue(now + 7 * 86_400_000, zone, true);
+    run();
+  });
+</script>

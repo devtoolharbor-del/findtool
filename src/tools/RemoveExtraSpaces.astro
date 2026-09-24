@@ -1,0 +1,401 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_MESSY } from '~/lib/text';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+/** Each toggle is one operation in src/lib/text.ts → normalizeWhitespace(). */
+const OPERATIONS = [
+  {
+    id: 'collapseSpaces',
+    label: 'Collapse repeated spaces',
+    hint: 'Two or more spaces become one. Never across a line break.',
+    on: true,
+  },
+  {
+    id: 'trimLines',
+    label: 'Trim each line',
+    hint: 'Removes leading and trailing spaces and tabs from every line.',
+    on: true,
+  },
+  {
+    id: 'removeBlankLines',
+    label: 'Remove blank lines',
+    hint: 'Drops lines that contain nothing but whitespace.',
+    on: false,
+  },
+  {
+    id: 'tabsToSpaces',
+    label: 'Tabs → spaces',
+    hint: 'Replaces every tab with the chosen width.',
+    on: false,
+  },
+  {
+    id: 'spacesToTabs',
+    label: 'Spaces → tabs',
+    hint: 'Converts leading indentation only, never spaces inside a line.',
+    on: false,
+  },
+  {
+    id: 'normalizeNewlines',
+    label: 'Normalise line endings',
+    hint: 'Converts Windows CRLF and classic Mac CR to plain LF.',
+    on: false,
+  },
+  {
+    id: 'trimDocument',
+    label: 'Trim the whole document',
+    hint: 'Removes whitespace before the first and after the last character.',
+    on: false,
+  },
+] as const;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="remove-extra-spaces" class="space-y-4">
+    {/* ── The headline feature ── */}
+    <div class="bc-panel border-accent-line p-4">
+      <h2 class="text-sm font-semibold text-ink">Invisible characters</h2>
+      <p class="mt-1 mb-3 text-sm text-muted">
+        Characters you cannot see but a string comparison can. They arrive from PDFs, word
+        processors and copied web pages, and they are why two identical-looking lines refuse to
+        match.
+      </p>
+      <div class="flex flex-wrap gap-4">
+        <label class="bc-check-label">
+          <input type="checkbox" class="bc-checkbox" data-op="stripZeroWidth" checked />
+          Strip zero-width characters
+        </label>
+        <label class="bc-check-label">
+          <input type="checkbox" class="bc-checkbox" data-op="normalizeNbsp" checked />
+          Normalise non-breaking spaces
+        </label>
+        <label class="bc-check-label">
+          <input type="checkbox" class="bc-checkbox" data-op="preserveEmojiJoiners" checked />
+          Keep emoji sequences intact
+        </label>
+      </div>
+      <ul class="mt-3 space-y-1 text-xs text-muted" data-found></ul>
+    </div>
+
+    {/* ── The rest of the operations ── */}
+    <div class="bc-panel p-4">
+      <h2 class="mb-3 text-sm font-semibold text-ink">Whitespace</h2>
+      <div class="grid gap-3 sm:grid-cols-2">
+        {
+          OPERATIONS.map((op) => (
+            <label class="flex cursor-pointer items-start gap-2">
+              <input type="checkbox" class="bc-checkbox mt-0.5" data-op={op.id} checked={op.on} />
+              <span>
+                <span class="block text-sm text-ink">{op.label}</span>
+                <span class="block text-xs text-muted">{op.hint}</span>
+              </span>
+            </label>
+          ))
+        }
+      </div>
+
+      <div class="mt-3 flex items-center gap-2">
+        <label for="rs-width" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Tab width
+        </label>
+        <select id="rs-width" class="bc-select w-auto py-1.5 text-xs" data-tab-width>
+          <option value="2" selected>2</option>
+          <option value="4">4</option>
+          <option value="8">8</option>
+        </select>
+      </div>
+    </div>
+
+    {/* ── Input / output ── */}
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_MESSY}>
+        Example
+      </button>
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>Upload file</button>
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      <input type="file" accept=".txt,.csv,.md,.log,text/plain" class="hidden" data-file-input />
+      <span class="ml-auto text-xs text-muted">Preview updates as you type.</span>
+    </div>
+
+    <div class="grid gap-3 lg:grid-cols-2">
+      <div>
+        <label for="rs-input" class="bc-label">Input</label>
+        <textarea
+          id="rs-input"
+          class="bc-textarea min-h-56"
+          data-primary-input
+          data-clear-target
+          spellcheck="false"
+          placeholder="Paste text that has been through a word processor…"
+          aria-describedby="rs-status"></textarea>
+      </div>
+
+      <div>
+        <div class="mb-1.5 flex items-center justify-between">
+          <span class="text-xs font-medium tracking-wide text-muted uppercase">Cleaned</span>
+          <div class="flex gap-2">
+            <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-output>
+              <span data-label>Copy</span>
+            </button>
+            <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>Download</button>
+          </div>
+        </div>
+        <textarea
+          class="bc-textarea min-h-56"
+          data-output
+          readonly
+          spellcheck="false"
+          aria-label="Cleaned result"></textarea>
+      </div>
+    </div>
+
+    <div id="rs-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── What changed ── */}
+    <div class="bc-panel p-4" data-report hidden>
+      <h2 class="mb-2 text-sm font-semibold text-ink">What changed</h2>
+      <ul class="space-y-1 text-sm text-muted" data-report-list></ul>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Seven whitespace operations, each with its own switch, applied in the only order that makes
+      sense and previewed live as you type. Collapse repeated spaces, trim lines, drop blank lines,
+      convert tabs to spaces or back, normalise line endings, and trim the document as a whole.
+      After each run it reports exactly what it touched and how many times.
+    </p>
+    <p>
+      The two switches at the top are the reason most people arrive here. They remove characters
+      that are genuinely invisible — not small, not faint, but zero pixels wide — and replace the
+      space-like characters that are not the ordinary space you typed.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Fixing a CSV that will not import because half its fields carry a trailing space from the
+        source spreadsheet.
+      </li>
+      <li>
+        Repairing text pasted out of a PDF, which routinely arrives with soft hyphens mid-word and
+        non-breaking spaces between every number and its unit.
+      </li>
+      <li>
+        Making two lists comparable before a diff or a deduplication, so the comparison reflects
+        content rather than formatting.
+      </li>
+      <li>
+        Normalising indentation across a file that has been edited in three editors with three
+        different tab settings.
+      </li>
+      <li>Cleaning a copied code block before pasting it into a terminal.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>This line looks like an ordinary amount with ordinary spaces in it:</p>
+    <pre><code>{`Total: 1 240,00​ EUR`}</code></pre>
+    <p>
+      It is not. The space after <code>Total:</code> is U+00A0, the one inside the number is
+      U+202F, and there is a U+200B sitting just before <code>EUR</code>. A
+      <code>parseFloat</code> on that value returns <code>NaN</code>, and calling
+      <code>trim()</code> does not help, because none of those three characters is what a plain
+      space-trim looks for. With both invisible-character switches on, the same line comes back
+      as three ordinary tokens separated by three ordinary spaces, and the report names each
+      character it removed.
+    </p>
+
+    <h2>The characters you cannot see</h2>
+    <p>
+      "Strip zero-width characters" removes six specific code points, each with its own way of
+      ruining an afternoon:
+    </p>
+    <ul>
+      <li>
+        <strong>U+200B zero-width space.</strong> Inserted by web editors as a line-break hint.
+        Makes two visually identical strings unequal.
+      </li>
+      <li>
+        <strong>U+200C and U+200D, the joiners.</strong> Legitimate in Persian, Hindi and emoji;
+        pure noise anywhere else.
+      </li>
+      <li>
+        <strong>U+2060 word joiner.</strong> The non-breaking counterpart of U+200B.
+      </li>
+      <li>
+        <strong>U+00AD soft hyphen.</strong> A hyphenation hint that is invisible until the line
+        wraps. PDF extraction scatters these through words.
+      </li>
+      <li>
+        <strong>U+FEFF byte-order mark.</strong> A BOM at the start of a file breaks JSON parsing,
+        shell scripts and CSV headers, with an error message that never mentions it.
+      </li>
+    </ul>
+    <p>
+      "Normalise non-breaking spaces" converts nine space-like characters to a plain U+0020: U+00A0,
+      the narrow, figure, thin, hair, en and em spaces, the ideographic space U+3000 that Japanese
+      input methods produce, and the Ogham space mark.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      U+200D, the zero-width joiner, is the same character that binds 👨‍👩‍👧‍👦 into one family emoji.
+      Strip it blindly and the family becomes four separate people. "Keep emoji sequences intact"
+      is on by default and protects a joiner sitting between two pictographs while still removing
+      every other one — which no find-and-replace can do for you.
+    </p>
+    <p>
+      Order matters and is fixed: invisible characters are removed first so the later steps see
+      real spaces, then tab conversion, then per-line trimming, then blank-line removal. Running
+      trim before stripping a non-breaking space would leave the space behind, which is precisely
+      the bug that makes people think their editor's "trim trailing whitespace" is broken.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    wireStandardActions,
+    wireFileInput,
+    readFileText,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { normalizeWhitespace, findInvisibles, type WhitespaceOptions } from '~/lib/text';
+
+  mount('remove-extra-spaces', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const tabWidth = q<HTMLSelectElement>('[data-tab-width]', root)!;
+    const report = q('[data-report]', root)!;
+    const reportList = q('[data-report-list]', root)!;
+    const foundList = q('[data-found]', root)!;
+
+    const flag = (id: string) => {
+      const box = q<HTMLInputElement>(`[data-op="${id}"]`, root);
+      return box ? box.checked : false;
+    };
+
+    const options = (): WhitespaceOptions => ({
+      collapseSpaces: flag('collapseSpaces'),
+      trimLines: flag('trimLines'),
+      removeBlankLines: flag('removeBlankLines'),
+      tabsToSpaces: flag('tabsToSpaces'),
+      spacesToTabs: flag('spacesToTabs'),
+      stripZeroWidth: flag('stripZeroWidth'),
+      normalizeNbsp: flag('normalizeNbsp'),
+      normalizeNewlines: flag('normalizeNewlines'),
+      trimDocument: flag('trimDocument'),
+      preserveEmojiJoiners: flag('preserveEmojiJoiners'),
+      tabWidth: Number(tabWidth.value) || 2,
+    });
+
+    /** Build a list from plain text nodes — the labels are ours, but be strict. */
+    const fill = (list: Element, items: { label: string; count: number }[], empty: string) => {
+      list.textContent = '';
+      if (items.length === 0) {
+        const li = document.createElement('li');
+        li.textContent = empty;
+        list.appendChild(li);
+        return;
+      }
+      for (const item of items) {
+        const li = document.createElement('li');
+        li.textContent = `${item.label} — ${item.count.toLocaleString()}`;
+        list.appendChild(li);
+      }
+    };
+
+    const run = () => {
+      const text = input.value;
+
+      if (!text) {
+        clearStatus(root);
+        output.value = '';
+        report.setAttribute('hidden', '');
+        foundList.textContent = '';
+        return;
+      }
+
+      try {
+        guardSize(text);
+      } catch (err) {
+        setStatus(root, messageFor(err), 'error');
+        return;
+      }
+
+      // Show what is hiding in the input, whether or not it is being removed.
+      const invisibles = findInvisibles(text);
+      fill(foundList, invisibles, 'Nothing invisible found in this text.');
+
+      const result = normalizeWhitespace(text, options());
+      output.value = result.text;
+
+      report.removeAttribute('hidden');
+      fill(reportList, result.changes, 'No enabled operation matched anything in this text.');
+
+      if (result.text === text) {
+        setStatus(root, 'This text is already clean under the selected options.', 'ok');
+      } else {
+        clearStatus(root);
+      }
+
+      markUsed();
+    };
+
+    on(input, 'input', debounce(run, 120));
+    for (const box of qa('[data-op]', root)) on(box, 'change', run);
+    on(tabWidth, 'change', run);
+
+    // Tabs→spaces and spaces→tabs undo one another; never run both.
+    const toSpaces = q<HTMLInputElement>('[data-op="tabsToSpaces"]', root)!;
+    const toTabs = q<HTMLInputElement>('[data-op="spacesToTabs"]', root)!;
+    on(toSpaces, 'change', () => {
+      if (toSpaces.checked && toTabs.checked) toTabs.checked = false;
+    });
+    on(toTabs, 'change', () => {
+      if (toTabs.checked && toSpaces.checked) toSpaces.checked = false;
+    });
+
+    on(q('[data-copy-output]', root), 'click', (e) => {
+      if (!output.value) return setStatus(root, 'Paste some text first.', 'warn');
+      void copyText(output.value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Paste some text first.', 'warn');
+      downloadText('cleaned.txt', output.value);
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          run();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, { onChange: run });
+  });
+</script>

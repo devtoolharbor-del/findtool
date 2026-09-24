@@ -1,0 +1,625 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_JSON_DEEP } from '~/lib/json';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="json-viewer" class="space-y-4">
+    {/* ── Input ── */}
+    <div class="bc-toolbar">
+      <span class="text-xs font-medium tracking-wide text-muted uppercase">Document</span>
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_JSON_DEEP}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>Upload file</button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input
+          type="file"
+          accept=".json,.txt,application/json,text/plain"
+          class="hidden"
+          data-file-input
+        />
+      </div>
+    </div>
+
+    <div>
+      <label for="jvw-input" class="bc-label">JSON input</label>
+      <textarea
+        id="jvw-input"
+        class="bc-textarea min-h-32"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste JSON here — the tree builds as you type…"
+        aria-describedby="jvw-status"></textarea>
+    </div>
+
+    <div id="jvw-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Tree controls ── */}
+    <div class="bc-toolbar">
+      <div class="min-w-48 flex-1">
+        <label for="jvw-search" class="sr-only">Search keys and values</label>
+        <input
+          id="jvw-search"
+          type="search"
+          class="bc-input py-1.5 text-sm"
+          data-search
+          placeholder="Filter keys and values…"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label for="jvw-depth" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Open to
+        </label>
+        <select id="jvw-depth" class="bc-select w-auto py-1.5 text-xs" data-depth>
+          <option value="1">Level 1</option>
+          <option value="2" selected>Level 2</option>
+          <option value="3">Level 3</option>
+          <option value="99">All levels</option>
+        </select>
+      </div>
+
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-expand-all>Expand all</button>
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-collapse-all>
+        Collapse all
+      </button>
+    </div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-nodes>—</div>
+        <div class="bc-stat-label">Nodes</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-keys>—</div>
+        <div class="bc-stat-label">Keys</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-depth>—</div>
+        <div class="bc-stat-label">Max depth</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-size>—</div>
+        <div class="bc-stat-label">Size</div>
+      </div>
+    </div>
+
+    {/* ── Tree ── */}
+    <div>
+      <div class="mb-1.5 flex items-center justify-between">
+        <span class="text-xs font-medium tracking-wide text-muted uppercase">Tree</span>
+        <div class="flex gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-json>
+            <span data-label>Copy JSON</span>
+          </button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>Download</button>
+        </div>
+      </div>
+      <div
+        class="bc-output max-h-[36rem] min-h-40"
+        data-tree
+        tabindex="0"
+        aria-label="JSON tree. Every row has a button that copies its path."></div>
+      <p class="mt-1.5 text-xs text-muted">
+        Select <span class="font-medium">path</span> on any row to copy its dot-notation path.
+      </p>
+
+      {/* Formatted mirror, used by Copy JSON and Download. */}
+      <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      A 4,000-line API response is not something you read top to bottom. This viewer turns it into
+      a tree you navigate: every object and array is a collapsible node showing how many members it
+      holds, so you can shut the branches you do not care about and drill into the one you do.
+    </p>
+    <p>
+      The filter box matches both keys and values and hides everything that does not match, keeping
+      the ancestors of each hit so you can see where it sits. Each row carries a type badge and a
+      <strong>path</strong> button that copies the node's dot-notation path — ready to paste into
+      <code>jq</code>, a JMESPath query, a test assertion or your own code.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Finding which of 60 fields in a webhook payload actually holds the customer ID, by typing
+        part of the value into the filter.
+      </li>
+      <li>
+        Reading a Terraform state file, a lockfile or a CloudFormation template without scrolling
+        through thousands of lines.
+      </li>
+      <li>
+        Getting the exact accessor for a deeply nested field —
+        <code>projects[0].settings.alerts.slack</code> — instead of counting brackets by hand.
+      </li>
+      <li>Checking whether an array of objects is uniform, by collapsing it and comparing counts.</li>
+      <li>Reviewing an unfamiliar API response before writing the type definitions for it.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>This document:</p>
+    <pre><code>{`{"org":{"name":"Northwind"},"projects":[{"id":"prj_01","owners":["ada@example.com"]}]}`}</code></pre>
+    <p>becomes a tree whose rows carry these paths:</p>
+    <pre><code>{`org                     object {1}
+org.name                string  "Northwind"
+projects                array  [1]
+projects[0].id          string  "prj_01"
+projects[0].owners[0]   string  "ada@example.com"`}</code></pre>
+
+    <h2>How the paths are written</h2>
+    <p>
+      Object members use dot notation and array elements use bracket notation with a numeric index,
+      which is the form that JavaScript, <code>jq</code> (with a leading <code>.</code>) and most
+      JSONPath implementations all accept. Keys that are not valid identifiers — anything with a
+      space, a dash, a dot of its own, or a leading digit — are written in bracket-and-quote form
+      instead:
+    </p>
+    <pre><code>{`data.items[3].user_id
+data["content-type"]
+data.tags[0]`}</code></pre>
+    <p>
+      Copying a path never copies the value, and nothing about the document is sent anywhere — the
+      tree is built from DOM nodes in this tab.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Branches are rendered only when you open them, which is what keeps a document with tens of
+      thousands of nodes usable. <strong>Expand all</strong> has to build every row at once, so on a
+      very large file it stops at 20,000 rendered nodes and tells you; filter first, then expand.
+      One caveat that applies to any browser-based viewer: values are read with
+      <code>JSON.parse</code>, so an integer beyond 2<sup>53</sup> — a Twitter-style snowflake ID,
+      for instance — is displayed as the nearest double and may differ from the text you pasted in.
+      The document itself is never rewritten, so Copy JSON and Download hand back what you gave it,
+      re-indented.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    wireStandardActions,
+    wireFileInput,
+    readFileText,
+    formatBytes,
+    byteLength,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { parseJson, jsonStats, jsonTypeOf, JsonParseError } from '~/lib/json';
+
+  /** Rows built in one pass before we stop and say so. */
+  const NODE_BUDGET = 20_000;
+  /** Matching rows kept while filtering. */
+  const MATCH_BUDGET = 3_000;
+
+  type Json = unknown;
+
+  mount('json-viewer', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const tree = q<HTMLElement>('[data-tree]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const search = q<HTMLInputElement>('[data-search]', root)!;
+    const depthSelect = q<HTMLSelectElement>('[data-depth]', root)!;
+
+    let parsed: Json | undefined;
+    let rendered = 0;
+
+    // ── small DOM builders (textContent only — never innerHTML) ──
+
+    const span = (className: string, text: string): HTMLSpanElement => {
+      const el = document.createElement('span');
+      el.className = className;
+      el.textContent = text;
+      return el;
+    };
+
+    const badge = (type: string) =>
+      span(
+        'shrink-0 rounded border border-line px-1 text-[0.625rem] leading-4 tracking-wide text-muted uppercase',
+        type,
+      );
+
+    /** The root row has no path of its own, so it gets no button. */
+    const pathButton = (path: string): HTMLElement => {
+      if (!path) return span('shrink-0 px-1 text-[0.625rem] text-transparent', 'path');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className =
+        'bc-btn bc-btn-ghost bc-btn-sm shrink-0 px-1 py-0 text-[0.625rem] uppercase opacity-0 group-hover:opacity-100 focus-visible:opacity-100';
+      btn.textContent = 'path';
+      btn.setAttribute('aria-label', `Copy path ${path}`);
+      btn.title = path;
+      on(btn, 'click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        void copyText(path, btn);
+      });
+      return btn;
+    };
+
+    /** Append text, wrapping every case-insensitive hit on `query` in <mark>. */
+    const appendText = (parent: HTMLElement, text: string, query: string, className: string) => {
+      if (!query) {
+        parent.appendChild(span(className, text));
+        return;
+      }
+      const wrap = span(className, '');
+      const haystack = text.toLowerCase();
+      const needle = query.toLowerCase();
+      let from = 0;
+      let at = haystack.indexOf(needle);
+      while (at !== -1) {
+        wrap.appendChild(document.createTextNode(text.slice(from, at)));
+        const mark = document.createElement('mark');
+        mark.textContent = text.slice(at, at + needle.length);
+        wrap.appendChild(mark);
+        from = at + needle.length;
+        at = haystack.indexOf(needle, from);
+      }
+      wrap.appendChild(document.createTextNode(text.slice(from)));
+      parent.appendChild(wrap);
+    };
+
+    const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+
+    const childPath = (parentPath: string, key: string, inArray: boolean): string => {
+      if (inArray) return `${parentPath}[${key}]`;
+      if (!parentPath) return IDENTIFIER.test(key) ? key : `[${JSON.stringify(key)}]`;
+      return IDENTIFIER.test(key) ? `${parentPath}.${key}` : `${parentPath}[${JSON.stringify(key)}]`;
+    };
+
+    const preview = (value: Json, type: string): string => {
+      if (type === 'string') {
+        const text = value as string;
+        return text.length > 160 ? `"${text.slice(0, 160)}…"` : `"${text}"`;
+      }
+      return String(value);
+    };
+
+    const tokenClass = (type: string) =>
+      type === 'string'
+        ? 'tok-str'
+        : type === 'number'
+          ? 'tok-num'
+          : type === 'boolean'
+            ? 'tok-bool'
+            : 'tok-null';
+
+    // ── node construction ──
+
+    const entriesOf = (value: Json, type: string): [string, Json][] =>
+      type === 'array'
+        ? (value as Json[]).map((item, index) => [String(index), item] as [string, Json])
+        : Object.entries(value as Record<string, Json>);
+
+    /**
+     * Build one row. Container children are built on first open, which is what
+     * keeps a 50,000-node document from locking the tab.
+     */
+    const buildNode = (
+      key: string | null,
+      value: Json,
+      path: string,
+      depth: number,
+      openTo: number,
+      query: string,
+    ): HTMLElement => {
+      rendered++;
+      const type = jsonTypeOf(value);
+
+      if (type !== 'object' && type !== 'array') {
+        const row = document.createElement('div');
+        row.className = 'group flex items-baseline gap-1.5 py-px';
+        row.appendChild(pathButton(path));
+        if (key !== null) {
+          appendText(row, key, query, 'tok-key');
+          row.appendChild(span('tok-punc', ':'));
+        }
+        row.appendChild(badge(type));
+        appendText(row, preview(value, type), query, tokenClass(type));
+        if (type === 'string') row.title = value as string;
+        return row;
+      }
+
+      const entries = entriesOf(value, type);
+      const details = document.createElement('details');
+      details.className = 'bc-tree-branch';
+      const summary = document.createElement('summary');
+      summary.className = 'group flex cursor-pointer items-baseline gap-1.5 py-px select-none';
+      summary.appendChild(pathButton(path));
+      if (key !== null) {
+        appendText(summary, key, query, 'tok-key');
+        summary.appendChild(span('tok-punc', ':'));
+      }
+      summary.appendChild(badge(type));
+      summary.appendChild(
+        span('tok-punc', type === 'array' ? `[${entries.length}]` : `{${entries.length}}`),
+      );
+      details.appendChild(summary);
+
+      const kids = document.createElement('div');
+      kids.className = 'ml-2 border-l border-line pl-3';
+      details.appendChild(kids);
+
+      const build = () => {
+        if (!(details as any)._bcBuild) return;
+        (details as any)._bcBuild = null;
+        for (const [childKey, childValue] of entries) {
+          if (rendered >= NODE_BUDGET) {
+            kids.appendChild(span('text-muted', `…${entries.length} items not rendered`));
+            break;
+          }
+          kids.appendChild(
+            buildNode(
+              childKey,
+              childValue,
+              childPath(path, childKey, type === 'array'),
+              depth + 1,
+              openTo,
+              query,
+            ),
+          );
+        }
+      };
+      (details as any)._bcBuild = build;
+
+      if (depth < openTo && rendered < NODE_BUDGET) {
+        details.open = true;
+        build();
+      } else {
+        on(details, 'toggle', () => {
+          if (details.open) build();
+        });
+      }
+
+      return details;
+    };
+
+    // ── filtering ──
+
+    const textOf = (value: Json, type: string): string =>
+      type === 'string' ? (value as string) : String(value);
+
+    /** True when this node, or anything under it, contains `query`. */
+    const matches = (key: string | null, value: Json, query: string): boolean => {
+      if (key !== null && key.toLowerCase().includes(query)) return true;
+      const type = jsonTypeOf(value);
+      if (type !== 'object' && type !== 'array') {
+        return textOf(value, type).toLowerCase().includes(query);
+      }
+      return entriesOf(value, type).some(([k, v]) => matches(type === 'array' ? null : k, v, query));
+    };
+
+    let hits = 0;
+
+    /** Build only the branches that lead to a match, fully expanded. */
+    const buildFiltered = (
+      key: string | null,
+      value: Json,
+      path: string,
+      query: string,
+    ): HTMLElement | null => {
+      if (hits >= MATCH_BUDGET) return null;
+      const type = jsonTypeOf(value);
+      const keyHit = key !== null && key.toLowerCase().includes(query);
+
+      if (type !== 'object' && type !== 'array') {
+        if (!keyHit && !textOf(value, type).toLowerCase().includes(query)) return null;
+        hits++;
+        return buildNode(key, value, path, 0, 0, query);
+      }
+
+      const kept: HTMLElement[] = [];
+      for (const [childKey, childValue] of entriesOf(value, type)) {
+        const child = buildFiltered(
+          type === 'array' ? null : childKey,
+          childValue,
+          childPath(path, childKey, type === 'array'),
+          query,
+        );
+        if (child) kept.push(child);
+      }
+      if (kept.length === 0 && !keyHit) return null;
+
+      const entries = entriesOf(value, type);
+      const details = document.createElement('details');
+      details.open = true;
+      const summary = document.createElement('summary');
+      summary.className = 'group flex cursor-pointer items-baseline gap-1.5 py-px select-none';
+      summary.appendChild(pathButton(path));
+      if (key !== null) {
+        appendText(summary, key, query, 'tok-key');
+        summary.appendChild(span('tok-punc', ':'));
+      }
+      summary.appendChild(badge(type));
+      summary.appendChild(
+        span('tok-punc', type === 'array' ? `[${entries.length}]` : `{${entries.length}}`),
+      );
+      details.appendChild(summary);
+
+      const kids = document.createElement('div');
+      kids.className = 'ml-2 border-l border-line pl-3';
+      for (const child of kept) kids.appendChild(child);
+      details.appendChild(kids);
+      return details;
+    };
+
+    // ── rendering ──
+
+    const render = () => {
+      if (parsed === undefined) return;
+      const query = search.value.trim().toLowerCase();
+      rendered = 0;
+      hits = 0;
+      tree.textContent = '';
+
+      if (query) {
+        const node = buildFiltered(null, parsed, '', query);
+        if (!node) {
+          tree.appendChild(span('text-muted', `Nothing matches “${search.value.trim()}”.`));
+          setStatus(root, `No key or value contains “${search.value.trim()}”.`, 'warn');
+          return;
+        }
+        tree.appendChild(node);
+        setStatus(
+          root,
+          hits >= MATCH_BUDGET
+            ? `Showing the first ${MATCH_BUDGET.toLocaleString()} matches — narrow the filter to see the rest.`
+            : `${hits.toLocaleString()} match${hits === 1 ? '' : 'es'}.`,
+          hits >= MATCH_BUDGET ? 'warn' : 'ok',
+        );
+        return;
+      }
+
+      clearStatus(root);
+      tree.appendChild(buildNode(null, parsed, '', 0, Number(depthSelect.value), ''));
+      if (rendered >= NODE_BUDGET) {
+        setStatus(
+          root,
+          `This document is large, so only the first ${NODE_BUDGET.toLocaleString()} nodes were drawn. Open branches individually or filter first.`,
+          'warn',
+        );
+      }
+    };
+
+    const parse = () => {
+      const text = input.value;
+      if (!text.trim()) {
+        parsed = undefined;
+        tree.textContent = '';
+        mirror.value = '';
+        stats.setAttribute('hidden', '');
+        clearStatus(root);
+        return;
+      }
+      try {
+        guardSize(text);
+        parsed = parseJson(text);
+        mirror.value = JSON.stringify(parsed, null, 2);
+
+        const s = jsonStats(parsed, text);
+        stats.removeAttribute('hidden');
+        q('[data-stat-nodes]', root)!.textContent = (s.keys + s.arrays).toLocaleString();
+        q('[data-stat-keys]', root)!.textContent = s.keys.toLocaleString();
+        q('[data-stat-depth]', root)!.textContent = String(s.depth);
+        q('[data-stat-size]', root)!.textContent = formatBytes(byteLength(text));
+
+        render();
+        markUsed();
+      } catch (err) {
+        parsed = undefined;
+        tree.textContent = '';
+        mirror.value = '';
+        stats.setAttribute('hidden', '');
+        if (err instanceof JsonParseError) {
+          const d = err.detail;
+          setStatus(
+            root,
+            `${d.message}${d.line !== undefined ? ` (line ${d.line}, column ${d.column ?? 1})` : ''}`,
+            'error',
+          );
+        } else {
+          setStatus(root, messageFor(err), 'error');
+        }
+      }
+    };
+
+    // ── wiring ──
+
+    on(input, 'input', debounce(parse, 350));
+    on(search, 'input', debounce(render, 250));
+    on(depthSelect, 'change', render);
+
+    on(q('[data-expand-all]', root), 'click', () => {
+      // `open = true` fires `toggle` asynchronously, so children are built by
+      // calling each node's builder directly instead of relying on the event.
+      for (let pass = 0; pass < 64; pass++) {
+        let changed = false;
+        for (const node of qa<HTMLDetailsElement>('details', tree)) {
+          if (!node.open) {
+            node.open = true;
+            changed = true;
+          }
+          const build = (node as any)._bcBuild;
+          if (build) {
+            build();
+            changed = true;
+          }
+        }
+        if (!changed || rendered >= NODE_BUDGET) break;
+      }
+      if (rendered >= NODE_BUDGET) {
+        setStatus(
+          root,
+          `Stopped after ${NODE_BUDGET.toLocaleString()} rows. Filter first, then expand.`,
+          'warn',
+        );
+      }
+    });
+
+    on(q('[data-collapse-all]', root), 'click', () => {
+      for (const node of qa<HTMLDetailsElement>('details', tree)) node.open = false;
+      const first = q<HTMLDetailsElement>('details', tree);
+      if (first) first.open = true;
+    });
+
+    on(q('[data-copy-json]', root), 'click', (e) => {
+      if (!mirror.value) return setStatus(root, 'Paste some JSON first.', 'warn');
+      void copyText(mirror.value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-download]', root), 'click', () => {
+      if (!mirror.value) return setStatus(root, 'Paste some JSON first.', 'warn');
+      downloadText('document.json', mirror.value, 'application/json');
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          parse();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, {
+      onChange: () => {
+        search.value = '';
+        parse();
+      },
+    });
+  });
+</script>

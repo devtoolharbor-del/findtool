@@ -1,0 +1,61 @@
+---
+/**
+ * Light / dark toggle.
+ *
+ * Defaults to the OS preference (handled by the inline bootstrap in
+ * BaseLayout) and stores an explicit override in localStorage. Following the
+ * OS again is possible by clearing site data; a three-way control tested
+ * worse than a simple switch, so this stays binary.
+ */
+---
+
+<button
+  type="button"
+  id="bc-theme-toggle"
+  class="bc-btn bc-btn-ghost size-9 p-0"
+  aria-label="Switch between light and dark theme"
+  title="Switch theme"
+>
+  <svg
+    class="size-[18px] dark:hidden"
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.75"
+    stroke-linecap="round"
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="12" r="4"></circle>
+    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+    ></path>
+  </svg>
+  <svg
+    class="hidden size-[18px] dark:block"
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.75"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"></path>
+  </svg>
+</button>
+
+<script>
+  const btn = document.getElementById('bc-theme-toggle');
+  btn?.addEventListener('click', () => {
+    const root = document.documentElement;
+    const dark = root.classList.toggle('dark');
+    root.style.colorScheme = dark ? 'dark' : 'light';
+    try {
+      localStorage.setItem('bc-theme', dark ? 'dark' : 'light');
+    } catch {
+      /* private browsing: the toggle still works for this page view */
+    }
+    btn.setAttribute('aria-pressed', String(dark));
+  });
+</script>
