@@ -149,6 +149,17 @@ for (const page of expected) {
     if (!html.includes('processed locally in your browser')) {
       warn(`${page}: local-processing note not rendered`);
     }
+    // Every tool carries at least two FAQ entries. This is a content standard
+    // rather than a technical one: a tool page with no answered questions
+    // reads as thin, and the discipline is easier to keep than to restore.
+    const questions = (html.match(/"@type":"Question"/g) ?? []).length;
+    if (questions < 2) {
+      fail(
+        `${page}: has ${questions} FAQ question(s), expected at least 2 — ` +
+          `add them in src/data/faqs/<category>.ts`,
+      );
+    }
+
     // Structured data.
     if (!html.includes('"@type":"SoftwareApplication"')) {
       fail(`${page}: missing SoftwareApplication structured data`);
