@@ -1,0 +1,356 @@
+---
+/**
+ * Cron Expression Parser — for reading an expression someone else wrote.
+ *
+ * Paste it, get a field-by-field breakdown, a sentence, the next ten runs and
+ * an explicit warning when the day-of-month / day-of-week OR rule applies.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+/** A real expression that demonstrates the OR trap the page is built around. */
+const EXAMPLE = '0 0 13 * 5';
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="cron-expression-parser" class="space-y-4">
+    <div class="bc-toolbar">
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={EXAMPLE}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      </div>
+    </div>
+
+    <div>
+      <label for="cp-input" class="bc-label">Cron expression</label>
+      <input
+        id="cp-input"
+        type="text"
+        class="bc-input font-mono text-base"
+        autocomplete="off"
+        spellcheck="false"
+        data-primary-input
+        data-clear-target
+        placeholder="*/15 9-17 * * 1-5"
+        aria-describedby="cp-status"
+      />
+    </div>
+
+    <div id="cp-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── The OR-rule alert, shown only when it actually applies ── */}
+    <div class="bc-alert bc-alert-warn" data-or-warning hidden>
+      <div>
+        <strong>Day-of-month and day-of-week are ORed here.</strong>
+        <span data-or-detail></span>
+      </div>
+    </div>
+
+    {/* ── Description ── */}
+    <div class="bc-panel p-4" data-summary hidden>
+      <div class="text-xs font-medium tracking-wide text-muted uppercase">In plain English</div>
+      <p class="mt-1.5 text-lg" data-description></p>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-description]">
+          <span data-label>Copy description</span>
+        </button>
+      </div>
+    </div>
+
+    {/* ── Field breakdown ── */}
+    <div class="overflow-x-auto" data-breakdown hidden>
+      <table class="w-full text-left text-sm">
+        <caption class="sr-only">Field-by-field breakdown of the expression</caption>
+        <thead>
+          <tr class="border-b border-line-strong">
+            <th scope="col" class="py-2 pr-3 text-xs font-medium tracking-wide text-muted uppercase">
+              Field
+            </th>
+            <th scope="col" class="py-2 pr-3 text-xs font-medium tracking-wide text-muted uppercase">
+              Value
+            </th>
+            <th scope="col" class="py-2 pr-3 text-xs font-medium tracking-wide text-muted uppercase">
+              Allowed range
+            </th>
+            <th scope="col" class="py-2 text-xs font-medium tracking-wide text-muted uppercase">
+              Meaning
+            </th>
+          </tr>
+        </thead>
+        <tbody data-breakdown-body></tbody>
+      </table>
+    </div>
+
+    {/* ── Next runs ── */}
+    <div class="bc-panel p-4" data-runs-panel hidden>
+      <div class="bc-toolbar mb-3">
+        <span class="text-xs font-medium tracking-wide text-muted uppercase">Next 10 runs</span>
+        <div class="ml-auto flex items-center gap-2">
+          <label for="cp-zone" class="text-xs font-medium tracking-wide text-muted uppercase">
+            Evaluate in
+          </label>
+          <select id="cp-zone" class="bc-select w-auto py-1.5 text-xs" data-zone>
+            <option value="UTC">UTC</option>
+          </select>
+        </div>
+      </div>
+      <ol class="space-y-1 font-mono text-[0.8125rem]" data-runs></ol>
+      <div class="mt-3">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-runs>
+          <span data-label>Copy run times</span>
+        </button>
+      </div>
+    </div>
+
+    <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      You have inherited a crontab, or found a schedule in a Helm chart, and you need to know
+      what it does before you touch it. Paste it here for four answers: what each field
+      restricts, a sentence summarising the whole thing, the next ten times it fires, and a
+      warning when the expression contains the one rule that makes cron behave unlike every
+      other scheduler.
+    </p>
+    <p>
+      Five-field crontab, six-field Quartz or node-cron with seconds, seven-field Quartz with a
+      year, names, ranges, steps, lists and the <code>@</code> macros are all understood.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Auditing a legacy crontab before a migration, to find jobs that overlap or never run.</li>
+      <li>Answering "why did this fire at 3am on a Sunday" during an incident review.</li>
+      <li>Reviewing a pull request that changes a schedule, where the diff is five characters.</li>
+      <li>Confirming a month-end-sensitive job actually has a run date.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <pre><code>{`0 0 13 * 5
+
+Field        Value   Meaning
+minute       0       0
+hour         0       0
+day of month 13      the 13th
+month        *       every month
+day of week  5       Friday`}</code></pre>
+    <p>
+      Read casually, that says "midnight on Friday the 13th". It does not. It fires at midnight
+      on the 13th of <em>every</em> month, and at midnight on <em>every</em> Friday — more than
+      sixty times a year. Paste it above and watch the run list prove it.
+    </p>
+
+    <h2>The OR rule, and why it exists</h2>
+    <p>
+      When both day fields are restricted — that is, when neither begins with <code>*</code> —
+      cron matches a day if <em>either</em> field matches, not both. Vixie cron, which almost
+      every Linux distribution ships, records a flag per field at parse time and applies exactly
+      this logic; the behaviour is documented in <code>man 5 crontab</code> and required by
+      POSIX.
+    </p>
+    <p>
+      There is a reason. "The 1st and every Monday" is a schedule people want; "the 1st, but
+      only when it is a Monday" fires twice a year and nobody asks for it. The escape hatch is
+      that a field beginning with a star is exempt, so <code>0 0 1 * *</code> fires only on the
+      1st and <code>0 0 * * 1</code> only on Mondays. <code>*/2</code> also counts as beginning
+      with a star: <code>0 0 */2 * 1</code> is ANDed, firing only on odd-numbered Mondays.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      An expression says when a job is <em>due</em>, not when it runs. If the machine is asleep
+      at the due time, classic cron simply misses it — <code>anacron</code> exists to catch up
+      on daily jobs afterwards, and systemd timers have <code>Persistent=true</code> for the
+      same reason. If a run is still going when the next is due, plain cron starts a second
+      copy, which is how a slow nightly job turns into a thundering herd; Kubernetes CronJobs
+      expose <code>concurrencyPolicy</code> to prevent it. And <code>* * * * *</code> is the
+      shortest interval cron can express: for anything faster you need a long-running process.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    markUsed,
+    wireStandardActions,
+  } from '~/lib/toolkit';
+  import { nextRunsDetailed, parseCron } from '~/lib/cron';
+  import {
+    formatOffset,
+    formatRelative,
+    formatShort,
+    listTimeZones,
+    localTimeZone,
+    zoneInfo,
+  } from '~/lib/datetime';
+
+  mount('cron-expression-parser', (root) => {
+    const input = q<HTMLInputElement>('[data-primary-input]', root)!;
+    const summary = q('[data-summary]', root)!;
+    const descriptionEl = q('[data-description]', root)!;
+    const breakdown = q('[data-breakdown]', root)!;
+    const breakdownBody = q('[data-breakdown-body]', root)!;
+    const runsPanel = q('[data-runs-panel]', root)!;
+    const runsEl = q('[data-runs]', root)!;
+    const orWarning = q('[data-or-warning]', root)!;
+    const orDetail = q('[data-or-detail]', root)!;
+    const zoneSelect = q<HTMLSelectElement>('[data-zone]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+
+    const home = localTimeZone();
+    zoneSelect.textContent = '';
+    for (const zone of listTimeZones()) {
+      const option = document.createElement('option');
+      option.value = zone;
+      option.textContent = zone;
+      zoneSelect.appendChild(option);
+    }
+    zoneSelect.value = listTimeZones().includes(home) ? home : 'UTC';
+
+    const hideAll = () => {
+      for (const el of [summary, breakdown, runsPanel, orWarning]) el.setAttribute('hidden', '');
+      breakdownBody.textContent = '';
+      runsEl.textContent = '';
+      mirror.value = '';
+    };
+
+    const cell = (text: string, mono = false): HTMLTableCellElement => {
+      const td = document.createElement('td');
+      td.className = mono
+        ? 'py-2 pr-3 align-top font-mono text-[0.8125rem] break-all'
+        : 'py-2 pr-3 align-top';
+      td.textContent = text;
+      return td;
+    };
+
+    const run = () => {
+      const text = input.value.trim();
+      if (!text) {
+        clearStatus(root);
+        hideAll();
+        return;
+      }
+
+      let parsed;
+      try {
+        guardSize(text);
+        parsed = parseCron(text);
+      } catch (err) {
+        hideAll();
+        setStatus(root, messageFor(err), 'error');
+        return;
+      }
+
+      clearStatus(root);
+
+      // Description
+      summary.removeAttribute('hidden');
+      descriptionEl.textContent = parsed.macro
+        ? `${parsed.description} (${parsed.macro} expands to "${parsed.normalized}".)`
+        : parsed.description;
+
+      // The OR rule, called out on its own.
+      if (parsed.orRule) {
+        orWarning.removeAttribute('hidden');
+        orDetail.textContent =
+          ` Day-of-month is "${parsed.dayOfMonth.raw}" and day-of-week is "${parsed.dayOfWeek.raw}" —` +
+          ' neither begins with a star, so cron fires on a day matching either one, not only on days' +
+          ' matching both. Expect this schedule to run far more often than an AND reading suggests.';
+      } else {
+        orWarning.setAttribute('hidden', '');
+      }
+
+      // Field breakdown
+      breakdown.removeAttribute('hidden');
+      breakdownBody.textContent = '';
+      for (const field of parsed.fields) {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-line last:border-0';
+        const th = document.createElement('th');
+        th.scope = 'row';
+        th.className = 'py-2 pr-3 text-left align-top text-sm font-medium whitespace-nowrap';
+        th.textContent = field.label;
+        tr.append(
+          th,
+          cell(field.raw, true),
+          cell(
+            field.name === 'dayOfWeek'
+              ? '0–7 (0 and 7 are Sunday)'
+              : `${field.min}–${field.max}`,
+          ),
+          cell(field.description),
+        );
+        breakdownBody.appendChild(tr);
+      }
+
+      // Next runs
+      const zone = zoneSelect.value;
+      const runs = nextRunsDetailed(parsed, Date.now(), 10, { timeZone: zone });
+      runsPanel.removeAttribute('hidden');
+      runsEl.textContent = '';
+
+      if (runs.length === 0) {
+        const li = document.createElement('li');
+        li.className = 'text-muted';
+        li.textContent = 'No run times — no date can satisfy every field of this expression.';
+        runsEl.appendChild(li);
+      }
+
+      for (const item of runs) {
+        const li = document.createElement('li');
+        li.className = 'flex flex-wrap items-baseline gap-x-3';
+        const when = document.createElement('span');
+        when.textContent = formatShort(item.ms, zone);
+        const meta = document.createElement('span');
+        meta.className = 'text-xs text-muted';
+        const info = zoneInfo(item.ms, zone);
+        meta.textContent = `${formatRelative(item.ms)} · ${formatOffset(info.offsetMinutes)}${
+          info.dst ? ' DST' : ''
+        }${item.dstNote ? ' · the clock repeats this hour' : ''}`;
+        li.append(when, meta);
+        runsEl.appendChild(li);
+      }
+
+      mirror.value = runs.map((r) => formatShort(r.ms, zone)).join('\n');
+
+      const extra = parsed.warnings.filter(
+        (w) => !w.includes('ORs them') && !w.startsWith('@'),
+      );
+      if (extra.length) setStatus(root, extra.join(' '), 'warn');
+      markUsed();
+    };
+
+    on(input, 'input', run);
+    on(zoneSelect, 'change', run);
+
+    on(q('[data-copy-runs]', root), 'click', (e) => {
+      if (!mirror.value) return setStatus(root, 'Parse an expression first.', 'warn');
+      void copyText(mirror.value, e.currentTarget as HTMLElement);
+    });
+
+    wireStandardActions(root, {
+      onChange: () => {
+        if (input.value) run();
+        else hideAll();
+      },
+    });
+  });
+</script>

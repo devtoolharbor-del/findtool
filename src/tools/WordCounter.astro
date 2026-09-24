@@ -153,7 +153,6 @@ const { tool } = Astro.props;
         Checking sentence length. An average above roughly 25 words usually means several sentences
         need splitting.
       </li>
-      <li>Estimating a reading-time label for an article page without guessing.</li>
     </ul>
 
     <h2>A short example</h2>
@@ -173,30 +172,28 @@ Top words    cache ×3, response ×2, stores ×1`}</code></pre>
     <h2>How the counting rules work</h2>
     <p>
       A <strong>word</strong> is any whitespace-separated run containing at least one letter or
-      digit. <code>state-of-the-art</code> counts once, matching Microsoft Word and Google Docs; a
-      lone em dash counts as nothing. Chinese and Japanese text is handled separately, one word per
-      ideograph or kana, because those scripts are not space-separated and a whitespace count would
-      report an entire paragraph as a single word.
+      digit. <code>state-of-the-art</code> counts once, matching Word and Google Docs; a lone em
+      dash counts as nothing. Chinese and Japanese are handled separately, one word per ideograph
+      or kana, since those scripts are not space-separated.
     </p>
     <p>
       A <strong>sentence</strong> ends at <code>.</code>, <code>!</code>, <code>?</code> or
       <code>…</code> when the next visible character is not lowercase, which keeps
-      <code>Hi… there!</code> as one sentence. A line break also ends one, so headings and bullet
-      lists are not silently merged into the paragraph that follows. Abbreviations remain the known
-      weakness of every heuristic of this kind: <code>Dr. Smith arrived</code> counts as two.
+      <code>Hi… there!</code> as one. A line break also ends one, so headings are not merged into
+      the paragraph below. Abbreviations remain the known weakness of every heuristic of this kind:
+      <code>Dr. Smith arrived</code> counts as two.
     </p>
     <p>
-      A <strong>paragraph</strong> is a block separated by at least one blank line. Single newlines
-      inside a block do not start a new one, so hard-wrapped text is not over-counted.
+      A <strong>paragraph</strong> is a block separated by a blank line, so hard-wrapped text is
+      not over-counted.
     </p>
 
     <h2>Worth knowing</h2>
     <p>
       Reading time uses 238 words per minute, the mean for silent reading of English non-fiction in
       Brysbaert's 2019 review of 190 studies — a better default than the round 200 or 250 most
-      tools assert. Speaking time uses 150 words per minute, near the middle of the 140–160 range
-      for a clear presentation pace. Both are population averages: dense technical prose with code
-      in it reads considerably slower, and a nervous speaker runs considerably faster.
+      tools assert. Speaking time uses 150 words per minute, mid-range for a clear presentation
+      pace. Both are population averages: technical prose with code in it reads much slower.
     </p>
     <p>
       The frequency table excludes about 130 English function words by default. The list

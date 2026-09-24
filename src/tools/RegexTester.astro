@@ -1,0 +1,543 @@
+---
+/**
+ * Regex Tester.
+ *
+ * The pattern never runs on this thread. Every match goes through
+ * src/workers/regex-worker.ts and is abandoned by terminating the worker if it
+ * has not answered within LIMITS.regexTimeoutMs — see the script at the bottom.
+ *
+ * All matching logic lives in src/lib/regex.ts so it can be unit-tested in Node.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { COMMON_PATTERNS, REGEX_FLAGS } from '~/lib/regex';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+const emailExample = COMMON_PATTERNS[0]!;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="regex-tester" class="space-y-4">
+    {/* ── Pattern ── */}
+    <div>
+      <label for="rx-pattern" class="bc-label">Regular expression</label>
+      <div class="flex items-center gap-2">
+        <span class="font-mono text-lg text-muted select-none" aria-hidden="true">/</span>
+        <input
+          id="rx-pattern"
+          type="text"
+          class="bc-input font-mono"
+          data-pattern
+          data-clear-target
+          spellcheck="false"
+          autocomplete="off"
+          autocapitalize="off"
+          autocorrect="off"
+          placeholder="\b\w+@\w+\.\w+\b"
+          aria-describedby="rx-status"
+        />
+        <span class="font-mono text-lg text-muted select-none" aria-hidden="true">/</span>
+        <output
+          class="min-w-10 font-mono text-sm text-accent"
+          data-flag-display
+          aria-label="Active flags">g</output
+        >
+      </div>
+    </div>
+
+    {/* ── Flags ── */}
+    <fieldset>
+      <legend class="bc-label">Flags</legend>
+      <div class="bc-toolbar">
+        {
+          REGEX_FLAGS.map((f) => (
+            <label class="bc-check-label" title={f.summary}>
+              <input
+                type="checkbox"
+                class="bc-checkbox"
+                data-flag={f.flag}
+                checked={f.flag === 'g'}
+              />
+              <span class="font-mono">{f.flag}</span>
+              <span class="text-xs text-muted">{f.name}</span>
+            </label>
+          ))
+        }
+      </div>
+    </fieldset>
+
+    {/* ── Pattern library ── */}
+    <div>
+      <span class="bc-label">Start from a common pattern</span>
+      <div class="bc-toolbar">
+        {
+          COMMON_PATTERNS.map((p) => (
+            <button
+              type="button"
+              class="bc-btn bc-btn-secondary bc-btn-sm"
+              data-library
+              data-pattern-value={p.pattern}
+              data-flags-value={p.flags}
+              data-sample-value={p.sample}
+              data-note-value={p.note}
+              data-example={p.id === emailExample.id ? emailExample.sample : undefined}
+            >
+              {p.label}
+            </button>
+          ))
+        }
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm ml-auto" data-clear>
+          Clear
+        </button>
+      </div>
+      <p class="mt-2 text-sm text-muted" data-note hidden></p>
+    </div>
+
+    {/* ── Test string ── */}
+    <div>
+      <label for="rx-text" class="bc-label">Test string</label>
+      <textarea
+        id="rx-text"
+        class="bc-textarea min-h-40"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste the text to match against…"></textarea>
+    </div>
+
+    {/* ── Status ── */}
+    <div id="rx-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-matches>0</div>
+        <div class="bc-stat-label">Matches</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-groups>0</div>
+        <div class="bc-stat-label">Capture groups</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-chars>0</div>
+        <div class="bc-stat-label">Characters matched</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-time>0 ms</div>
+        <div class="bc-stat-label">Match time</div>
+      </div>
+    </div>
+
+    {/* ── Highlighted result ── */}
+    <div>
+      <span class="bc-label">Matches in context</span>
+      <div class="bc-output max-h-80 min-h-24" data-highlight tabindex="0" aria-live="off"></div>
+    </div>
+
+    {/* ── Match list ── */}
+    <div data-match-panel hidden>
+      <span class="bc-label">Match details</span>
+      <div class="bc-output max-h-96 min-h-16 p-0" data-match-list tabindex="0"></div>
+    </div>
+
+    {/* ── Replace preview ── */}
+    <div>
+      <label for="rx-replace" class="bc-label">
+        Replacement (supports <code>$1</code>, <code>$&lt;name&gt;</code> and <code>$&amp;</code>)
+      </label>
+      <input
+        id="rx-replace"
+        type="text"
+        class="bc-input font-mono"
+        data-replace
+        data-clear-target
+        spellcheck="false"
+        autocomplete="off"
+        placeholder="$1 at $2"
+      />
+    </div>
+
+    <div>
+      <div class="mb-1.5 flex items-center justify-between">
+        <span class="text-xs font-medium tracking-wide text-muted uppercase">Replace preview</span>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+          <span data-label>Copy</span>
+        </button>
+      </div>
+      <textarea
+        class="bc-output max-h-64 min-h-20 w-full"
+        data-output
+        readonly
+        aria-label="Replace preview result"></textarea>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Type a pattern, pick your flags and paste the text you are trying to match. Every match is
+      highlighted in place as you type, listed with its offset and length, and broken down into
+      numbered and named capture groups. A replacement field shows what <code>String.replace</code>
+      would produce before you commit the change to code.
+    </p>
+    <p>
+      The pattern runs inside a Web Worker with a hard 1.5-second deadline. If it exceeds that, the
+      worker is terminated and a fresh one takes its place, so an accidentally exponential
+      expression costs you a message on screen instead of a frozen tab.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Checking a validation pattern against the inputs that broke in production, rather than
+        against the three cases you thought of when you wrote it.
+      </li>
+      <li>
+        Building a log-parsing expression: name the groups, then read the values out of the match
+        table instead of counting brackets.
+      </li>
+      <li>
+        Rehearsing a find-and-replace before running it across a repository, where
+        <code>$1</code> pointing at the wrong group is a very quiet mistake.
+      </li>
+      <li>Working out why a pattern matches once when you expected forty — usually a missing <code
+          >g</code
+        > flag.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>The pattern <code>{'(?<user>[\\w.]+)@(?<host>[\\w.]+)'}</code> against:</p>
+    <pre><code>Contact ada@bytecabin.dev or grace@example.org</code></pre>
+    <p>
+      finds two matches. The first starts at offset 8, is 17 characters long, and has
+      <code>user = "ada"</code> and <code>host = "bytecabin.dev"</code>. With the replacement
+      <code>{'$<host>'}</code> the preview becomes:
+    </p>
+    <pre><code>Contact bytecabin.dev or example.org</code></pre>
+
+    <h2>Catastrophic backtracking, and why this page cannot hang</h2>
+    <p>
+      JavaScript's engine backtracks. When a pattern can match the same text in more than one way,
+      a failure makes it retry every other way before giving up. Nest a quantifier inside a group
+      that already has one — <code>(a+)+$</code> — and the number of ways to split a run of
+      <code>a</code> characters between the two doubles with each character added. Twenty-five
+      <code>a</code>s followed by a <code>b</code> is tens of millions of attempts; thirty-five is
+      hours.
+    </p>
+    <p>
+      There is no way to interrupt a running regex from the same thread: no timeout parameter, no
+      abort signal, no yield point. So this tool does not try — the worker is destroyed
+      mid-calculation. On a server the same shape of pattern is a denial-of-service vector, which
+      is why <code>(a+)+</code> in a request validator is a security finding, not a style nit.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      This is the JavaScript engine, so what works here works in Node and in the browser — not
+      necessarily in PCRE, Python, Go or <code>grep</code>. Lookbehind is supported here and absent
+      from Go's RE2 entirely. Named groups are <code>{'(?<name>…)'}</code> in JavaScript and Python
+      but <code>(?P&lt;name&gt;…)</code> in older Python and PHP. Atomic groups and possessive
+      quantifiers — the usual cure for backtracking elsewhere — do not exist in JavaScript at all.
+      Offsets are counted in UTF-16 code units, so an emoji advances the index by two unless the
+      <code>u</code> flag is set.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    guardSize,
+    messageFor,
+    wireStandardActions,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { LIMITS } from '~/consts';
+  import { highlightMatches, runRegex, timeoutMessage } from '~/lib/regex';
+  import type { RegexRunRequest, RegexRunResult, RegexWorkerResponse } from '~/lib/regex';
+
+  type Outcome =
+    | { kind: 'ok'; result: RegexRunResult }
+    | { kind: 'error'; error: string; hint?: string }
+    | { kind: 'timeout' }
+    | { kind: 'stale' };
+
+  mount('regex-tester', (root) => {
+    const patternInput = q<HTMLInputElement>('[data-pattern]', root)!;
+    const textInput = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const replaceInput = q<HTMLInputElement>('[data-replace]', root)!;
+    const flagDisplay = q('[data-flag-display]', root)!;
+    const highlight = q('[data-highlight]', root)!;
+    const matchPanel = q('[data-match-panel]', root)!;
+    const matchList = q('[data-match-list]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const noteSlot = q('[data-note]', root)!;
+
+    // ── The worker, and the only thing protecting this tab ───────────────
+    let worker: Worker | null = null;
+    let sequence = 0;
+
+    const spawn = () =>
+      new Worker(new URL('../workers/regex-worker.ts', import.meta.url), { type: 'module' });
+
+    /**
+     * Post one request and race it against the deadline. On timeout the worker
+     * is terminated — there is no gentler way to stop a backtracking regex —
+     * and the next run spawns a replacement.
+     */
+    const runInWorker = (req: RegexRunRequest): Promise<Outcome> =>
+      new Promise((resolve) => {
+        if (!worker) worker = spawn();
+        const active = worker;
+
+        const finish = (outcome: Outcome) => {
+          clearTimeout(timer);
+          active.removeEventListener('message', onMessage);
+          active.removeEventListener('error', onError);
+          resolve(outcome);
+        };
+
+        const onMessage = (event: MessageEvent<RegexWorkerResponse>) => {
+          const data = event.data;
+          if (data.id !== req.id) return;
+          if (data.ok) finish({ kind: 'ok', result: data.result });
+          else finish({ kind: 'error', error: data.error, hint: data.hint });
+        };
+        const onError = () =>
+          finish({ kind: 'error', error: 'The regex worker failed to start.' });
+
+        const timer = setTimeout(() => {
+          active.terminate();
+          if (worker === active) worker = null;
+          finish({ kind: 'timeout' });
+        }, LIMITS.regexTimeoutMs);
+
+        active.addEventListener('message', onMessage);
+        active.addEventListener('error', onError);
+        active.postMessage(req);
+      });
+
+    /** Workers need a same-origin document; fall back for the rare case they are blocked. */
+    const execute = async (req: RegexRunRequest): Promise<Outcome> => {
+      if (typeof Worker === 'undefined') {
+        try {
+          return { kind: 'ok', result: runRegex(req) };
+        } catch (err) {
+          return { kind: 'error', error: messageFor(err) };
+        }
+      }
+      return runInWorker(req);
+    };
+
+    // ── Rendering ────────────────────────────────────────────────────────
+
+    const activeFlags = () =>
+      qa<HTMLInputElement>('[data-flag]', root)
+        .filter((box) => box.checked)
+        .map((box) => box.dataset.flag!)
+        .join('');
+
+    const reset = () => {
+      highlight.textContent = '';
+      matchList.textContent = '';
+      matchPanel.setAttribute('hidden', '');
+      stats.setAttribute('hidden', '');
+      output.value = '';
+    };
+
+    /** Build the per-match table with DOM nodes — no user text ever becomes markup. */
+    const renderMatches = (result: RegexRunResult) => {
+      matchList.textContent = '';
+      if (result.matches.length === 0) {
+        matchPanel.setAttribute('hidden', '');
+        return;
+      }
+      matchPanel.removeAttribute('hidden');
+
+      result.matches.forEach((match, i) => {
+        const row = document.createElement('div');
+        row.className = 'border-b border-line px-3 py-2 last:border-b-0';
+
+        const head = document.createElement('div');
+        head.className = 'flex flex-wrap items-baseline gap-x-3 gap-y-1';
+
+        const label = document.createElement('span');
+        label.className = 'text-xs text-muted';
+        label.textContent = `#${i + 1}`;
+
+        const value = document.createElement('span');
+        value.className = 'font-medium break-all';
+        value.textContent = match.length === 0 ? '(empty match)' : match.value;
+
+        const where = document.createElement('span');
+        where.className = 'ml-auto text-xs text-muted tabular-nums';
+        where.textContent = `index ${match.index} · length ${match.length}`;
+
+        head.append(label, value, where);
+        row.appendChild(head);
+
+        for (const group of match.groups) {
+          const line = document.createElement('div');
+          line.className = 'mt-1 flex flex-wrap items-baseline gap-x-2 pl-6 text-xs';
+
+          const key = document.createElement('span');
+          key.className = 'text-accent';
+          key.textContent = group.name ? `$${group.number} <${group.name}>` : `$${group.number}`;
+
+          const val = document.createElement('span');
+          val.className = group.value === undefined ? 'text-muted italic' : 'break-all';
+          val.textContent = group.value === undefined ? 'did not participate' : group.value;
+
+          line.append(key, val);
+
+          if (group.start !== undefined && group.value !== undefined) {
+            const span = document.createElement('span');
+            span.className = 'ml-auto text-muted tabular-nums';
+            span.textContent = `${group.start}–${group.end}`;
+            line.appendChild(span);
+          }
+          row.appendChild(line);
+        }
+        matchList.appendChild(row);
+      });
+    };
+
+    const show = (result: RegexRunResult, text: string) => {
+      // highlightMatches escapes every character of `text` before inserting
+      // any <mark>, so this innerHTML carries no user-controlled markup.
+      highlight.innerHTML = highlightMatches(text, result.matches);
+      renderMatches(result);
+
+      const chars = result.matches.reduce((sum, m) => sum + m.length, 0);
+      const groups = result.matches[0]?.groups.length ?? 0;
+      stats.removeAttribute('hidden');
+      q('[data-stat-matches]', root)!.textContent = result.count.toLocaleString();
+      q('[data-stat-groups]', root)!.textContent = String(groups);
+      q('[data-stat-chars]', root)!.textContent = chars.toLocaleString();
+      q('[data-stat-time]', root)!.textContent = `${result.durationMs} ms`;
+
+      output.value = result.replaced ?? '';
+
+      if (result.truncated) {
+        setStatus(
+          root,
+          `Showing the first ${result.count.toLocaleString()} matches. There are more — narrow the pattern or shorten the test string.`,
+          'warn',
+        );
+      } else if (result.count === 0) {
+        setStatus(root, 'The pattern is valid but matches nothing in this text.', 'warn');
+      } else {
+        setStatus(
+          root,
+          `${result.count.toLocaleString()} match${result.count === 1 ? '' : 'es'} found in ${result.durationMs} ms.`,
+          'ok',
+        );
+        markUsed();
+      }
+    };
+
+    const fail = (message: string, hint?: string) => {
+      reset();
+      setStatus(root, message, 'error');
+      if (hint) {
+        const slot = q('[data-status]', root)!;
+        const p = document.createElement('p');
+        p.className = 'mt-2 text-sm text-muted';
+        p.textContent = hint;
+        slot.appendChild(p);
+      }
+    };
+
+    // ── The run loop ─────────────────────────────────────────────────────
+
+    const run = async () => {
+      const pattern = patternInput.value;
+      const text = textInput.value;
+      flagDisplay.textContent = activeFlags();
+
+      if (!pattern) {
+        reset();
+        clearStatus(root);
+        return;
+      }
+
+      try {
+        guardSize(text);
+      } catch (err) {
+        return fail(messageFor(err));
+      }
+
+      const id = ++sequence;
+      const outcome = await execute({
+        id,
+        pattern,
+        flags: activeFlags(),
+        text,
+        replacement: replaceInput.value ? replaceInput.value : null,
+      });
+
+      if (id !== sequence) return; // a newer keystroke already superseded this run
+
+      switch (outcome.kind) {
+        case 'ok':
+          show(outcome.result, text);
+          break;
+        case 'error':
+          fail(outcome.error, outcome.hint);
+          break;
+        case 'timeout': {
+          const { message, hint } = timeoutMessage(pattern, LIMITS.regexTimeoutMs);
+          fail(message, hint);
+          break;
+        }
+        default:
+          break;
+      }
+    };
+
+    const runSoon = debounce(() => void run(), 220);
+
+    // ── Wiring ───────────────────────────────────────────────────────────
+    on(patternInput, 'input', runSoon);
+    on(textInput, 'input', runSoon);
+    on(replaceInput, 'input', runSoon);
+    for (const box of qa('[data-flag]', root)) on(box, 'change', () => void run());
+
+    for (const button of qa('[data-library]', root)) {
+      on(button, 'click', () => {
+        patternInput.value = button.dataset.patternValue ?? '';
+        textInput.value = button.dataset.sampleValue ?? '';
+        const wanted = new Set((button.dataset.flagsValue ?? '').split(''));
+        for (const box of qa<HTMLInputElement>('[data-flag]', root)) {
+          box.checked = wanted.has(box.dataset.flag!);
+        }
+        const note = button.dataset.noteValue ?? '';
+        noteSlot.textContent = note;
+        noteSlot.toggleAttribute('hidden', note === '');
+        void run();
+      });
+    }
+
+    wireStandardActions(root, {
+      onChange: () => {
+        reset();
+        noteSlot.setAttribute('hidden', '');
+        void run();
+      },
+    });
+
+    flagDisplay.textContent = activeFlags();
+  });
+</script>

@@ -1,0 +1,398 @@
+---
+/**
+ * Color Converter.
+ *
+ * The text field accepts any supported notation; the picker and the alpha
+ * slider write back into it. Every format is shown at once, because the common
+ * task is not "convert A to B" but "give me this colour in whatever my current
+ * file wants".
+ *
+ * All conversion and contrast maths lives in src/lib/color.ts, unit-tested.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_COLOR, allFormats, parseColor } from '~/lib/color';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+/* Render the row scaffold from a real conversion so the markup and the module
+   can never drift apart. Values are replaced on the client. Red is used rather
+   than the sample colour because it has a CSS keyword, so the "CSS name" row
+   exists in the scaffold and can be revealed when a named colour is entered. */
+const formatRows = allFormats(parseColor('#ff0000'));
+
+const contrastPanels = [
+  { id: 'white', label: 'On white' },
+  { id: 'black', label: 'On black' },
+];
+
+const badges = [
+  { id: 'aaNormal', label: 'AA normal', detail: '4.5:1' },
+  { id: 'aaLarge', label: 'AA large', detail: '3:1' },
+  { id: 'aaaNormal', label: 'AAA normal', detail: '7:1' },
+  { id: 'aaaLarge', label: 'AAA large', detail: '4.5:1' },
+];
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="color-converter" class="space-y-4">
+    {/* ── Input row ── */}
+    <div class="flex flex-wrap items-end gap-3">
+      <div>
+        <label for="cc-picker" class="bc-label">Pick</label>
+        <input
+          id="cc-picker"
+          type="color"
+          class="h-10 w-16 cursor-pointer rounded-lg border border-line-strong bg-surface p-1"
+          value={SAMPLE_COLOR}
+          data-picker
+        />
+      </div>
+
+      <div class="min-w-56 flex-1">
+        <label for="cc-input" class="bc-label">Any colour value</label>
+        <input
+          id="cc-input"
+          type="text"
+          class="bc-input font-mono"
+          data-primary-input
+          data-clear-target
+          spellcheck="false"
+          autocomplete="off"
+          placeholder="#4f46e5, rgb(79 70 229), hsl(244 76% 59%), oklch(0.51 0.23 277), rebeccapurple"
+          aria-describedby="cc-status"
+        />
+      </div>
+
+      <div class="w-40">
+        <label for="cc-alpha" class="bc-label">Alpha <span data-alpha-label>100%</span></label>
+        <input
+          id="cc-alpha"
+          type="range"
+          min="0"
+          max="100"
+          value="100"
+          step="1"
+          class="w-full accent-accent"
+          data-alpha
+        />
+      </div>
+    </div>
+
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_COLOR}>
+        Example
+      </button>
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+    </div>
+
+    <div id="cc-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Preview ── */}
+    <div
+      class="grid h-24 place-items-center overflow-hidden rounded-xl border border-line"
+      data-checkerboard
+    >
+      <div class="h-full w-full" data-swatch aria-hidden="true"></div>
+    </div>
+
+    {/* ── Every format at once ── */}
+    <div>
+      <span class="bc-label">All formats</span>
+      <div class="overflow-hidden rounded-lg border border-line">
+        <table class="w-full border-collapse text-sm">
+          <tbody>
+            {
+              formatRows.map((row) => (
+                <tr class="border-b border-line last:border-b-0" data-format-row={row.id} hidden>
+                  <th
+                    scope="row"
+                    class="w-32 bg-surface-2 px-3 py-2 text-left align-top text-xs font-medium tracking-wide text-muted uppercase"
+                  >
+                    {row.label}
+                  </th>
+                  <td class="px-3 py-2 align-top">
+                    <code id={`cc-value-${row.id}`} class="break-all" data-format-value={row.id} />
+                    {row.note && <p class="mt-0.5 text-xs text-muted">{row.note}</p>}
+                  </td>
+                  <td class="w-20 px-2 py-2 text-right align-top">
+                    <button
+                      type="button"
+                      class="bc-btn bc-btn-ghost bc-btn-sm"
+                      data-copy={`#cc-value-${row.id}`}
+                      aria-label={`Copy the ${row.label} value`}
+                    >
+                      <span data-label>Copy</span>
+                    </button>
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+      {/* Plain-text mirror of every format, for the toolkit's copy helper. */}
+      <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+    </div>
+
+    {/* ── WCAG contrast ── */}
+    <div data-contrast hidden>
+      <span class="bc-label">WCAG 2.2 contrast</span>
+      <div class="grid gap-2 sm:grid-cols-2">
+        {
+          contrastPanels.map((panel) => (
+            <div class="bc-card p-3" data-panel={panel.id}>
+              <div class="flex items-baseline justify-between">
+                <span class="text-sm font-medium">{panel.label}</span>
+                <span class="text-lg font-semibold tabular-nums" data-ratio={panel.id}>
+                  —
+                </span>
+              </div>
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                {badges.map((badge) => (
+                  <span
+                    class="rounded border px-1.5 py-0.5 text-xs"
+                    data-badge={`${panel.id}-${badge.id}`}
+                    title={`Minimum ${badge.detail}`}
+                  >
+                    {badge.label}
+                  </span>
+                ))}
+              </div>
+              <p class="mt-2 text-xs" data-sample-text={panel.id}>
+                The quick brown fox jumps over the lazy dog.
+              </p>
+            </div>
+          ))
+        }
+      </div>
+      <p class="mt-2 text-xs text-muted" data-alpha-warning hidden>
+        Contrast is measured on the colour composited over that background, because a translucent
+        colour has no luminance of its own.
+      </p>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Give it a colour in any notation — hex with three, four, six or eight digits, <code>rgb()</code
+      >, <code>hsl()</code>, <code>hwb()</code>, <code>oklch()</code>, <code>cmyk()</code> or a CSS
+      keyword — and it shows every other notation at once, with alpha carried through all of them
+      and a copy button on each row.
+    </p>
+    <p>
+      Below the conversions is a WCAG contrast panel: the ratio against white and against black,
+      with pass or fail badges for AA and AAA at normal and large text sizes.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Turning a hex value from a design file into the <code>rgb()</code> triple a canvas API or
+        a shader wants.</li>
+      <li>Finding out whether a brand colour is legible as body text before it ships.</li>
+      <li>Converting a palette to OKLCH so that lightness steps can be generated arithmetically.</li>
+      <li>Reading an eight-digit hex from a stylesheet and seeing what the alpha actually is.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>Entering <code>#4f46e5</code> produces:</p>
+    <pre><code>rgb(79, 70, 229)
+hsl(243.4, 75.4%, 58.6%)
+hwb(243.4 27.5% 10.2%)
+oklch(0.5106 0.2301 276.97)
+cmyk(65.5%, 69.4%, 0%, 10.2%)</code></pre>
+    <p>
+      Its contrast against white is 6.29:1 — comfortably AA for body text, short of AAA — and
+      3.34:1 against black, which fails AA for normal text. That asymmetry is the whole argument
+      for checking rather than guessing.
+    </p>
+
+    <h2>Why OKLCH is not just HSL with new units</h2>
+    <p>
+      HSL is a trivial rearrangement of RGB, so its lightness is a geometric artefact rather than a
+      perceptual one. <code>hsl(60 100% 50%)</code> and <code>hsl(240 100% 50%)</code> claim
+      identical lightness, but the yellow is blinding and the blue is nearly black. Sort a palette
+      by HSL lightness and the order will not match what anyone sees.
+    </p>
+    <p>
+      OKLCH is derived from OKLab, which models cone responses: linear-light sRGB becomes three
+      LMS channels, each is cube-rooted, and a second matrix produces lightness plus two opponent
+      axes. This tool implements that path exactly rather than approximating it, which is why
+      <code>#ff0000</code> reports L 0.628 and C 0.2577 — the published reference values. The
+      payoff is that equal steps in L look equal. The cost is that OKLCH describes colours sRGB
+      cannot display, so vivid values get clamped on the way back.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      CMYK here is the unmanaged formula every web tool uses: it ignores ink, paper and press
+      entirely. Send it to a printer as a starting point, never as a specification — real output
+      needs an ICC profile. The contrast figures use the WCAG 2.x relative luminance formula, whose
+      weakness on dark backgrounds is well documented; APCA, drafted for WCAG 3, models it better
+      but is not yet normative, so conformance still means these numbers. A translucent colour is
+      composited over the backdrop before measuring, because it has no luminance of its own.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<style>
+  /* Alpha checkerboard, built from theme tokens so it works in both modes. */
+  [data-checkerboard] {
+    background-color: var(--color-surface);
+    background-image:
+      linear-gradient(45deg, var(--color-surface-2) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--color-surface-2) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--color-surface-2) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--color-surface-2) 75%);
+    background-size: 16px 16px;
+    background-position:
+      0 0,
+      0 8px,
+      8px -8px,
+      -8px 0;
+  }
+</style>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    wireStandardActions,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import {
+    BLACK,
+    WHITE,
+    allFormats,
+    assessContrast,
+    flattenOver,
+    formatRatio,
+    parseColor,
+    rgbToHex,
+  } from '~/lib/color';
+  import type { Rgb } from '~/lib/color';
+
+  mount('color-converter', (root) => {
+    const input = q<HTMLInputElement>('[data-primary-input]', root)!;
+    const picker = q<HTMLInputElement>('[data-picker]', root)!;
+    const alpha = q<HTMLInputElement>('[data-alpha]', root)!;
+    const alphaLabel = q('[data-alpha-label]', root)!;
+    const swatch = q('[data-swatch]', root)!;
+    const contrast = q('[data-contrast]', root)!;
+    const alphaWarning = q('[data-alpha-warning]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+
+    /** Guards against the picker and the text field writing to each other forever. */
+    let updating = false;
+
+    const clear = () => {
+      swatch.style.backgroundColor = 'transparent';
+      contrast.setAttribute('hidden', '');
+      mirror.value = '';
+      for (const row of root.querySelectorAll('[data-format-row]')) row.setAttribute('hidden', '');
+      clearStatus(root);
+    };
+
+    const renderContrast = (color: Rgb) => {
+      contrast.removeAttribute('hidden');
+      alphaWarning.toggleAttribute('hidden', color.a >= 1);
+
+      for (const [id, backdrop] of [
+        ['white', WHITE],
+        ['black', BLACK],
+      ] as const) {
+        const composited = color.a < 1 ? flattenOver(color, backdrop) : color;
+        const verdict = assessContrast(composited, backdrop);
+
+        q(`[data-ratio="${id}"]`, root)!.textContent = formatRatio(verdict.ratio);
+
+        for (const level of ['aaNormal', 'aaLarge', 'aaaNormal', 'aaaLarge'] as const) {
+          const badge = q(`[data-badge="${id}-${level}"]`, root)!;
+          const pass = verdict[level];
+          badge.classList.toggle('bc-alert-ok', pass);
+          badge.classList.toggle('bc-alert-error', !pass);
+          badge.setAttribute('aria-label', `${badge.textContent!.trim()}: ${pass ? 'pass' : 'fail'}`);
+        }
+
+        // Show the colour as text on that backdrop, which is the real question.
+        const sample = q(`[data-sample-text="${id}"]`, root)!;
+        sample.style.color = rgbToHex(color, true);
+        sample.style.backgroundColor = id === 'white' ? '#ffffff' : '#000000';
+        sample.style.padding = '0.25rem 0.375rem';
+        sample.style.borderRadius = '0.25rem';
+      }
+    };
+
+    const render = (color: Rgb) => {
+      swatch.style.backgroundColor = rgbToHex(color, true);
+
+      const rows = allFormats(color);
+      const lines: string[] = [];
+      for (const row of root.querySelectorAll<HTMLElement>('[data-format-row]')) {
+        const match = rows.find((r) => r.id === row.dataset.formatRow);
+        row.toggleAttribute('hidden', !match);
+        if (!match) continue;
+        q(`[data-format-value="${match.id}"]`, root)!.textContent = match.value;
+        lines.push(`${match.label}: ${match.value}`);
+      }
+      mirror.value = lines.join('\n');
+
+      renderContrast(color);
+      markUsed();
+    };
+
+    const parse = () => {
+      const text = input.value.trim();
+      if (!text) return clear();
+
+      try {
+        const parsed = parseColor(text);
+        // The text field owns alpha unless the value carried one of its own.
+        const color: Rgb = { ...parsed };
+        clearStatus(root);
+
+        updating = true;
+        picker.value = rgbToHex(color, false);
+        alpha.value = String(Math.round(color.a * 100));
+        alphaLabel.textContent = `${Math.round(color.a * 100)}%`;
+        updating = false;
+
+        render(color);
+      } catch (err) {
+        clear();
+        setStatus(root, err instanceof Error ? err.message : 'That colour could not be read.', 'error');
+      }
+    };
+
+    /** Picker or slider moved: rebuild the canonical text value from them. */
+    const fromControls = () => {
+      if (updating) return;
+      const a = Number(alpha.value) / 100;
+      alphaLabel.textContent = `${alpha.value}%`;
+      const base = parseColor(picker.value);
+      input.value = rgbToHex({ ...base, a }, a < 1);
+      parse();
+    };
+
+    on(input, 'input', debounce(parse, 120));
+    on(picker, 'input', fromControls);
+    on(alpha, 'input', fromControls);
+
+    wireStandardActions(root, {
+      onChange: () => (input.value ? parse() : clear()),
+    });
+
+    // Start on something, so the page is useful before the first keystroke.
+    input.value = picker.value;
+    parse();
+  });
+</script>

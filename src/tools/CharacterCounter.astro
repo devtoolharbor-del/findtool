@@ -146,10 +146,10 @@ const { tool } = Astro.props;
   <Fragment slot="content">
     <h2>What this tool does</h2>
     <p>
-      There is no single number called "the character count". This tool shows four of them at once
-      — graphemes, code points, UTF-16 units and UTF-8 bytes — because for anything containing an
-      emoji, an accent or a non-Latin script they disagree, and the whole art of not shipping a
-      broken form is knowing which one the system on the other side is checking.
+      There is no single number called "the character count". This tool shows four at once —
+      graphemes, code points, UTF-16 units and UTF-8 bytes — because for anything with an emoji,
+      an accent or a non-Latin script they disagree, and not shipping a broken form comes down to
+      knowing which one the system on the other side checks.
     </p>
     <p>
       Alongside the counts it works out SMS segments and how much room is left against the limits
@@ -169,10 +169,7 @@ const { tool } = Astro.props;
         Finding out why a 200-character bio is rejected by a database column that nominally
         accepts 255.
       </li>
-      <li>
-        Checking a translated UI string against the byte limit of a protocol field — German and
-        Japanese both inflate byte counts far beyond their character counts.
-      </li>
+      <li>Checking a translated UI string against the byte limit of a protocol field.</li>
     </ul>
 
     <h2>A short example</h2>
@@ -185,29 +182,27 @@ Code points    7     4 people + 3 zero-width joiners
 UTF-16 units  11     each person is a surrogate pair
 UTF-8 bytes   25     4×4 bytes + 3×3 bytes`}</code></pre>
     <p>
-      Paste that emoji into a field with a "10 character" limit and it may be accepted, silently
-      truncated into two separate people, or rejected outright — depending entirely on which of
-      those four numbers the validator uses.
+      Paste it into a field with a "10 character" limit and it may be accepted, silently
+      truncated into two separate people, or rejected — depending entirely on which of those four
+      numbers the validator uses.
     </p>
 
     <h2>Why emoji make the numbers diverge</h2>
     <p>
       A <strong>grapheme</strong> is one user-perceived character: <code>é</code>, <code>🇬🇧</code>,
-      <code>👍🏽</code>. It is what a person means by "character", and this page computes it with
-      <code>Intl.Segmenter</code>, the browser's implementation of the Unicode text-segmentation
-      rules.
+      <code>👍🏽</code>. It is what a person means by "character", computed here with
+      <code>Intl.Segmenter</code>.
     </p>
     <p>
-      A <strong>code point</strong> is one Unicode scalar. The family emoji is seven of them,
-      because it is four people glued together with three U+200D zero-width joiners. Strip those
-      joiners and the same bytes render as four separate people — which is exactly what happens
-      when a naive truncation cuts through the middle of the sequence.
+      A <strong>code point</strong> is one Unicode scalar. The family emoji is seven of them: four
+      people glued together with three U+200D zero-width joiners. Strip those joiners and the same
+      bytes render as four separate people, which is exactly what a naive truncation does when it
+      cuts through the middle of the sequence.
     </p>
     <p>
       A <strong>UTF-16 unit</strong> is what JavaScript's <code>"x".length</code> returns. Anything
-      above U+FFFF — every emoji, and most of the historic scripts — occupies two. This is the
-      number most client-side <code>maxlength</code> checks use, and the reason one emoji can eat
-      two of your 280 characters.
+      above U+FFFF occupies two. Most client-side <code>maxlength</code> checks use this number,
+      which is why one emoji can eat two of your 280 characters.
     </p>
     <p>
       A <strong>UTF-8 byte</strong> is what a database column, an HTTP header or a protocol buffer
@@ -216,16 +211,14 @@ UTF-8 bytes   25     4×4 bytes + 3×3 bytes`}</code></pre>
 
     <h2>Worth knowing</h2>
     <p>
-      X does not count the way any of these four do. It counts weighted code points: Latin, Greek
-      and Cyrillic characters count as one, everything else — CJK, Arabic, emoji — counts as two,
-      and every URL is counted as exactly 23 regardless of its real length. The 280 figure shown
-      here uses graphemes, so treat it as a close guide rather than the final word.
+      X counts none of these four ways. It uses weighted code points: Latin, Greek and Cyrillic
+      count as one, everything else — CJK, Arabic, emoji — counts as two, and every URL counts as
+      exactly 23 whatever its length. The 280 figure here uses graphemes, so treat it as a guide.
     </p>
     <p>
-      SMS is stranger still. A GSM-7 message holds 160 characters, but a single character outside
-      the GSM 03.38 alphabet forces the whole message into UCS-2 at 70 characters. A curly
-      apostrophe pasted from a word processor is enough to do it, which is why a 140-character
-      message sometimes bills as two segments for no visible reason.
+      SMS is stranger still. A GSM-7 message holds 160 characters, but one character outside the
+      GSM 03.38 alphabet forces the whole message into UCS-2 at 70. A curly apostrophe pasted from
+      a word processor does it, which is why a 140-character message sometimes bills as two.
     </p>
   </Fragment>
 </ToolLayout>

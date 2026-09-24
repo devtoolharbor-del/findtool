@@ -15,7 +15,7 @@ export const CATEGORIES: Category[] = [
     name: 'JSON & Data',
     shortName: 'JSON',
     tagline: 'Format, validate and convert structured data',
-    seoTitle: 'JSON & Data Tools — Formatter, Validator and Converters',
+    seoTitle: 'JSON Tools — Format, Validate and Convert',
     seoDescription:
       'Free browser-based JSON tools: format, validate and minify JSON, explore it as a tree, and convert between JSON, CSV, YAML and XML. Nothing is uploaded.',
     intro:
@@ -29,7 +29,7 @@ export const CATEGORIES: Category[] = [
     name: 'Encoding & Decoding',
     shortName: 'Encoding',
     tagline: 'Base64, URL, HTML entities, hex and JWT',
-    seoTitle: 'Encoding & Decoding Tools — Base64, URL, HTML Entities, Hex, JWT',
+    seoTitle: 'Encoding Tools — Base64, URL, Hex and JWT',
     seoDescription:
       'Encode and decode Base64, URL percent-encoding, HTML entities, hex and Unicode, and inspect JWT tokens. All decoding happens locally in your browser.',
     intro:
@@ -43,7 +43,7 @@ export const CATEGORIES: Category[] = [
     name: 'Generators',
     shortName: 'Generators',
     tagline: 'IDs, passwords, random data and placeholder text',
-    seoTitle: 'Developer Generators — UUID, Nano ID, Passwords and Random Data',
+    seoTitle: 'Generators — UUID, Passwords, Random Data',
     seoDescription:
       'Generate UUIDs, Nano IDs, secure passwords, random strings, random numbers and Lorem Ipsum placeholder text. Uses the browser cryptographic random source.',
     intro:
@@ -57,7 +57,7 @@ export const CATEGORIES: Category[] = [
     name: 'Hashing & Security',
     shortName: 'Security',
     tagline: 'SHA-256, SHA-1, MD5 and HMAC signatures',
-    seoTitle: 'Hash & Security Tools — SHA-256, SHA-1, MD5 and HMAC Generators',
+    seoTitle: 'Hash Tools — SHA-256, SHA-1, MD5 and HMAC',
     seoDescription:
       'Compute SHA-256, SHA-1, MD5 and HMAC digests from text or files in your browser using the Web Crypto API. Includes guidance on which algorithms remain safe.',
     intro:
@@ -71,7 +71,7 @@ export const CATEGORIES: Category[] = [
     name: 'Date & Time',
     shortName: 'Time',
     tagline: 'Timestamps, timezones, durations and cron',
-    seoTitle: 'Date & Time Tools — Unix Timestamp, Timezone and Cron Utilities',
+    seoTitle: 'Date & Time Tools — Timestamps and Cron',
     seoDescription:
       'Convert Unix timestamps, translate ISO 8601 dates, compare timezones, measure date differences and build or explain cron expressions. Runs locally.',
     intro:
@@ -85,7 +85,7 @@ export const CATEGORIES: Category[] = [
     name: 'Text Tools',
     shortName: 'Text',
     tagline: 'Count, convert, clean, sort and compare text',
-    seoTitle: 'Text Tools — Word Counter, Case Converter, Diff and Line Utilities',
+    seoTitle: 'Text Tools — Counters, Case, Diff and Lines',
     seoDescription:
       'Count words and characters, change text case, remove duplicate lines, sort lines, strip extra whitespace, generate URL slugs and diff two blocks of text.',
     intro:
@@ -99,7 +99,7 @@ export const CATEGORIES: Category[] = [
     name: 'Web & Dev',
     shortName: 'Web',
     tagline: 'Regex, HTTP status codes, colors, CSS and user agents',
-    seoTitle: 'Web Development Tools — Regex Tester, HTTP Codes, Color Converter',
+    seoTitle: 'Web Dev Tools — Regex, HTTP Codes, Colors',
     seoDescription:
       'Test regular expressions safely, look up HTTP status codes, parse user agent strings, convert colors between HEX, RGB, HSL and OKLCH, and minify CSS.',
     intro:

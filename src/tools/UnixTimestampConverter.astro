@@ -205,7 +205,6 @@ const OUTPUT_ROWS = [
         Comparing a database column against an API response when one stores seconds and the
         other milliseconds.
       </li>
-      <li>Setting an <code>Expires</code> or <code>Retry-After</code> value by hand.</li>
     </ul>
 
     <h2>A short example</h2>
@@ -230,20 +229,19 @@ Epoch ms   1700000000000`}</code></pre>
     <p>
       The cutoff sits at 12 digits because 100,000,000,000 seconds is the year 5138 — a value no
       real system produces — whereas the same number of milliseconds is 1973. The detected unit
-      is always shown, and the dropdown overrides it when you know better. Nanosecond values
-      exceed the 2<sup>53</sup> limit of a JavaScript number, so they are converted with BigInt
-      and any sub-millisecond remainder is reported rather than quietly discarded.
+      is always shown, and the dropdown overrides it. Nanosecond values exceed the
+      2<sup>53</sup> limit of a JavaScript number, so they are converted with BigInt and any
+      sub-millisecond remainder is reported rather than quietly discarded.
     </p>
 
     <h2>Worth knowing</h2>
     <p>
       Unix time is not a count of every second that has passed. Leap seconds are absorbed by
-      repeating a value, so the 27 leap seconds inserted since 1972 are invisible here — which
-      is precisely why the format is easy to compute with. Negative values are legal and mean
-      dates before 1970; this tool accepts them. And the year 2038 limit belongs to the 32-bit
-      signed integer, not to the epoch itself: at 03:14:07 UTC on 19 January 2038 a
-      <code>time_t</code> of that width overflows to 1901. Anything storing 64 bits is fine for
-      the next 292 billion years.
+      repeating a value, so the 27 inserted since 1972 are invisible here — which is precisely
+      why the format is easy to compute with. Negative values are legal and mean dates before
+      1970. And the year 2038 limit belongs to the 32-bit signed integer, not to the epoch
+      itself: at 03:14:07 UTC on 19 January 2038 a <code>time_t</code> of that width overflows
+      to 1901. Anything storing 64 bits is fine for the next 292 billion years.
     </p>
   </Fragment>
 </ToolLayout>
@@ -257,6 +255,7 @@ Epoch ms   1700000000000`}</code></pre>
     setStatus,
     clearStatus,
     messageFor,
+    guardSize,
     markUsed,
     wireStandardActions,
   } from '~/lib/toolkit';
@@ -311,6 +310,7 @@ Epoch ms   1700000000000`}</code></pre>
       }
 
       try {
+        guardSize(text);
         const unit = unitSelect.value as TimestampUnit | 'auto';
         const parsed = parseTimestamp(text, unit);
         const info = zoneInfo(parsed.ms, zone);

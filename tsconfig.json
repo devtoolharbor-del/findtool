@@ -6,7 +6,7 @@
     "strictNullChecks": true,
     "allowJs": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
-    "types": ["astro/client", "vitest/globals"],
+    "types": ["astro/client", "vitest/globals", "node"],
     "baseUrl": ".",
     "paths": {
       "~/*": ["src/*"]

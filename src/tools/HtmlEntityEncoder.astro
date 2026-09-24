@@ -1,0 +1,310 @@
+---
+/**
+ * HTML Entity Encoder.
+ *
+ * Escapes markup-significant characters so user content renders as text.
+ * Logic lives in src/lib/html-entities.ts.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_HTML, ENCODER_LEGEND } from '~/lib/html-entities';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="html-entity-encoder" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="hee-style" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Entity style
+        </label>
+        <select id="hee-style" class="bc-select w-auto py-1.5 text-xs">
+          <option value="named" selected>Named (&amp;amp;)</option>
+          <option value="decimal">Decimal (&amp;#38;)</option>
+          <option value="hex">Hexadecimal (&amp;#x26;)</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label for="hee-scope" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Scope
+        </label>
+        <select id="hee-scope" class="bc-select w-auto py-1.5 text-xs">
+          <option value="minimal" selected>Minimal — markup characters only</option>
+          <option value="aggressive">Aggressive — also every non-ASCII character</option>
+        </select>
+      </div>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-quotes checked />
+        Escape quotes
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_HTML}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="hee-input" class="bc-label">Text to escape</label>
+      <textarea
+        id="hee-input"
+        class="bc-textarea min-h-32"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste the text or markup you want rendered literally…"
+        aria-describedby="hee-status"></textarea>
+    </div>
+
+    {/* ── Status ── */}
+    <div id="hee-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-before>—</div>
+        <div class="bc-stat-label">Input length</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-after>—</div>
+        <div class="bc-stat-label">Output length</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-escaped>—</div>
+        <div class="bc-stat-label">Characters escaped</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-risky>—</div>
+        <div class="bc-stat-label">Markup characters</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+        <label for="hee-output" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Escaped result
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+            <span data-label>Copy</span>
+          </button>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-swap>Swap fields</button>
+        </div>
+      </div>
+      <textarea
+        id="hee-output"
+        class="bc-textarea min-h-32 font-mono"
+        data-output
+        readonly
+        spellcheck="false"
+        aria-label="Escaped result"></textarea>
+    </div>
+
+    {/* ── Legend ── */}
+    <div>
+      <h3 class="mb-2 text-xs font-medium tracking-wide text-muted uppercase">
+        The five characters that matter
+      </h3>
+      <div class="bc-output p-0">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-surface-2 text-muted">
+            <tr>
+              <th scope="col" class="px-3 py-2 font-medium">Character</th>
+              <th scope="col" class="px-3 py-2 font-medium">Named</th>
+              <th scope="col" class="px-3 py-2 font-medium">Numeric</th>
+              <th scope="col" class="px-3 py-2 font-medium">Why</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              ENCODER_LEGEND.map((row) => (
+                <tr class="border-t border-line">
+                  <td class="px-3 py-1.5 font-mono">{row.char}</td>
+                  <td class="px-3 py-1.5 font-mono text-accent">{row.named}</td>
+                  <td class="px-3 py-1.5 font-mono text-accent">{row.numeric}</td>
+                  <td class="px-3 py-1.5 text-muted">{row.why}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="text-xs text-muted">
+      Need to go the other way? Use the
+      <a class="text-accent underline" href="/tools/html-entity-decoder">HTML Entity Decoder</a>.
+    </p>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      It converts characters that a browser would read as markup into entity references, so the text
+      displays as itself. Type an angle bracket and you get <code>&amp;lt;</code>; type an ampersand
+      and you get <code>&amp;amp;</code>. The document then shows your characters instead of
+      interpreting them.
+    </p>
+    <p>
+      Minimal scope escapes only the five characters that can change how a page parses. Aggressive
+      scope additionally escapes everything above ASCII, which is useful when a downstream system
+      mangles UTF-8 or when you need a file to be pure 7-bit.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Showing a code sample on a page without it being executed — a blog post about
+        <code>&lt;script&gt;</code> tags needs them escaped or the post contains a script.
+      </li>
+      <li>
+        Putting a value safely inside an attribute, where an unescaped quote closes the attribute
+        early and lets the rest be read as new attributes.
+      </li>
+      <li>Escaping a product name containing <code>&amp;</code> before it goes into a template.</li>
+      <li>Preparing content for an XML or RSS feed, which rejects a bare <code>&amp;</code>.</li>
+      <li>Converting accented characters to entities for a system stuck on ASCII.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>Input:</p>
+    <pre><code>&lt;img src=x onerror=alert(1)&gt;</code></pre>
+    <p>Escaped:</p>
+    <pre><code>&amp;lt;img src=x onerror=alert(1)&amp;gt;</code></pre>
+    <p>
+      The second version renders as visible text on a page. The first version runs.
+    </p>
+
+    <h2>Escaping is context-dependent</h2>
+    <p>
+      This is the part that trips people up: HTML entity escaping is correct for element content and
+      for attribute values, and wrong almost everywhere else.
+    </p>
+    <ul>
+      <li>
+        <strong>Inside <code>&lt;script&gt;</code> or <code>&lt;style&gt;</code></strong>, entities
+        are not decoded at all. Escaping there produces a literal <code>&amp;amp;</code> in your
+        JavaScript, and the real hazard — a <code>&lt;/script&gt;</code> sequence inside a string —
+        is untouched. Serialise with JSON and escape the closing tag instead.
+      </li>
+      <li>
+        <strong>Inside a URL</strong>, you need percent-encoding, not entities. A
+        <code>javascript:</code> href is still dangerous when entity-escaped.
+      </li>
+      <li>
+        <strong>For an unquoted attribute</strong>, escaping the five characters is not enough,
+        because a space or a backtick ends the value. Quote your attributes.
+      </li>
+    </ul>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Escape once, at output, not on the way into storage. Escaping at input means you cannot tell
+      later whether a stored <code>&amp;amp;</code> was an ampersand or someone genuinely typing
+      "&amp;amp;", and every additional render adds another layer.
+    </p>
+    <p>
+      In named mode the apostrophe is written as <code>&amp;#39;</code> rather than
+      <code>&amp;apos;</code>. That name exists in XML and HTML5 but not in HTML 4, and the numeric
+      form is understood everywhere.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    wireStandardActions,
+    wireSwap,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { encodeHtmlEntities, type EntityStyle } from '~/lib/html-entities';
+
+  mount('html-entity-encoder', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const style = q<HTMLSelectElement>('#hee-style', root)!;
+    const scope = q<HTMLSelectElement>('#hee-scope', root)!;
+    const quotes = q<HTMLInputElement>('[data-quotes]', root)!;
+    const stats = q('[data-stats]', root)!;
+
+    const run = () => {
+      const text = input.value;
+      if (!text) {
+        clearStatus(root);
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        return;
+      }
+
+      try {
+        guardSize(text);
+        const encoded = encodeHtmlEntities(text, {
+          style: style.value as EntityStyle,
+          scope: scope.value === 'aggressive' ? 'aggressive' : 'minimal',
+          quotes: quotes.checked,
+        });
+        output.value = encoded;
+
+        const markupChars = (text.match(/[&<>"']/g) ?? []).length;
+        // One escaped character becomes several, so count the references added.
+        const references = (encoded.match(/&(?:#x?[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);/g) ?? []).length;
+
+        stats.removeAttribute('hidden');
+        q('[data-stat-before]', root)!.textContent = `${text.length.toLocaleString()} chars`;
+        q('[data-stat-after]', root)!.textContent = `${encoded.length.toLocaleString()} chars`;
+        q('[data-stat-escaped]', root)!.textContent = references.toLocaleString();
+        q('[data-stat-risky]', root)!.textContent = markupChars.toLocaleString();
+
+        if (/&(?:#x?[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]{1,31});/.test(text)) {
+          setStatus(
+            root,
+            'This input already contains entity references, so escaping it again turns &amp; into &amp;amp; — the double-escaping that shows up as literal "&amp;amp;" on a page. Escape once, at output.',
+            'warn',
+          );
+        } else if (references === 0) {
+          setStatus(root, 'Nothing needed escaping — this text contains no markup characters.', 'ok');
+        } else {
+          clearStatus(root);
+        }
+        markUsed();
+      } catch (err) {
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    on(input, 'input', debounce(run, 150));
+    for (const control of [style, scope, quotes]) on(control, 'change', run);
+
+    wireSwap(root, '[data-primary-input]', '[data-output]', () => {
+      setStatus(
+        root,
+        'Fields swapped. To turn entities back into characters, open the HTML Entity Decoder.',
+        'warn',
+      );
+    });
+
+    wireStandardActions(root, { onChange: run });
+  });
+</script>

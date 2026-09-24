@@ -36,7 +36,11 @@ export class JwtError extends Error {
 }
 
 /** Decode base64url (RFC 4648 §5) into bytes, tolerating missing padding. */
-export function base64UrlToBytes(input: string, what = 'This segment'): Uint8Array {
+// The explicit `<ArrayBuffer>` argument matters: TypeScript 5.7 made the typed
+// arrays generic over their backing buffer, and the Web Crypto `BufferSource`
+// parameters reject the default `ArrayBufferLike` because it admits
+// SharedArrayBuffer. These helpers always allocate a fresh ArrayBuffer.
+export function base64UrlToBytes(input: string, what = 'This segment'): Uint8Array<ArrayBuffer> {
   const text = input.replace(/\s+/g, '').replace(/=+$/, '');
 
   for (let i = 0; i < text.length; i++) {
@@ -409,7 +413,7 @@ export function decodeJwt(token: string, now = Date.now()): DecodedJwt {
 
   const customClaims = Object.keys(payload).filter((k) => !(k in REGISTERED_CLAIMS));
 
-  let signatureBytes = new Uint8Array(0);
+  let signatureBytes: Uint8Array<ArrayBuffer> = new Uint8Array(0);
   if (parts.signatureSegment) {
     signatureBytes = base64UrlToBytes(parts.signatureSegment, 'The signature');
   }
@@ -486,7 +490,7 @@ export function pemToArrayBuffer(pem: string): ArrayBuffer {
   return buffer;
 }
 
-function base64ToBytes(input: string): Uint8Array {
+function base64ToBytes(input: string): Uint8Array<ArrayBuffer> {
   const text = input.replace(/\s+/g, '').replace(/=+$/, '');
   for (const ch of text) if (!(ch in B64_DECODE)) throw new Error('not base64');
   const out = new Uint8Array(Math.floor((text.length * 6) / 8));
@@ -506,7 +510,7 @@ function base64ToBytes(input: string): Uint8Array {
 
 export type SecretEncoding = 'utf-8' | 'base64' | 'base64url' | 'hex';
 
-function secretToBytes(secret: string, encoding: SecretEncoding): Uint8Array {
+function secretToBytes(secret: string, encoding: SecretEncoding): Uint8Array<ArrayBuffer> {
   switch (encoding) {
     case 'base64':
     case 'base64url':
@@ -600,7 +604,8 @@ async function importVerificationKey(alg: string, key: KeyInput): Promise<Crypto
     }
     const bytes = secretToBytes(key.value, key.encoding ?? 'utf-8');
     if (bytes.length === 0) throw new JwtError('The secret is empty.');
-    return subtle.importKey('raw', bytes, spec.importParams, false, ['verify']);
+    // Copy into a freshly allocated buffer so the value is a plain BufferSource.
+    return subtle.importKey('raw', new Uint8Array(bytes), spec.importParams, false, ['verify']);
   }
 
   if (key.kind === 'secret') {
@@ -701,7 +706,7 @@ export async function verifySignature(
 
   let verified = false;
   try {
-    verified = await getSubtle().verify(spec.verifyParams, cryptoKey, signature, data);
+    verified = await getSubtle().verify(spec.verifyParams, cryptoKey, new Uint8Array(signature), data);
   } catch (err) {
     throw new JwtError(
       `The signature could not be checked: ${err instanceof Error ? err.message : String(err)}. This usually means the key does not match the algorithm in the header.`,

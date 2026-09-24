@@ -1,0 +1,442 @@
+---
+/**
+ * Unicode Converter.
+ *
+ * Inspects text at every level — grapheme, code point, UTF-16 unit, UTF-8 byte
+ * — and converts between characters, escapes and numeric references.
+ * Logic lives in src/lib/unicode.ts.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_UNICODE, NORMALIZATION_NOTES } from '~/lib/unicode';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+const FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'] as const;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="unicode-converter" class="space-y-4">
+    {/* ── Direction ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-1 text-xs">
+        <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-direction="encode" aria-pressed="true">
+          Text → escapes
+        </button>
+        <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-direction="decode" aria-pressed="false">
+          Escapes → text
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2" data-format-wrap>
+        <label for="uni-format" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Format
+        </label>
+        <select id="uni-format" class="bc-select w-auto py-1.5 text-xs">
+          <option value="codepoint" selected>U+XXXX code points</option>
+          <option value="js">\u escapes (JSON, Java, C#)</option>
+          <option value="es6">\u&#123;…&#125; escapes (ES2015, Rust)</option>
+          <option value="python">\U escapes (Python, C)</option>
+          <option value="css">CSS escapes</option>
+          <option value="html-dec">HTML decimal (&amp;#233;)</option>
+          <option value="html-hex">HTML hexadecimal (&amp;#xE9;)</option>
+          <option value="percent">Percent-encoded UTF-8</option>
+          <option value="utf8">UTF-8 bytes (hex)</option>
+          <option value="utf16">UTF-16 code units (hex)</option>
+        </select>
+      </div>
+
+      <label class="bc-check-label" data-ascii-wrap>
+        <input type="checkbox" class="bc-checkbox" data-ascii-only checked />
+        Leave ASCII as-is
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_UNICODE}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="uni-input" class="bc-label">Text</label>
+      <textarea
+        id="uni-input"
+        class="bc-textarea min-h-28"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste text, emoji, or escape sequences…"
+        aria-describedby="uni-status"></textarea>
+    </div>
+
+    {/* ── Status ── */}
+    <div id="uni-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Stats: the four ways to count a string ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-graphemes>—</div>
+        <div class="bc-stat-label">Graphemes (what you see)</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-codepoints>—</div>
+        <div class="bc-stat-label">Code points</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-units>—</div>
+        <div class="bc-stat-label">UTF-16 units (.length)</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-bytes>—</div>
+        <div class="bc-stat-label">UTF-8 bytes</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+        <label for="uni-output" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Result
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+            <span data-label>Copy</span>
+          </button>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-swap>Swap fields</button>
+        </div>
+      </div>
+      <textarea
+        id="uni-output"
+        class="bc-textarea min-h-28 font-mono"
+        data-output
+        readonly
+        spellcheck="false"
+        aria-label="Converted result"></textarea>
+    </div>
+
+    {/* ── Normalisation ── */}
+    <div class="bc-card p-3">
+      <h3 class="mb-2 text-xs font-medium tracking-wide text-muted uppercase">Normalisation</h3>
+      <div class="bc-toolbar">
+        {
+          FORMS.map((form) => (
+            <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-normalize={form}>
+              {form}
+            </button>
+          ))
+        }
+        <span class="text-xs text-muted" data-normalize-result></span>
+      </div>
+      <p class="mt-2 text-xs text-muted" data-normalize-note>
+        {NORMALIZATION_NOTES.NFC}
+      </p>
+    </div>
+
+    {/* ── Character table ── */}
+    <div data-table-panel hidden>
+      <div class="mb-2 flex items-center justify-between">
+        <h3 class="text-xs font-medium tracking-wide text-muted uppercase">
+          Every code point
+        </h3>
+        <span class="text-xs text-muted" data-table-note></span>
+      </div>
+      <div class="bc-output max-h-96 p-0">
+        <table class="w-full text-left text-xs">
+          <thead class="sticky top-0 bg-surface-2 text-muted">
+            <tr>
+              <th scope="col" class="px-3 py-2 font-medium">Char</th>
+              <th scope="col" class="px-3 py-2 font-medium">Code point</th>
+              <th scope="col" class="px-3 py-2 font-medium">Name</th>
+              <th scope="col" class="px-3 py-2 font-medium">UTF-8</th>
+              <th scope="col" class="px-3 py-2 font-medium">Escape</th>
+            </tr>
+          </thead>
+          <tbody data-table-body></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      It takes text apart. Every code point is listed with its <code>U+</code> notation, its name,
+      its UTF-8 bytes and its escape sequence in the format you choose — and the same text is
+      counted four different ways, because "how long is this string" has four different answers.
+    </p>
+    <p>
+      It also runs in reverse, reconstructing characters from escapes, numeric references or
+      <code>U+</code> notation — mixed freely. Runs of percent-escapes are decoded together, so a
+      four-byte emoji comes back whole rather than as four pieces of mojibake.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Finding the invisible character that is breaking a comparison — a no-break space, a
+        zero-width joiner, or a byte order mark at the start of a file.
+      </li>
+      <li>
+        Working out why an emoji counts as 8 characters against a 280-character limit.
+      </li>
+      <li>
+        Diagnosing a name that "looks the same but does not match": one copy is composed, the other
+        decomposed.
+      </li>
+      <li>Producing ASCII-safe escapes for a config or properties file.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>A single family emoji, taken apart:</p>
+    <pre><code>1 grapheme
+5 code points   U+1F468 U+200D U+1F469 U+200D U+1F467
+8 UTF-16 units  (each emoji is a surrogate pair)
+18 UTF-8 bytes</code></pre>
+    <p>
+      The joiners are U+200D, zero-width joiner. Remove them and the same data renders as three
+      separate people.
+    </p>
+
+    <h2>Why the four counts differ, and which one your code uses</h2>
+    <p>
+      A <strong>grapheme</strong> is what a reader calls a character. A <strong>code point</strong>
+      is one Unicode scalar value. A <strong>UTF-16 code unit</strong> is what JavaScript's
+      <code>String.length</code>, Java's <code>length()</code> and C#'s <code>Length</code> all
+      return. A <strong>byte</strong> is what a database column limit and an HTTP header size
+      measure.
+    </p>
+    <p>
+      They diverge exactly where bugs appear. Slicing at a UTF-16 index can cut a surrogate pair in
+      half, producing a code unit that no longer encodes to valid UTF-8; a byte-counting
+      <code>VARCHAR(10)</code> holds only two emoji. Grapheme counting here uses
+      <code>Intl.Segmenter</code> and its UAX #29 rules, falling back where unavailable to an
+      approximation that handles combining marks, variation selectors, skin tones, joiners and
+      flags but over-splits Indic conjuncts.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Normalisation is not cosmetic. NFC composes é into one code point; NFD splits it into
+      <code>e</code> plus a combining acute. Both render identically and neither is equal to the
+      other under <code>===</code>, which is why usernames and filenames should be normalised —
+      almost always to NFC — before they are stored or compared.
+    </p>
+    <p>
+      The compatibility forms, NFKC and NFKD, go further and are lossy: they turn the ﬁ ligature
+      into <code>fi</code>, a superscript ² into <code>2</code>, and full-width Latin letters into
+      ordinary ones. That is useful for building a search key and wrong for anything you intend to
+      display again.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    wireStandardActions,
+    wireSwap,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import {
+    codePoints,
+    toEscapes,
+    fromEscapes,
+    textStats,
+    normalizationReport,
+    hasSegmenter,
+    utf8Bytes,
+    utf16Units,
+    NORMALIZATION_NOTES,
+    type EscapeStyle,
+    type NormalizationForm,
+  } from '~/lib/unicode';
+
+  /** Above this many code points the table is truncated to stay responsive. */
+  const TABLE_LIMIT = 300;
+
+  mount('unicode-converter', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const format = q<HTMLSelectElement>('#uni-format', root)!;
+    const asciiOnly = q<HTMLInputElement>('[data-ascii-only]', root)!;
+    const formatWrap = q('[data-format-wrap]', root)!;
+    const asciiWrap = q('[data-ascii-wrap]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const tablePanel = q('[data-table-panel]', root)!;
+    const tableBody = q('[data-table-body]', root)!;
+    const tableNote = q('[data-table-note]', root)!;
+    const normalizeNote = q('[data-normalize-note]', root)!;
+    const normalizeResult = q('[data-normalize-result]', root)!;
+
+    let direction: 'encode' | 'decode' = 'encode';
+
+    const cell = (text: string, className: string) => {
+      const td = document.createElement('td');
+      td.className = className;
+      td.textContent = text;
+      return td;
+    };
+
+    const hex = (value: number, width: number) =>
+      value.toString(16).toUpperCase().padStart(width, '0');
+
+    const renderTable = (text: string) => {
+      tableBody.textContent = '';
+      const points = codePoints(text);
+      if (points.length === 0) {
+        tablePanel.setAttribute('hidden', '');
+        return;
+      }
+      tablePanel.removeAttribute('hidden');
+
+      const shown = points.slice(0, TABLE_LIMIT);
+      tableNote.textContent =
+        points.length > TABLE_LIMIT
+          ? `showing the first ${TABLE_LIMIT} of ${points.length.toLocaleString()}`
+          : `${points.length.toLocaleString()} code point${points.length === 1 ? '' : 's'}`;
+
+      for (const info of shown) {
+        const tr = document.createElement('tr');
+        tr.className = 'border-t border-line';
+
+        const charCell = document.createElement('td');
+        charCell.className = 'px-3 py-1.5 text-base';
+        if (info.invisible || info.combining) {
+          charCell.textContent = info.combining ? `◌${info.char}` : '·';
+          charCell.classList.add('text-muted');
+        } else {
+          charCell.textContent = info.char;
+        }
+
+        tr.append(
+          charCell,
+          cell(info.notation, 'px-3 py-1.5 font-mono'),
+          cell(info.name, 'px-3 py-1.5 text-muted'),
+          cell(info.utf8.map((b) => hex(b, 2)).join(' '), 'px-3 py-1.5 font-mono text-muted'),
+          cell(info.escapeJs, 'px-3 py-1.5 font-mono text-accent'),
+        );
+        tableBody.appendChild(tr);
+      }
+    };
+
+    const convert = (text: string): string => {
+      const style = format.value;
+      if (style === 'utf8') {
+        return [...utf8Bytes(text)].map((b) => hex(b, 2)).join(' ');
+      }
+      if (style === 'utf16') {
+        return utf16Units(text).map((u) => hex(u, 4)).join(' ');
+      }
+      return toEscapes(text, style as EscapeStyle, { asciiOnly: asciiOnly.checked });
+    };
+
+    const run = () => {
+      const text = input.value;
+      if (!text) {
+        clearStatus(root);
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        tablePanel.setAttribute('hidden', '');
+        tableBody.textContent = '';
+        normalizeResult.textContent = '';
+        return;
+      }
+
+      try {
+        guardSize(text);
+
+        const source = direction === 'decode' ? fromEscapes(text) : text;
+        output.value = direction === 'decode' ? source : convert(text);
+
+        const s = textStats(source);
+        stats.removeAttribute('hidden');
+        q('[data-stat-graphemes]', root)!.textContent = s.graphemes.toLocaleString();
+        q('[data-stat-codepoints]', root)!.textContent = s.codePointCount.toLocaleString();
+        q('[data-stat-units]', root)!.textContent = s.codeUnits.toLocaleString();
+        q('[data-stat-bytes]', root)!.textContent = s.utf8Bytes.toLocaleString();
+
+        renderTable(source);
+
+        const notes: string[] = [];
+        if (s.hasInvisible) {
+          notes.push('This text contains invisible characters — they are marked with a dot in the table below.');
+        }
+        if (s.needsNfc) {
+          notes.push('It is not in NFC: some characters are decomposed, so they will not compare equal to their composed form.');
+        }
+        if (s.hasAstral && s.codeUnits !== s.codePointCount) {
+          notes.push(`String.length reports ${s.codeUnits} because ${s.codeUnits - s.codePointCount} character(s) need a surrogate pair.`);
+        }
+        if (!hasSegmenter()) {
+          notes.push('Intl.Segmenter is unavailable in this browser, so the grapheme count is an approximation.');
+        }
+
+        if (notes.length) setStatus(root, notes.join(' '), 'warn');
+        else clearStatus(root);
+
+        normalizeResult.textContent = '';
+        markUsed();
+      } catch (err) {
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    // Direction switch
+    for (const button of qa('[data-direction]', root)) {
+      on(button, 'click', () => {
+        direction = button.dataset.direction === 'decode' ? 'decode' : 'encode';
+        for (const other of qa('[data-direction]', root)) {
+          other.setAttribute('aria-pressed', String(other === button));
+        }
+        formatWrap.classList.toggle('hidden', direction === 'decode');
+        asciiWrap.classList.toggle('hidden', direction === 'decode');
+        run();
+      });
+    }
+
+    // Normalisation
+    for (const button of qa('[data-normalize]', root)) {
+      on(button, 'click', () => {
+        const form = button.dataset.normalize as NormalizationForm;
+        normalizeNote.textContent = NORMALIZATION_NOTES[form];
+
+        if (!input.value) {
+          normalizeResult.textContent = 'Nothing to normalise yet.';
+          return;
+        }
+
+        const report = normalizationReport(input.value, form);
+        input.value = report.output;
+        run();
+        normalizeResult.textContent = report.changed
+          ? `${form}: ${report.codePointsBefore} → ${report.codePointsAfter} code points, ${report.bytesBefore} → ${report.bytesAfter} bytes.`
+          : `${form}: no change — this text is already in that form.`;
+      });
+    }
+
+    on(input, 'input', debounce(run, 200));
+    on(format, 'change', run);
+    on(asciiOnly, 'change', run);
+
+    wireSwap(root, '[data-primary-input]', '[data-output]', run);
+
+    wireStandardActions(root, { onChange: run });
+  });
+</script>

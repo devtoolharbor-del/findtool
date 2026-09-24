@@ -1,0 +1,406 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_TITLE, SAMPLE_TITLE_LINES, SEPARATORS } from '~/lib/slug';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div
+    data-tool="slug-generator"
+    class="space-y-4"
+    data-sample-single={SAMPLE_TITLE}
+    data-sample-multi={SAMPLE_TITLE_LINES}
+  >
+    {/* ── Mode ── */}
+    <div class="bc-toolbar" role="group" aria-label="Input mode">
+      <button type="button" class="bc-btn bc-btn-primary bc-btn-sm" data-mode="single" aria-pressed="true">
+        One title
+      </button>
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-mode="multi" aria-pressed="false">
+        A list of titles
+      </button>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-load-example>Example</button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      </div>
+    </div>
+
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="sg-sep" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Separator
+        </label>
+        <select id="sg-sep" class="bc-select w-auto py-1.5 text-xs" data-separator>
+          {SEPARATORS.map((s) => <option value={s.value} selected={s.value === '-'}>{s.label}</option>)}
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label for="sg-max" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Max length
+        </label>
+        <input
+          id="sg-max"
+          type="number"
+          min="0"
+          max="500"
+          step="1"
+          value="0"
+          class="bc-input w-24 py-1.5 text-xs"
+          data-max-length
+        />
+        <span class="text-xs text-muted">0 = no limit</span>
+      </div>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-opt="lowercase" checked />
+        Lowercase
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-opt="transliterate" checked />
+        Transliterate
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-opt="expandSymbols" checked />
+        Expand &amp; @ %
+      </label>
+    </div>
+
+    {/* ── Single-title mode ── */}
+    <div data-pane="single" class="space-y-3">
+      <div>
+        <label for="sg-input" class="bc-label">Title</label>
+        <input
+          id="sg-input"
+          type="text"
+          class="bc-input"
+          data-primary-input
+          data-clear-target
+          spellcheck="false"
+          placeholder="Café Müller &amp; Søn — 50% Off"
+          aria-describedby="sg-status"
+        />
+      </div>
+
+      <div class="bc-panel p-4">
+        <div class="text-xs tracking-wide text-muted uppercase">Before</div>
+        <p class="mt-1 mb-3 text-sm break-words text-ink-soft" data-before>—</p>
+
+        <div class="text-xs tracking-wide text-muted uppercase">After</div>
+        <div class="mt-1 flex items-center gap-2">
+          <output
+            class="min-w-0 flex-1 rounded-md bg-surface-2 px-2.5 py-1.5 font-mono text-sm break-all text-ink"
+            data-slug
+            aria-label="Generated slug">—</output>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-slug>
+            <span data-label>Copy</span>
+          </button>
+        </div>
+
+        <p class="mt-2 font-mono text-xs break-all text-muted" data-preview-url></p>
+        <p class="mt-2 text-xs text-muted" data-changes></p>
+      </div>
+    </div>
+
+    {/* ── Multi-line mode ── */}
+    <div data-pane="multi" class="grid gap-3 lg:grid-cols-2" hidden>
+      <div>
+        <label for="sg-lines" class="bc-label">Titles, one per line</label>
+        <textarea
+          id="sg-lines"
+          class="bc-textarea min-h-56"
+          data-multi-input
+          data-clear-target
+          spellcheck="false"
+          placeholder="Paste a column of headings…"></textarea>
+      </div>
+      <div>
+        <div class="mb-1.5 flex items-center justify-between">
+          <span class="text-xs font-medium tracking-wide text-muted uppercase">Slugs</span>
+          <div class="flex gap-2">
+            <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-output>
+              <span data-label>Copy</span>
+            </button>
+            <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>Download</button>
+          </div>
+        </div>
+        <textarea
+          class="bc-textarea min-h-56"
+          data-output
+          readonly
+          spellcheck="false"
+          aria-label="Generated slugs"></textarea>
+      </div>
+    </div>
+
+    <div id="sg-status" data-status role="status" aria-live="polite" hidden></div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Turns a title into the part of a URL after the last slash: lowercase, ASCII,
+      hyphen-separated, free of anything needing percent-encoding. It updates as you type and
+      shows title and slug together, so you can see what each character became.
+    </p>
+    <p>
+      The list mode does the same for a whole column at once, which is what you want when you are
+      generating permalinks for two hundred imported posts rather than one new page.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Creating a permalink for a CMS post, a documentation page or a product listing.</li>
+      <li>
+        Migrating content into a static site generator, where every Markdown file needs a filename
+        derived from its title.
+      </li>
+      <li>Naming a Git branch or a Kubernetes resource, both of which reject most punctuation.</li>
+      <li>Building a stable anchor <code>id</code> for a heading.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>The title:</p>
+    <pre><code>{'Café Müller & Søn — 50% Off Naïve Piñata Crème Brûlée!'}</code></pre>
+    <p>becomes:</p>
+    <pre><code>cafe-mueller-and-son-50-percent-off-naive-pinata-creme-brulee</code></pre>
+    <p>
+      Four mechanisms did that: <code>ü</code> was transliterated to <code>ue</code>,
+      <code>&amp;</code> expanded to <code>and</code>, <code>é</code> and <code>ï</code> were folded
+      to bare letters, and punctuation became separators that were collapsed and trimmed.
+    </p>
+
+    <h2>Folding versus transliteration</h2>
+    <p>
+      Accented Latin letters are handled by Unicode normalisation, not a lookup table. Normalising
+      to NFD splits <code>é</code> into <code>e</code> plus a combining acute accent; deleting every
+      combining mark leaves <code>e</code>. One rule covers Latin-1, Central European and
+      Vietnamese, including stacked marks like the <code>ế</code> in <em>Tiếng Việt</em>.
+    </p>
+    <p>
+      Some letters cannot be folded that way, because their ASCII form is a different letter or
+      several: <code>ß</code>, <code>ø</code>, <code>ł</code>, <code>æ</code>, <code>þ</code> and
+      every Cyrillic character. Those come from an explicit table. German umlauts follow the German
+      convention — <code>ä</code> → <code>ae</code>, so <em>Müller</em> becomes
+      <code>mueller</code>, matching DIN 5007 variant 2 and what German sites publish. Cyrillic
+      follows the usual English romanisation, so <code>щ</code> is <code>shch</code> and
+      <code>ж</code> is <code>zh</code>.
+    </p>
+    <p>
+      Scripts with no entry — Chinese, Japanese, Arabic, Hebrew, Thai — cannot be transliterated by
+      any rule this small, so those characters are dropped and named. If the result comes back
+      empty, that is why.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Slugs are permanent in practice: changing one after publication breaks every inbound link
+      unless you add a redirect, so set the maximum length before publishing. Truncation happens at
+      a separator, never mid-word — a 40-character cap turns
+      <code>getting-started-with-static-site-generators</code> into
+      <code>getting-started-with-static-site</code>, not <code>…-generat</code>.
+    </p>
+    <p>
+      Length itself is not a ranking factor. Google has said repeatedly that words in a URL are a
+      very small signal; the argument for a short slug is that people paste URLs into chat. One
+      habit worth keeping is leaving dates out unless they are part of the identity — a slug
+      containing <code>2024</code> looks stale the following January.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    wireStandardActions,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { slugifyWithReport, slugifyLines, type SlugOptions } from '~/lib/slug';
+
+  mount('slug-generator', (root) => {
+    const single = q<HTMLInputElement>('[data-primary-input]', root)!;
+    const multi = q<HTMLTextAreaElement>('[data-multi-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const slugOut = q('[data-slug]', root)!;
+    const before = q('[data-before]', root)!;
+    const changes = q('[data-changes]', root)!;
+    const previewUrl = q('[data-preview-url]', root)!;
+    const separator = q<HTMLSelectElement>('[data-separator]', root)!;
+    const maxLength = q<HTMLInputElement>('[data-max-length]', root)!;
+
+    let mode: 'single' | 'multi' = 'single';
+
+    const checked = (name: string) => q<HTMLInputElement>(`[data-opt="${name}"]`, root)!.checked;
+
+    const options = (): SlugOptions => ({
+      separator: separator.value,
+      lowercase: checked('lowercase'),
+      transliterate: checked('transliterate'),
+      expandSymbols: checked('expandSymbols'),
+      maxLength: Math.max(0, Math.min(500, Number(maxLength.value) || 0)),
+    });
+
+    const runSingle = () => {
+      const text = single.value;
+
+      if (!text.trim()) {
+        clearStatus(root);
+        before.textContent = '—';
+        slugOut.textContent = '—';
+        previewUrl.textContent = '';
+        changes.textContent = '';
+        return;
+      }
+
+      try {
+        guardSize(text);
+      } catch (err) {
+        setStatus(root, messageFor(err), 'error');
+        return;
+      }
+
+      const report = slugifyWithReport(text, options());
+      before.textContent = text;
+      slugOut.textContent = report.slug || '—';
+      previewUrl.textContent = report.slug ? `https://example.com/blog/${report.slug}` : '';
+
+      const notes: string[] = [`${report.length} characters`];
+      if (report.transliterated.length) {
+        notes.push(`converted ${report.transliterated.slice(0, 8).join(' ')}`);
+      }
+      if (report.truncated) notes.push('truncated at a word boundary');
+      changes.textContent = notes.join(' · ');
+
+      if (report.empty) {
+        setStatus(
+          root,
+          report.dropped.length
+            ? `Nothing usable survived. These characters have no ASCII equivalent and were dropped: ` +
+              `${report.dropped.slice(0, 12).join(' ')}. Add a Latin word to the title, or write the slug by hand.`
+            : 'That title contains no letters or digits, so there is nothing to build a slug from.',
+          'error',
+        );
+      } else if (report.dropped.length) {
+        setStatus(
+          root,
+          `Dropped ${report.dropped.length} character${report.dropped.length === 1 ? '' : 's'} ` +
+            `with no ASCII equivalent: ${report.dropped.slice(0, 12).join(' ')}.`,
+          'warn',
+        );
+      } else {
+        clearStatus(root);
+      }
+
+      markUsed();
+    };
+
+    const runMulti = () => {
+      const text = multi.value;
+
+      if (!text.trim()) {
+        clearStatus(root);
+        output.value = '';
+        return;
+      }
+
+      try {
+        guardSize(text);
+      } catch (err) {
+        setStatus(root, messageFor(err), 'error');
+        return;
+      }
+
+      const slugs = slugifyLines(text, options());
+      output.value = slugs.join('\n');
+
+      const lines = slugs.filter((_, i) => text.split(/\r\n|\r|\n/)[i]?.trim());
+      const blanked = lines.filter((s) => s === '').length;
+      const duplicates = lines.length - new Set(lines.filter(Boolean)).size;
+
+      const messages: string[] = [];
+      if (blanked) {
+        messages.push(
+          `${blanked} title${blanked === 1 ? '' : 's'} produced an empty slug — no character had an ASCII equivalent.`,
+        );
+      }
+      if (duplicates) {
+        messages.push(
+          `${duplicates} slug${duplicates === 1 ? ' is a duplicate' : 's are duplicates'}. ` +
+            `URLs must be unique, so add a suffix before publishing.`,
+        );
+      }
+
+      if (messages.length) setStatus(root, messages.join(' '), 'warn');
+      else setStatus(root, `${lines.length.toLocaleString()} slugs generated, all unique.`, 'ok');
+
+      markUsed();
+    };
+
+    const run = () => (mode === 'single' ? runSingle() : runMulti());
+
+    // ── Mode switch ──
+    for (const btn of qa('[data-mode]', root)) {
+      on(btn, 'click', () => {
+        mode = btn.dataset.mode === 'multi' ? 'multi' : 'single';
+        for (const other of qa('[data-mode]', root)) {
+          const active = other === btn;
+          other.setAttribute('aria-pressed', String(active));
+          other.classList.toggle('bc-btn-primary', active);
+          other.classList.toggle('bc-btn-secondary', !active);
+        }
+        for (const pane of qa('[data-pane]', root)) {
+          pane.toggleAttribute('hidden', pane.dataset.pane !== mode);
+        }
+        clearStatus(root);
+        run();
+      });
+    }
+
+    on(single, 'input', debounce(run, 80));
+    on(multi, 'input', debounce(run, 150));
+    on(separator, 'change', run);
+    on(maxLength, 'input', debounce(run, 120));
+    for (const box of qa('[data-opt]', root)) on(box, 'change', run);
+
+    on(q('[data-copy-slug]', root), 'click', (e) => {
+      const value = slugOut.textContent ?? '';
+      if (!value || value === '—') return setStatus(root, 'Enter a title first.', 'warn');
+      void copyText(value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-copy-output]', root), 'click', (e) => {
+      if (!output.value) return setStatus(root, 'Paste some titles first.', 'warn');
+      void copyText(output.value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Paste some titles first.', 'warn');
+      downloadText('slugs.txt', output.value);
+    });
+
+    on(q('[data-load-example]', root), 'click', () => {
+      if (mode === 'single') single.value = root.dataset.sampleSingle ?? '';
+      else multi.value = root.dataset.sampleMulti ?? '';
+      run();
+    });
+
+    wireStandardActions(root, { onChange: run });
+    run();
+  });
+</script>

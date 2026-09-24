@@ -1,0 +1,342 @@
+---
+/**
+ * Cron Expression Generator.
+ *
+ * Build the expression from controls, then immediately check it against the
+ * only thing that matters: the next ten times it would actually fire.
+ * Parsing, describing and evaluating all live in src/lib/cron.ts.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { CRON_PRESETS } from '~/lib/cron';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+const FIELDS = [
+  { key: 'minute', label: 'Minute', hint: '0–59', value: '0' },
+  { key: 'hour', label: 'Hour', hint: '0–23', value: '9' },
+  { key: 'dayOfMonth', label: 'Day of month', hint: '1–31, or *', value: '*' },
+  { key: 'month', label: 'Month', hint: '1–12 or JAN–DEC', value: '*' },
+  { key: 'dayOfWeek', label: 'Day of week', hint: '0–7 or SUN–SAT', value: '1-5' },
+];
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="cron-expression-generator" class="space-y-4">
+    {/* ── Presets ── */}
+    <div>
+      <label for="cg-preset" class="bc-label">Start from a common schedule</label>
+      <select id="cg-preset" class="bc-select" data-preset>
+        <option value="">Choose a preset…</option>
+        {CRON_PRESETS.map((p) => <option value={p.expression}>{p.label} — {p.expression}</option>)}
+      </select>
+    </div>
+
+    {/* ── Per-field editing ── */}
+    <div class="grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      {
+        FIELDS.map((field) => (
+          <div>
+            <label for={`cg-${field.key}`} class="bc-label">
+              {field.label}
+            </label>
+            <input
+              id={`cg-${field.key}`}
+              type="text"
+              class="bc-input font-mono"
+              autocomplete="off"
+              spellcheck="false"
+              data-field={field.key}
+              data-clear-target
+              value={field.value}
+              aria-describedby={`cg-${field.key}-hint`}
+            />
+            <p id={`cg-${field.key}-hint`} class="mt-1 text-xs text-muted">
+              {field.hint}
+            </p>
+          </div>
+        ))
+      }
+    </div>
+
+    {/* ── Optional fields ── */}
+    <div class="bc-toolbar">
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-use-seconds />
+        Add a seconds field (Quartz, Spring, node-cron)
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-use-year />
+        Add a year field (Quartz)
+      </label>
+    </div>
+
+    <div class="grid gap-2 sm:grid-cols-2">
+      <div hidden data-seconds-wrap>
+        <label for="cg-second" class="bc-label">Second</label>
+        <input
+          id="cg-second"
+          type="text"
+          class="bc-input font-mono"
+          autocomplete="off"
+          spellcheck="false"
+          data-field="second"
+          value="0"
+        />
+      </div>
+      <div hidden data-year-wrap>
+        <label for="cg-year" class="bc-label">Year</label>
+        <input
+          id="cg-year"
+          type="text"
+          class="bc-input font-mono"
+          autocomplete="off"
+          spellcheck="false"
+          data-field="year"
+          value="*"
+        />
+      </div>
+    </div>
+
+    {/* ── Result ── */}
+    <div>
+      <div class="mb-1.5 flex items-center justify-between">
+        <span class="text-xs font-medium tracking-wide text-muted uppercase">Expression</span>
+        <button
+          type="button"
+          class="bc-btn bc-btn-secondary bc-btn-sm"
+          data-copy="[data-expression]"
+          aria-label="Copy the cron expression"
+        >
+          <span data-label>Copy</span>
+        </button>
+      </div>
+      <output class="bc-output block font-mono text-lg tracking-wide" data-expression>* * * * *</output>
+      <p class="mt-2 text-sm" data-description></p>
+    </div>
+
+    <div data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Next runs ── */}
+    <div class="bc-panel p-4">
+      <div class="bc-toolbar mb-3">
+        <span class="text-xs font-medium tracking-wide text-muted uppercase">Next 10 runs</span>
+        <div class="ml-auto flex items-center gap-2">
+          <label for="cg-zone" class="text-xs font-medium tracking-wide text-muted uppercase">
+            Server zone
+          </label>
+          <select id="cg-zone" class="bc-select w-auto py-1.5 text-xs" data-zone>
+            <option value="UTC">UTC</option>
+          </select>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-zone-home>
+            Use my zone
+          </button>
+        </div>
+      </div>
+      <ol class="space-y-1 font-mono text-[0.8125rem]" data-runs></ol>
+    </div>
+
+    <p class="text-xs text-muted">
+      Cron has no timezone of its own — it uses whatever zone the machine running it is set to.
+      Preview the schedule in that zone, not yours.
+    </p>
+
+    <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Cron's five fields are easy to write and hard to be sure about. Set each one, or start
+      from a schedule that already does roughly what you want, and the page shows the two things
+      that tell you whether the expression is right: a sentence describing it and the next ten
+      moments it would fire. If the tenth run is not where you expected, the expression is
+      wrong, whatever it looks like.
+    </p>
+    <p>
+      The optional seconds and year fields are for Quartz, Spring's <code>@Scheduled</code> and
+      node-cron. Leave them off for anything going into a real crontab, a Kubernetes
+      <code>CronJob</code> or a GitHub Actions <code>schedule</code>, none of which accept them.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Writing the schedule for a nightly backup, a cache warm or a report job.</li>
+      <li>
+        Spreading load: turning "every hour" into <code>17 * * * *</code> so a fleet of machines
+        does not all fire on the minute.
+      </li>
+      <li>
+        Producing the <code>spec.schedule</code> value for a Kubernetes CronJob and confirming
+        the cadence before applying it.
+      </li>
+      <li>Checking that a business-hours job really does skip the weekend.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>Quarter-hourly during office hours on weekdays:</p>
+    <pre><code>{`*/15 9-17 * * 1-5
+
+Every 15 minutes between 09:00 and 17:59, on Monday through Friday.
+That is 36 runs a day, 180 a week, and the last one is at 17:45.`}</code></pre>
+    <p>
+      Note that <code>9-17</code> includes hour 17 in full, so the schedule runs until 17:45,
+      not 17:00. For a last run at 17:00 exactly, add <code>0 17 * * 1-5</code> as a second
+      entry rather than trying to express it in one.
+    </p>
+
+    <h2>Writing each field</h2>
+    <p>
+      Every field takes the same four constructions, which combine freely with commas:
+      a single value (<code>5</code>), a range (<code>9-17</code>), a step
+      (<code>*/15</code>, or <code>9-17/2</code> for every second hour inside a range) and a list
+      (<code>1,15,30</code>). Month and day-of-week additionally accept three-letter names, so
+      <code>MON-FRI</code> and <code>1-5</code> are identical, as are <code>JAN</code> and
+      <code>1</code>.
+    </p>
+    <p>
+      Steps are the most misread. <code>*/20</code> in the minute field means minutes 0, 20 and
+      40 — it counts from the start of the range, not from the moment you install the job, so it
+      does not mean "every twenty minutes from now". A step larger than the field's range can
+      only ever match its first value, so this tool refuses it. Sunday is both <code>0</code>
+      and <code>7</code>; February 30th is accepted by the syntax and simply never fires, which
+      the tool warns about.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      A crontab entry inherits a minimal environment: typically <code>PATH=/usr/bin:/bin</code>,
+      no shell profile, and <code>HOME</code> from the passwd file. Commands that work in your
+      terminal frequently fail under cron for this reason alone, so use absolute paths. Percent
+      signs are special in a crontab — they become newlines fed to the command's standard input
+      unless escaped as <code>\%</code>, which catches out anyone using
+      <code>date +%Y-%m-%d</code> in a job. And output is not discarded: anything written to
+      stdout or stderr is mailed to the owner, or silently dropped if no mailer exists.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import { mount, q, qa, on, setStatus, clearStatus, messageFor, markUsed, wireCopyButtons } from '~/lib/toolkit';
+  import { buildCron, nextRunsDetailed, parseCron } from '~/lib/cron';
+  import { formatOffset, formatShort, listTimeZones, localTimeZone, zoneInfo } from '~/lib/datetime';
+
+  mount('cron-expression-generator', (root) => {
+    const expressionEl = q('[data-expression]', root)!;
+    const descriptionEl = q('[data-description]', root)!;
+    const runsEl = q('[data-runs]', root)!;
+    const zoneSelect = q<HTMLSelectElement>('[data-zone]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const useSeconds = q<HTMLInputElement>('[data-use-seconds]', root)!;
+    const useYear = q<HTMLInputElement>('[data-use-year]', root)!;
+
+    const home = localTimeZone();
+    zoneSelect.textContent = '';
+    for (const zone of listTimeZones()) {
+      const option = document.createElement('option');
+      option.value = zone;
+      option.textContent = zone;
+      zoneSelect.appendChild(option);
+    }
+    zoneSelect.value = 'UTC';
+
+    const field = (name: string): HTMLInputElement =>
+      q<HTMLInputElement>(`[data-field="${name}"]`, root)!;
+
+    const render = () => {
+      const expression = buildCron({
+        minute: field('minute').value,
+        hour: field('hour').value,
+        dayOfMonth: field('dayOfMonth').value,
+        month: field('month').value,
+        dayOfWeek: field('dayOfWeek').value,
+        second: useSeconds.checked ? field('second').value : undefined,
+        year: useYear.checked ? field('year').value : undefined,
+      });
+      expressionEl.textContent = expression;
+      runsEl.textContent = '';
+
+      try {
+        const parsed = parseCron(expression);
+        descriptionEl.textContent = parsed.description;
+
+        const zone = zoneSelect.value;
+        const runs = nextRunsDetailed(parsed, Date.now(), 10, { timeZone: zone });
+
+        if (runs.length === 0) {
+          const li = document.createElement('li');
+          li.className = 'text-muted';
+          li.textContent = 'This schedule never fires.';
+          runsEl.appendChild(li);
+        }
+
+        for (const run of runs) {
+          const li = document.createElement('li');
+          li.className = 'flex flex-wrap items-baseline gap-x-3';
+          const when = document.createElement('span');
+          when.textContent = formatShort(run.ms, zone);
+          const rel = document.createElement('span');
+          rel.className = 'text-xs text-muted';
+          const info = zoneInfo(run.ms, zone);
+          rel.textContent = `${formatOffset(info.offsetMinutes)}${info.dst ? ' DST' : ''}${
+            run.dstNote ? ' · clock repeats this hour' : ''
+          }`;
+          li.append(when, rel);
+          runsEl.appendChild(li);
+        }
+
+        mirror.value = `${expression}\n${parsed.description}\n${runs
+          .map((r) => formatShort(r.ms, zone))
+          .join('\n')}`;
+
+        const warnings = parsed.warnings.filter((w) => !w.startsWith('Six fields'));
+        if (warnings.length) setStatus(root, warnings.join(' '), 'warn');
+        else clearStatus(root);
+        markUsed();
+      } catch (err) {
+        descriptionEl.textContent = '';
+        mirror.value = '';
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    for (const input of qa('[data-field]', root)) on(input, 'input', render);
+    on(zoneSelect, 'change', render);
+
+    for (const toggle of [useSeconds, useYear]) {
+      on(toggle, 'change', () => {
+        q('[data-seconds-wrap]', root)!.toggleAttribute('hidden', !useSeconds.checked);
+        q('[data-year-wrap]', root)!.toggleAttribute('hidden', !useYear.checked);
+        render();
+      });
+    }
+
+    on(q('[data-preset]', root), 'change', (e) => {
+      const value = (e.currentTarget as HTMLSelectElement).value;
+      if (!value) return;
+      const parts = value.split(' ');
+      useSeconds.checked = false;
+      useYear.checked = false;
+      q('[data-seconds-wrap]', root)!.setAttribute('hidden', '');
+      q('[data-year-wrap]', root)!.setAttribute('hidden', '');
+      field('minute').value = parts[0]!;
+      field('hour').value = parts[1]!;
+      field('dayOfMonth').value = parts[2]!;
+      field('month').value = parts[3]!;
+      field('dayOfWeek').value = parts[4]!;
+      render();
+    });
+
+    on(q('[data-zone-home]', root), 'click', () => {
+      zoneSelect.value = home;
+      render();
+    });
+
+    wireCopyButtons(root);
+    render();
+  });
+</script>

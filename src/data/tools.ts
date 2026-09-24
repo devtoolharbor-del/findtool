@@ -25,7 +25,7 @@ export const TOOLS: Tool[] = [
       'Pretty-print, validate and minify JSON with syntax highlighting and precise error locations.',
     seoTitle: 'JSON Formatter — Format, Validate and Beautify JSON Online',
     seoDescription:
-      'Format messy JSON into readable, indented output with syntax highlighting. Validate structure, jump to the exact line of a syntax error, minify, and download — all in your browser.',
+      'Format messy JSON into readable, indented output with syntax highlighting. Jump to the exact line of any syntax error, then minify, copy or download.',
     keywords: ['json formatter', 'json beautifier', 'pretty print json', 'format json', 'json indent'],
     aliases: ['beautify', 'pretty', 'prettify', 'indent', 'json pretty print'],
     related: ['json-validator', 'json-minifier', 'json-viewer', 'json-to-yaml', 'json-to-csv'],
@@ -108,7 +108,7 @@ export const TOOLS: Tool[] = [
     category: 'json',
     description:
       'Convert a JSON array into CSV, flattening nested objects into dotted column headers.',
-    seoTitle: 'JSON to CSV Converter — Turn JSON Arrays into Spreadsheet CSV',
+    seoTitle: 'JSON to CSV Converter — Export JSON as CSV',
     seoDescription:
       'Convert an array of JSON objects into CSV ready for Excel, Google Sheets or a database import. Nested objects flatten to dotted columns and the delimiter is configurable.',
     keywords: ['json to csv', 'convert json to csv', 'json array to spreadsheet', 'export json'],
@@ -273,9 +273,9 @@ export const TOOLS: Tool[] = [
     name: 'HTML Entity Encoder',
     category: 'encoding',
     description: 'Escape HTML special characters to prevent markup injection and rendering bugs.',
-    seoTitle: 'HTML Entity Encoder — Escape HTML Special Characters Online',
+    seoTitle: 'HTML Entity Encoder — Escape HTML Characters',
     seoDescription:
-      'Convert characters such as &lt;, &gt;, &amp; and quotes into HTML entities so user content renders as text instead of markup. Named or numeric entities, your choice.',
+      'Convert &lt;, &gt;, &amp; and quotes into HTML entities so user content renders as text, not markup. Choose named or numeric entities.',
     keywords: ['html entity encoder', 'escape html', 'html encode', 'htmlspecialchars', 'xss escaping'],
     aliases: ['escape', 'entities', 'htmlspecialchars', 'sanitize', 'ampersand'],
     related: ['html-entity-decoder', 'url-encoder', 'unicode-converter', 'xml-formatter'],
@@ -291,7 +291,7 @@ export const TOOLS: Tool[] = [
     description: 'Convert HTML entities back into the characters they represent.',
     seoTitle: 'HTML Entity Decoder — Decode HTML Entities to Text Online',
     seoDescription:
-      'Decode named entities like &amp;amp; and numeric references like &amp;#8212; back into plain characters. Useful for cleaning up scraped content and double-escaped output.',
+      'Decode named entities like &amp;amp; and numeric references like &amp;#8212; back into plain characters. Ideal for scraped or double-escaped content.',
     keywords: ['html entity decoder', 'decode html entities', 'html decode', 'unescape html'],
     aliases: ['unescape', 'entities', 'decode', 'nbsp', 'scraped'],
     related: ['html-entity-encoder', 'url-decoder', 'unicode-converter', 'remove-extra-spaces'],
@@ -322,7 +322,7 @@ export const TOOLS: Tool[] = [
     name: 'Hex to Text',
     category: 'encoding',
     description: 'Decode hexadecimal byte sequences into readable UTF-8 text.',
-    seoTitle: 'Hex to Text Converter — Decode Hexadecimal to String Online',
+    seoTitle: 'Hex to Text — Decode Hexadecimal to String',
     seoDescription:
       'Convert hexadecimal into text. Accepts spaced, comma-separated, 0x-prefixed and continuous formats, and decodes the resulting bytes as UTF-8 or Latin-1.',
     keywords: ['hex to text', 'hex decoder', 'hexadecimal to string', 'hex to ascii', 'decode hex'],
@@ -338,7 +338,7 @@ export const TOOLS: Tool[] = [
     name: 'Text to Hex',
     category: 'encoding',
     description: 'Encode text as hexadecimal bytes in the format your tooling expects.',
-    seoTitle: 'Text to Hex Converter — Encode Strings as Hexadecimal Online',
+    seoTitle: 'Text to Hex — Encode Text as Hexadecimal',
     seoDescription:
       'Convert text into hexadecimal UTF-8 bytes with configurable separators, casing and 0x prefixes. Also shows binary and decimal representations of each byte.',
     keywords: ['text to hex', 'hex encoder', 'string to hexadecimal', 'ascii to hex', 'encode hex'],
@@ -403,7 +403,7 @@ export const TOOLS: Tool[] = [
     name: 'Random String Generator',
     category: 'generators',
     description: 'Build random strings from exactly the character set and length you specify.',
-    seoTitle: 'Random String Generator — Custom Character Sets and Lengths',
+    seoTitle: 'Random String Generator — Custom Alphabets',
     seoDescription:
       'Generate random strings using any combination of letters, digits, symbols or a custom alphabet. Optionally exclude look-alike characters and generate many at once.',
     keywords: ['random string generator', 'random text', 'api key generator', 'token generator'],
@@ -420,7 +420,7 @@ export const TOOLS: Tool[] = [
     category: 'generators',
     description:
       'Create strong random passwords or passphrases, with a real entropy estimate in bits.',
-    seoTitle: 'Password Generator — Strong Random Passwords and Passphrases',
+    seoTitle: 'Password Generator — Strong Random Passwords',
     seoDescription:
       'Generate strong passwords using the browser’s cryptographic random source, or word-based passphrases that are easier to type. Shows true entropy in bits, never transmitted.',
     keywords: ['password generator', 'strong password', 'random password', 'passphrase generator'],
@@ -439,7 +439,7 @@ export const TOOLS: Tool[] = [
     name: 'Lorem Ipsum Generator',
     category: 'generators',
     description: 'Generate placeholder paragraphs, sentences, words or list items for mockups.',
-    seoTitle: 'Lorem Ipsum Generator — Placeholder Text for Designs and Mockups',
+    seoTitle: 'Lorem Ipsum Generator — Placeholder Text',
     seoDescription:
       'Generate classic Lorem Ipsum or modern filler text by paragraph, sentence, word or list item. Output as plain text or ready-to-paste HTML with wrapping tags.',
     keywords: ['lorem ipsum generator', 'placeholder text', 'dummy text', 'filler text', 'mockup text'],
@@ -681,7 +681,7 @@ export const TOOLS: Tool[] = [
     name: 'Cron Expression Parser',
     category: 'time',
     description: 'Explain any cron expression in plain English and list its upcoming run times.',
-    seoTitle: 'Cron Expression Parser — Explain Crontab Syntax in Plain English',
+    seoTitle: 'Cron Expression Parser — Explain Any Crontab',
     seoDescription:
       'Paste a cron expression to get a readable description, a field-by-field breakdown and the next ten scheduled runs. Catches the classic day-of-month/day-of-week OR trap.',
     keywords: ['cron parser', 'explain cron', 'crontab decoder', 'cron expression meaning'],
@@ -723,7 +723,7 @@ export const TOOLS: Tool[] = [
     category: 'text',
     description:
       'Count characters, bytes and graphemes against platform limits like Twitter and SMS.',
-    seoTitle: 'Character Counter — Count Characters, Bytes and Emoji Correctly',
+    seoTitle: 'Character Counter — Characters, Bytes, Emoji',
     seoDescription:
       'Count characters with and without spaces, UTF-8 byte length, and true grapheme count so emoji count as one. Shows remaining budget for common platform limits.',
     keywords: ['character counter', 'count characters', 'string length', 'byte counter', 'sms counter'],
@@ -740,7 +740,7 @@ export const TOOLS: Tool[] = [
     category: 'text',
     description:
       'Convert between camelCase, snake_case, kebab-case, Title Case and eight more styles.',
-    seoTitle: 'Text Case Converter — camelCase, snake_case, kebab-case and More',
+    seoTitle: 'Text Case Converter — camelCase, snake_case',
     seoDescription:
       'Convert text between camelCase, PascalCase, snake_case, SCREAMING_SNAKE, kebab-case, Title Case, sentence case and more. Handles acronyms and existing delimiters sensibly.',
     keywords: ['case converter', 'camelcase converter', 'snake case', 'kebab case', 'title case'],
@@ -773,7 +773,7 @@ export const TOOLS: Tool[] = [
     name: 'Sort Lines',
     category: 'text',
     description: 'Sort lines alphabetically, numerically, by length, or shuffle them randomly.',
-    seoTitle: 'Sort Lines — Alphabetical, Numeric and Natural Line Sorting',
+    seoTitle: 'Sort Lines — Alphabetical, Numeric, Natural',
     seoDescription:
       'Sort a list of lines alphabetically, numerically, by length or in natural order where file2 comes before file10. Reverse, shuffle, and ignore case or leading whitespace.',
     keywords: ['sort lines', 'alphabetize list', 'sort text', 'natural sort', 'shuffle lines'],
@@ -789,7 +789,7 @@ export const TOOLS: Tool[] = [
     name: 'Text Diff',
     category: 'text',
     description: 'Compare two blocks of text and highlight every added, removed and changed line.',
-    seoTitle: 'Text Diff Checker — Compare Two Texts and Highlight Changes',
+    seoTitle: 'Text Diff — Compare Two Texts, See Changes',
     seoDescription:
       'Compare two blocks of text side by side or unified, with added, removed and modified lines highlighted. Optionally ignore whitespace and case when comparing.',
     keywords: ['text diff', 'compare text', 'diff checker', 'file comparison', 'find differences'],
@@ -841,7 +841,7 @@ export const TOOLS: Tool[] = [
     category: 'web',
     description:
       'Test regular expressions with highlighted matches, capture groups and a safety timeout.',
-    seoTitle: 'Regex Tester — Test Regular Expressions with Live Highlighting',
+    seoTitle: 'Regex Tester — Test Regular Expressions Live',
     seoDescription:
       'Test JavaScript regular expressions against sample text with live match highlighting, numbered and named capture groups, match counts, and a replace preview.',
     keywords: ['regex tester', 'regular expression tester', 'regex online', 'test regex', 'regex101'],

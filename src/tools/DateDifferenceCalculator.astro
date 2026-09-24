@@ -136,11 +136,9 @@ const TOTALS = [
       Give it two moments and it measures the gap twice, because there are two honest answers.
       The calendar answer — "2 years, 4 months and 9 days" — is how people talk about age,
       tenure and contract length. The total answer — "856 days" or "20,544 hours" — is what you
-      need when the unit has to stay constant, as in billing, SLA windows and retention policies.
-    </p>
-    <p>
-      Both are computed from the same pair of instants, so they never disagree; they simply
-      describe the same span with different rulers.
+      need when the unit has to stay constant, as in billing, SLA windows and retention
+      policies. Both come from the same pair of instants, so they never disagree; they describe
+      the same span with different rulers.
     </p>
 
     <h2>Common uses</h2>
@@ -155,7 +153,6 @@ const TOTALS = [
         Converting a retention rule expressed in months into the day count a cron job or a
         database <code>DELETE</code> actually needs.
       </li>
-      <li>Reconciling two log entries that are hours apart and establishing exactly how far.</li>
     </ul>
 
     <h2>A short example</h2>
@@ -173,28 +170,25 @@ Business   22 business days, 8 weekend days`}</code></pre>
     <p>
       A month has 28, 29, 30 or 31 days, so "one month" is only defined relative to a starting
       date. Every serious date library resolves this the same way, and so does this tool: walk
-      whole months forward from the start date, clamping the day-of-month when the target month
-      is shorter, then measure whatever is left in exact days, hours, minutes and seconds. That
-      is why the calendar breakdown never shows a number of days larger than the shortest month
-      involved, and why "whole months" in the totals grid can differ from
-      <code>days ÷ 30</code>.
+      whole months forward from the start, clamping the day-of-month when the target month is
+      shorter, then measure whatever is left in exact days, hours, minutes and seconds. That is
+      why "whole months" in the totals grid can differ from <code>days ÷ 30</code>.
     </p>
     <p>
       Business days are counted on the half-open interval: the start day counts and the end day
       does not, which is what makes Monday to Tuesday a single business day. Tick "count the end
       day as well" for the payroll convention, where Monday to Friday is five. Public holidays
-      are not deducted — they differ by country, region and year, and guessing at them would be
-      worse than leaving the number honest.
+      are not deducted — they differ by country, region and year, and guessing would be worse
+      than leaving the number honest.
     </p>
 
     <h2>Worth knowing</h2>
     <p>
       Both inputs are read as plain wall-clock readings in the same zone, so daylight saving
       never adds or removes an hour from the result. That is almost always what you want: if a
-      meeting moves from 09:00 on 1 March to 09:00 on 1 April, the calendar answer should be one
-      month exactly, not "one month minus an hour". If you genuinely need the elapsed physical
-      time across a DST boundary in a specific zone, convert both ends to UTC first with the
-      timezone converter and compare those.
+      meeting moves from 09:00 on 1 March to 09:00 on 1 April, the answer should be one month
+      exactly, not "one month minus an hour". If you need the elapsed physical time across a DST
+      boundary, convert both ends to UTC first with the timezone converter and compare those.
     </p>
   </Fragment>
 </ToolLayout>

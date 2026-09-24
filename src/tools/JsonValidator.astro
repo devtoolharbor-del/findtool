@@ -166,10 +166,9 @@ both require double quotes. (line 3, column 13)
     <ul>
       <li>
         <strong>Duplicate names.</strong> Section 4 says object names "SHOULD be unique" and calls
-        behaviour with duplicates unpredictable. JavaScript keeps the last one, Python's
-        <code>json</code> module keeps the last one, Go's <code>encoding/json</code> keeps the last
-        one for maps but the first for some struct paths. That is a data-loss bug waiting to
-        happen, which is why it is reported here as a warning rather than ignored.
+        the behaviour with duplicates unpredictable. JavaScript and Python both keep the last
+        occurrence; other parsers differ. That is a data-loss bug waiting to happen, which is why
+        it is reported here rather than ignored.
       </li>
       <li>
         <strong>Top-level scalars.</strong> Since RFC 7159 a bare <code>42</code>,

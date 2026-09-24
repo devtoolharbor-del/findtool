@@ -194,12 +194,12 @@ const ROWS = [
       Paste a date in almost any shape — an ISO string, an email header date, a bare epoch
       number, something a database printed — and this page tells you which instant it names and
       rewrites it in every format you are likely to need. It also works the other way: set the
-      components, choose an offset, and get a string that a strict RFC 3339 parser will accept.
+      components, choose an offset, and get a string a strict RFC 3339 parser will accept.
     </p>
     <p>
-      Most importantly, it never silently guesses about the offset. If your input has no
-      <code>Z</code> and no <code>+hh:mm</code>, the page says so and shows you which zone it
-      assumed, because that single decision is what moves a date by up to 26 hours.
+      It never silently guesses about the offset. If your input has no <code>Z</code> and no
+      <code>+hh:mm</code>, the page says so and shows which zone it assumed, because that one
+      decision is what moves a date by up to 26 hours.
     </p>
 
     <h2>Common uses</h2>
@@ -209,9 +209,7 @@ const ROWS = [
         Checking whether a string is genuinely RFC 3339 before sending it to a strict parser such
         as Go's <code>time.RFC3339</code> or a JSON Schema <code>format: date-time</code>.
       </li>
-      <li>Converting an email <code>Date:</code> header into something sortable.</li>
       <li>Working out which ISO week a date falls in for a reporting query.</li>
-      <li>Writing a literal date into a test, a seed file or a YAML manifest.</li>
     </ul>
 
     <h2>A short example</h2>
@@ -228,36 +226,30 @@ Unix seconds     1700000000`}</code></pre>
     <p>
       <code>Z</code> is short for "Zulu", the military name for the zero meridian. In
       <code>2026-09-24T14:30:05Z</code> it means the offset from UTC is zero. Writing
-      <code>+00:00</code> instead names the same instant, so the two are interchangeable for
-      arithmetic — but RFC 3339 §4.3 draws a distinction of intent: <code>-00:00</code> is
-      reserved to mean "this is UTC, and the local offset where the event happened is unknown",
-      whereas <code>+00:00</code> asserts that the local offset genuinely is zero. Most software
-      ignores the nuance; some log pipelines do not.
+      <code>+00:00</code> names the same instant, so the two are interchangeable for arithmetic
+      — but RFC 3339 §4.3 draws a distinction of intent: <code>-00:00</code> is reserved for
+      "this is UTC, and the local offset is unknown", whereas <code>+00:00</code> asserts the
+      local offset genuinely is zero. A real offset such as <code>+02:00</code> carries more
+      still: it pins the instant <em>and</em> records what the clock said locally, which is why
+      it beats <code>12:30:05Z</code> in an audit trail.
     </p>
     <p>
-      A real offset such as <code>+02:00</code> carries strictly more information. It pins the
-      instant <em>and</em> records what the clock said locally, which is why
-      <code>2026-09-24T14:30:05+02:00</code> is more useful in an audit trail than the same
-      moment rewritten as <code>12:30:05Z</code>.
-    </p>
-    <p>
-      RFC 3339 is a deliberately narrow profile of ISO 8601 designed for the internet. It
-      requires a full date and time, requires an offset, and forbids most of ISO 8601's
-      flexibility — no week dates, no ordinal dates, no omitted fields, no
-      <code>20260924T143005</code> basic format. Practically everything RFC 3339 accepts is valid
-      ISO 8601; a great deal of valid ISO 8601 is not valid RFC 3339. RFC 3339 does permit a
-      space in place of <code>T</code> by explicit agreement (§5.6); ISO 8601 does not.
+      RFC 3339 is a deliberately narrow profile of ISO 8601 for the internet. It requires a full
+      date and time, requires an offset, and forbids most of ISO 8601's flexibility — no week
+      dates, no ordinal dates, no omitted fields, no <code>20260924T143005</code> basic format.
+      Practically everything RFC 3339 accepts is valid ISO 8601; a great deal of valid ISO 8601
+      is not valid RFC 3339. RFC 3339 does permit a space in place of <code>T</code> by explicit
+      agreement (§5.6); ISO 8601 does not.
     </p>
 
     <h2>Worth knowing</h2>
     <p>
-      Offsets are not timezones. <code>+02:00</code> tells you the clock was two hours ahead of
-      UTC at that moment; it does not tell you whether that was Berlin in summer or Cairo in
-      winter, and it cannot tell you what the offset will be next March. If you need to schedule
-      something in the future, store the IANA zone name — <code>Europe/Berlin</code> — alongside
-      the local time, because governments change DST rules with only weeks of notice. An offset
-      is the right thing to record for an event that has already happened; a zone name is the
-      right thing to record for one that has not.
+      Offsets are not timezones. <code>+02:00</code> says the clock was two hours ahead of UTC at
+      that moment; it does not say whether that was Berlin in summer or Cairo in winter, and it
+      cannot say what the offset will be next March. For anything scheduled in the future, store
+      the IANA zone name — <code>Europe/Berlin</code> — alongside the local time, because
+      governments change DST rules with weeks of notice. An offset is right for an event that has
+      already happened; a zone name is right for one that has not.
     </p>
   </Fragment>
 </ToolLayout>
@@ -271,6 +263,7 @@ Unix seconds     1700000000`}</code></pre>
     setStatus,
     clearStatus,
     messageFor,
+    guardSize,
     markUsed,
     wireStandardActions,
   } from '~/lib/toolkit';
@@ -315,6 +308,7 @@ Unix seconds     1700000000`}</code></pre>
       }
 
       try {
+        guardSize(text);
         const target = naiveZone.value === 'local' ? zone : 'UTC';
         const parsed = parseDateTime(text, target);
         const ms = parsed.ms;

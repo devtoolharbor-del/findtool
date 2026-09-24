@@ -200,7 +200,7 @@ function describeChar(ch: string): string {
 }
 
 /** Decode to raw bytes. Throws a `Base64Error` written for a user. */
-export function decodeToBytes(input: string): Uint8Array {
+export function decodeToBytes(input: string): Uint8Array<ArrayBuffer> {
   const check = validateBase64(input);
   if (!check.valid) throw new Base64Error(check.reason ?? 'This is not valid Base64.', check.position);
 

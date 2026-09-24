@@ -1,0 +1,318 @@
+---
+/**
+ * User Agent Parser.
+ *
+ * The dominant search intent here is "what is my user agent", so the button
+ * that fills the field from navigator.userAgent is the primary action rather
+ * than a convenience. Everything else works on a pasted string.
+ *
+ * Parsing lives in src/lib/useragent.ts and is unit-tested against real strings.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_USER_AGENT, SAMPLE_USER_AGENTS } from '~/lib/useragent';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+const rows = [
+  { key: 'browser', label: 'Browser' },
+  { key: 'engine', label: 'Rendering engine' },
+  { key: 'os', label: 'Operating system' },
+  { key: 'device', label: 'Device type' },
+  { key: 'model', label: 'Device model' },
+  { key: 'bot', label: 'Automated client' },
+];
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="user-agent-parser" class="space-y-4">
+    {/* ── The headline action ── */}
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-use-mine>
+        Use my browser's user agent
+      </button>
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_USER_AGENT}>
+        Example
+      </button>
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm ml-auto" data-copy="[data-primary-input]">
+        <span data-label>Copy string</span>
+      </button>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="ua-input" class="bc-label">User agent string</label>
+      <textarea
+        id="ua-input"
+        class="bc-textarea min-h-24"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Mozilla/5.0 (…) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/… Safari/537.36"
+        aria-describedby="ua-status"></textarea>
+    </div>
+
+    <div id="ua-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Summary ── */}
+    <div class="bc-panel p-3" data-summary-panel hidden>
+      <p class="text-base font-medium" data-summary></p>
+    </div>
+
+    {/* ── Breakdown ── */}
+    <div data-result hidden>
+      <div class="mb-1.5 flex items-center justify-between">
+        <span class="text-xs font-medium tracking-wide text-muted uppercase">Breakdown</span>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+          <span data-label>Copy result</span>
+        </button>
+      </div>
+
+      <table class="w-full border-collapse text-sm">
+        <tbody>
+          {
+            rows.map((row) => (
+              <tr class="border-b border-line last:border-b-0" data-row={row.key} hidden>
+                <th scope="row" class="w-44 py-2 pr-3 text-left align-top font-medium text-muted">
+                  {row.label}
+                </th>
+                <td class="py-2 align-top break-all" data-value={row.key} />
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+
+      <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1"></textarea>
+    </div>
+
+    {/* ── Where the string lies ── */}
+    <div data-notes-panel hidden>
+      <span class="bc-label">What this string does not tell you</span>
+      <ul class="space-y-1.5 text-sm text-muted" data-notes></ul>
+    </div>
+
+    {/* ── Other strings to try ── */}
+    <div>
+      <span class="bc-label">Try a known string</span>
+      <div class="bc-toolbar">
+        {
+          SAMPLE_USER_AGENTS.map((sample) => (
+            <button
+              type="button"
+              class="bc-btn bc-btn-secondary bc-btn-sm"
+              data-sample={sample.ua}
+            >
+              {sample.label}
+            </button>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Paste a <code>User-Agent</code> header — or press the button to fill in your own — and this
+      page splits it into browser, rendering engine, operating system, device type and, where the
+      string admits it, the crawler behind it. Parsing happens in this tab.
+    </p>
+    <p>
+      Underneath the table is a list of the specific ways the string you pasted is misleading —
+      the reason this tool exists, since almost every field in a modern UA string is either
+      inherited from a browser that no longer exists or deliberately frozen.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Answering “what is my user agent” before pasting it into a bug report.</li>
+      <li>Reading an access log entry and working out whether a spike was real traffic or a
+        crawler.</li>
+      <li>Checking what an in-app WebView reports, which is rarely what the app's users think they
+        are running.</li>
+      <li>Confirming that a device-detection rule does what you think — particularly the iPad case
+        below, which breaks most rules written before 2019.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <pre><code>Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
+(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36</code></pre>
+    <p>
+      Four of the six product tokens here are fiction: not Mozilla, not KHTML, not “like Gecko”,
+      certainly not Safari. The only load-bearing token is <code>Chrome/128.0.0.0</code>, and even
+      that has had its last three numbers zeroed. Windows NT 10.0 covers both Windows 10 and 11.
+    </p>
+
+    <h2>Why every browser claims to be every other browser</h2>
+    <p>
+      In 1993 Mosaic could not render frames and Netscape could. Servers began checking for the
+      token <code>Mozilla</code> before sending the good version of a page, so Internet Explorer
+      started sending <code>Mozilla/4.0 (compatible; MSIE …)</code> to get it too. Every browser
+      since has inherited the pile: Safari added <code>AppleWebKit</code> and <code
+        >like Gecko</code
+      >; Chrome added <code>Safari/537.36</code> so WebKit sniffing would keep working; Edge added
+      <code>Edg/</code> after <code>Chrome/</code> so that badly written checks would still see
+      Chrome. This is why a parser must test Edge before Chrome and Chrome before Safari — the
+      reverse order reports every browser on earth as Safari.
+    </p>
+    <p>
+      The sharpest edge today is the iPad. Since iPadOS 13, Safari on an iPad sends a string
+      identical to a Mac's, down to <code>Macintosh; Intel Mac OS X 10_15_7</code>. The only
+      surviving difference is a <code>Mobile/15E148</code> token that desktop Safari never sends,
+      which is what this parser keys off.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      User-Agent Client Hints are the replacement. Chromium browsers now send
+      <code>Sec-CH-UA</code>, <code>Sec-CH-UA-Mobile</code> and <code>Sec-CH-UA-Platform</code> on
+      every request, with high-entropy values such as the full platform version available only via
+      <code>Accept-CH</code>. Firefox and Safari do not implement them. Either way the durable
+      advice is unchanged: detect features with <code>@supports</code> and capability checks, use
+      responsive layout for size, and reserve UA parsing for analytics and bug reports, where being
+      wrong about a few per cent of traffic is survivable. Anyone can send any string, so a UA is a
+      claim, never a fact.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    wireStandardActions,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { describeUserAgent, parseUserAgent } from '~/lib/useragent';
+  import type { UserAgentInfo } from '~/lib/useragent';
+
+  mount('user-agent-parser', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const result = q('[data-result]', root)!;
+    const summaryPanel = q('[data-summary-panel]', root)!;
+    const summary = q('[data-summary]', root)!;
+    const notesPanel = q('[data-notes-panel]', root)!;
+    const notes = q('[data-notes]', root)!;
+    const mirror = q<HTMLTextAreaElement>('[data-output]', root)!;
+
+    const setRow = (key: string, value: string | null) => {
+      const row = q(`[data-row="${key}"]`, root)!;
+      const cell = q(`[data-value="${key}"]`, root)!;
+      if (!value) {
+        row.setAttribute('hidden', '');
+        cell.textContent = '';
+        return;
+      }
+      row.removeAttribute('hidden');
+      cell.textContent = value;
+    };
+
+    const nameVersion = (nv: { name: string; version: string | null }) =>
+      nv.name === 'Unknown' ? null : nv.version ? `${nv.name} ${nv.version}` : nv.name;
+
+    const render = (info: UserAgentInfo) => {
+      summaryPanel.removeAttribute('hidden');
+      summary.textContent = describeUserAgent(info);
+      result.removeAttribute('hidden');
+
+      setRow('browser', nameVersion(info.browser));
+      setRow('engine', nameVersion(info.engine));
+      setRow('os', nameVersion(info.os));
+      setRow('device', info.device.type === 'unknown' ? null : info.device.type);
+      setRow(
+        'model',
+        info.device.model
+          ? info.device.vendor
+            ? `${info.device.vendor} ${info.device.model}`
+            : info.device.model
+          : null,
+      );
+      setRow('bot', info.bot.isBot ? `${info.bot.name} (${info.bot.kind})` : null);
+
+      notes.textContent = '';
+      if (info.notes.length > 0) {
+        notesPanel.removeAttribute('hidden');
+        for (const note of info.notes) {
+          const li = document.createElement('li');
+          li.className = 'flex gap-2';
+          const dot = document.createElement('span');
+          dot.setAttribute('aria-hidden', 'true');
+          dot.textContent = '·';
+          const text = document.createElement('span');
+          text.textContent = note;
+          li.append(dot, text);
+          notes.appendChild(li);
+        }
+      } else {
+        notesPanel.setAttribute('hidden', '');
+      }
+
+      // Plain-text mirror, used by the Copy result button.
+      mirror.value = [
+        `User agent: ${info.raw}`,
+        `Browser: ${nameVersion(info.browser) ?? 'unknown'}`,
+        `Engine: ${nameVersion(info.engine) ?? 'unknown'}`,
+        `OS: ${nameVersion(info.os) ?? 'unknown'}`,
+        `Device: ${info.device.type}${info.device.model ? ` (${info.device.model})` : ''}`,
+        info.bot.isBot ? `Automated client: ${info.bot.name}` : 'Automated client: no',
+      ].join('\n');
+
+      if (info.browser.name === 'Unknown' && info.os.name === 'Unknown' && !info.bot.isBot) {
+        setStatus(
+          root,
+          'Nothing in that string looks like a known browser, engine or operating system. It may be a custom client, or the string may be truncated.',
+          'warn',
+        );
+      } else {
+        clearStatus(root);
+        markUsed();
+      }
+    };
+
+    const clear = () => {
+      summaryPanel.setAttribute('hidden', '');
+      result.setAttribute('hidden', '');
+      notesPanel.setAttribute('hidden', '');
+      mirror.value = '';
+      clearStatus(root);
+    };
+
+    const parse = () => {
+      const text = input.value.trim();
+      if (!text) return clear();
+      render(parseUserAgent(text));
+    };
+
+    on(input, 'input', debounce(parse, 150));
+
+    on(q('[data-use-mine]', root), 'click', () => {
+      input.value = navigator.userAgent;
+      parse();
+    });
+
+    for (const button of qa('[data-sample]', root)) {
+      on(button, 'click', () => {
+        input.value = button.dataset.sample ?? '';
+        parse();
+      });
+    }
+
+    wireStandardActions(root, {
+      onChange: () => {
+        if (input.value) parse();
+        else clear();
+      },
+    });
+  });
+</script>

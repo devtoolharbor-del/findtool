@@ -1,0 +1,273 @@
+---
+/**
+ * CSS Minifier.
+ *
+ * The interesting part is not the UI but src/lib/css.ts, which tokenizes the
+ * stylesheet rather than running regular expressions over it. This component
+ * only wires input to output and reports what changed.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_CSS } from '~/lib/css';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="css-minifier" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-preserve-licence checked />
+        Keep <code class="font-mono">/*!</code> licence comments
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_CSS}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>
+          Upload file
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input type="file" accept=".css,.txt,text/css,text/plain" class="hidden" data-file-input />
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="cm-input" class="bc-label">CSS input</label>
+      <textarea
+        id="cm-input"
+        class="bc-textarea min-h-56"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste a stylesheet here…"
+        aria-describedby="cm-status"></textarea>
+    </div>
+
+    <div id="cm-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Actions ── */}
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-action="minify">Minify</button>
+      <div class="ml-auto flex gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+          <span data-label>Copy</span>
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>
+          Download
+        </button>
+      </div>
+    </div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-original>—</div>
+        <div class="bc-stat-label">Original</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-minified>—</div>
+        <div class="bc-stat-label">Minified</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-saved>—</div>
+        <div class="bc-stat-label">Saved</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-percent>—</div>
+        <div class="bc-stat-label">Reduction</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <span class="bc-label">Minified CSS</span>
+      <textarea
+        class="bc-output max-h-96 min-h-40 w-full"
+        data-output
+        readonly
+        spellcheck="false"
+        aria-label="Minified CSS output"></textarea>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Paste a stylesheet and it comes back with comments gone, whitespace collapsed, the final
+      semicolon of each block removed and numbers trimmed to their shortest legal form — along with
+      the before and after byte counts and the percentage saved. A typical hand-written stylesheet
+      loses between 15% and 30%.
+    </p>
+    <p>
+      Unlike the regular-expression minifiers that dominate search results, this one reads the
+      stylesheet as tokens, so it knows a semicolon that ends a declaration from one sitting inside
+      a string or a data URI.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Shrinking a stylesheet for a project that has no build step — a landing page, an email
+        template, a WordPress theme.</li>
+      <li>Compacting the critical CSS you are about to inline into <code>&lt;head&gt;</code>, where
+        every byte is on the critical rendering path.</li>
+      <li>Producing a single-line value to embed in a JavaScript string or a CMS field.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>This input:</p>
+    <pre><code>{`.card {
+  margin : 0.5rem   0 ;   /* top and bottom */
+  width  : calc( 100% - 2rem ) ;
+}`}</code></pre>
+    <p>becomes:</p>
+    <pre><code>.card&#123;margin:.5rem 0;width:calc(100% - 2rem)&#125;</code></pre>
+    <p>
+      Note what survived: the space between <code>.5rem</code> and <code>0</code>, because they are
+      two separate values, and the spaces around the minus inside <code>calc()</code>, because
+      removing them makes the expression invalid.
+    </p>
+
+    <h2>What a regex minifier gets wrong</h2>
+    <p>
+      Four constructs break naive minification, and all four appear in ordinary stylesheets. A
+      string can contain anything: <code>content: "a; b &#123;c&#125;"</code> has a semicolon and a
+      pair of braces that are data, not structure. An unquoted <code>url()</code> can contain a
+      semicolon and a colon — every base64 data URI does. A custom property's value is not CSS at
+      all but an arbitrary token stream, so it must be copied out verbatim rather than reformatted.
+      And a comment opener inside a string, <code>content: "/*"</code>, will make a
+      comment-stripping regex eat the rest of the file.
+    </p>
+    <p>
+      The tokenizer handles each of those as one indivisible unit, then decides about whitespace a
+      token pair at a time, tracking selector and declaration contexts separately. That matters: in
+      a selector <code>div :hover</code> and <code>div:hover</code> select different elements, so
+      the space before a colon is load-bearing; in a declaration it never is. Likewise
+      <code>@media screen and (min-width:40em)</code> must keep the space before its bracket, or
+      <code>and (</code> fuses into a function token and the breakpoint stops working.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Minification is a fraction of the win that compression is. A stylesheet that drops 20% here
+      will usually drop 80% under gzip, because repeated property names compress beautifully. The
+      two stack, but if you can only do one, enable compression on the server. This tool also stops
+      short of what a full optimiser such as lightningcss does: it does not merge duplicate
+      selectors, reorder declarations or drop rules for browsers you no longer support. Those
+      change the cascade in ways that need a test suite behind them, and this page has none of your
+      tests.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    downloadText,
+    wireStandardActions,
+    wireFileInput,
+    readFileText,
+    formatBytes,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { CssParseError, minifyCss } from '~/lib/css';
+
+  mount('css-minifier', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const preserve = q<HTMLInputElement>('[data-preserve-licence]', root)!;
+
+    const reset = () => {
+      output.value = '';
+      stats.setAttribute('hidden', '');
+    };
+
+    const run = () => {
+      const source = input.value;
+      if (!source.trim()) {
+        reset();
+        clearStatus(root);
+        return;
+      }
+
+      try {
+        guardSize(source);
+        const result = minifyCss(source, { preserveLicenceComments: preserve.checked });
+
+        output.value = result.css;
+        stats.removeAttribute('hidden');
+        q('[data-stat-original]', root)!.textContent = formatBytes(result.originalBytes);
+        q('[data-stat-minified]', root)!.textContent = formatBytes(result.minifiedBytes);
+        q('[data-stat-saved]', root)!.textContent = formatBytes(Math.max(0, result.saved));
+        q('[data-stat-percent]', root)!.textContent = `${result.savedPercent.toFixed(1)}%`;
+
+        const kept = result.licencesKept
+          ? ` ${result.licencesKept} licence comment${result.licencesKept === 1 ? '' : 's'} kept.`
+          : '';
+        setStatus(
+          root,
+          `Minified ${result.blocks} block${result.blocks === 1 ? '' : 's'}, removing ` +
+            `${result.commentsRemoved} comment${result.commentsRemoved === 1 ? '' : 's'} ` +
+            `and ${formatBytes(Math.max(0, result.saved))} (${result.savedPercent.toFixed(1)}%).${kept}`,
+          'ok',
+        );
+        markUsed();
+      } catch (err) {
+        reset();
+        if (err instanceof CssParseError) {
+          setStatus(
+            root,
+            `This stylesheet could not be read, so nothing was changed. ${err.message}`,
+            'error',
+          );
+        } else {
+          setStatus(root, messageFor(err), 'error');
+        }
+      }
+    };
+
+    on(q('[data-action="minify"]', root), 'click', run);
+    on(input, 'input', debounce(run, 350));
+    on(preserve, 'change', run);
+
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Minify some CSS first.', 'warn');
+      downloadText('styles.min.css', output.value, 'text/css;charset=utf-8');
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          run();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, {
+      onChange: () => {
+        reset();
+        if (input.value) run();
+      },
+    });
+  });
+</script>

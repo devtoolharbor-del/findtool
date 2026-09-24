@@ -1,0 +1,329 @@
+---
+/**
+ * Hex to Text.
+ *
+ * Tolerant hex parsing — spaced, continuous, 0x-prefixed, comma-separated —
+ * then a byte-level decode. Logic lives in src/lib/hex.ts.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_HEX } from '~/lib/hex';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="hex-to-text" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="h2t-encoding" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Decode bytes as
+        </label>
+        <select id="h2t-encoding" class="bc-select w-auto py-1.5 text-xs">
+          <option value="utf-8" selected>UTF-8</option>
+          <option value="latin1">Latin-1 (one byte per character)</option>
+          <option value="utf-16le">UTF-16 little-endian</option>
+          <option value="utf-16be">UTF-16 big-endian</option>
+        </select>
+      </div>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_HEX}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>Upload file</button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input type="file" accept=".txt,.hex,text/plain" class="hidden" data-file-input />
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="h2t-input" class="bc-label">Hexadecimal</label>
+      <textarea
+        id="h2t-input"
+        class="bc-textarea min-h-32 font-mono"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="48 65 6c — or 48656c, 0x48 0x65, 48:65:6c, \x48\x65…"
+        aria-describedby="h2t-status"></textarea>
+    </div>
+
+    {/* ── Status ── */}
+    <div id="h2t-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-bytes>—</div>
+        <div class="bc-stat-label">Bytes</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-format>—</div>
+        <div class="bc-stat-label">Input format</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-looks>—</div>
+        <div class="bc-stat-label">Looks like</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-printable>—</div>
+        <div class="bc-stat-label">Printable ASCII</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-1 text-xs">
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-view="text" aria-pressed="true">
+            Text
+          </button>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-view="dump" aria-pressed="false">
+            Hexdump
+          </button>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+            <span data-label>Copy</span>
+          </button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download-binary>
+            Download bytes
+          </button>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-swap>Swap fields</button>
+        </div>
+      </div>
+      <textarea
+        id="h2t-output"
+        class="bc-textarea min-h-40"
+        data-output
+        readonly
+        spellcheck="false"
+        aria-label="Decoded text"></textarea>
+    </div>
+
+    <p class="text-xs text-muted">
+      Going the other way? Use
+      <a class="text-accent underline" href="/tools/text-to-hex">Text to Hex</a>.
+    </p>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      Paste hexadecimal in whatever shape you found it and this turns it back into readable text. It
+      does not insist on a format: spaces, commas, colons, dashes, newlines, <code>0x</code>
+      prefixes, <code>\x</code> escapes and one continuous run are all accepted, and the tool tells
+      you which shape it recognised.
+    </p>
+    <p>
+      The bytes are then decoded as UTF-8 by default. When that fails — because the data is
+      Latin-1, UTF-16 or not text at all — it says so rather than producing a screen of question
+      marks, and lets you switch interpretation or download the raw bytes.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Reading a packet capture or a serial log, where the payload is a run of bytes and only some
+        of it is text.
+      </li>
+      <li>
+        Turning a Postgres <code>bytea</code> or MySQL <code>BINARY</code> value back into the
+        string that was stored.
+      </li>
+      <li>
+        Checking what an embedded device actually transmitted, byte by byte, against what the
+        protocol document says.
+      </li>
+      <li>Decoding a value from a hex-encoded config file or a firmware dump.</li>
+      <li>
+        Confirming whether a file starts with a known magic number — <code>89 50 4e 47</code> is a
+        PNG, <code>25 50 44 46</code> is a PDF.
+      </li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>These four inputs are identical as far as this tool is concerned:</p>
+    <pre><code>48 65 6c 6c 6f
+48656c6c6f
+0x48, 0x65, 0x6C, 0x6C, 0x6F
+48:65:6c:6c:6f</code></pre>
+    <p>All four decode to:</p>
+    <pre><code>Hello</code></pre>
+
+    <h2>When decoding goes wrong</h2>
+    <p>
+      Two failures account for most of them, and each has a specific fix:
+    </p>
+    <ul>
+      <li>
+        <strong>An odd number of digits.</strong> Every byte is exactly two digits, so an odd count
+        means one is missing — usually a dropped leading zero, where <code>0f</code> was written as
+        <code>f</code>.
+      </li>
+      <li>
+        <strong>Bytes that are not valid UTF-8.</strong> A byte in the 0x80–0xFF range only makes
+        sense as part of a multi-byte sequence. If those sequences are malformed, the data is
+        probably Latin-1 (where every byte is its own character) or genuinely binary.
+      </li>
+    </ul>
+    <p>
+      A strong hint sits in the stats above: a high proportion of printable ASCII means text, while
+      alternating zero bytes mean UTF-16 — <code>48 00 69 00</code> is "Hi" in little-endian UTF-16,
+      and decoding it as UTF-8 produces "H\0i\0".
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Hex is a view, not a format — it says nothing about what the bytes mean. The same
+      <code>c3 a9</code> is "é" in UTF-8, "Ã©" in Latin-1, and a fragment of a compressed stream in
+      a gzip file. Choosing the interpretation is your job, and the tool's analysis is a hint rather
+      than an answer.
+    </p>
+    <p>
+      One convenience worth knowing about: a leading <code>#</code> is stripped, so a CSS colour
+      like <code>#ff8800</code> parses as the three bytes 255, 136, 0 — handy when checking a value
+      against an RGB triple.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    downloadBlob,
+    wireStandardActions,
+    wireSwap,
+    wireFileInput,
+    readFileText,
+    formatBytes,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import {
+    parseHexDetailed,
+    bytesToText,
+    analyseBytes,
+    hexDump,
+    type ByteEncoding,
+  } from '~/lib/hex';
+
+  mount('hex-to-text', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const encoding = q<HTMLSelectElement>('#h2t-encoding', root)!;
+    const stats = q('[data-stats]', root)!;
+
+    let view: 'text' | 'dump' = 'text';
+    let currentBytes: Uint8Array | null = null;
+
+    const run = () => {
+      const raw = input.value;
+      if (!raw.trim()) {
+        clearStatus(root);
+        output.value = '';
+        currentBytes = null;
+        stats.setAttribute('hidden', '');
+        return;
+      }
+
+      try {
+        guardSize(raw);
+        const { bytes, detected } = parseHexDetailed(raw);
+        currentBytes = bytes;
+
+        const analysis = analyseBytes(bytes);
+
+        stats.removeAttribute('hidden');
+        q('[data-stat-bytes]', root)!.textContent = formatBytes(bytes.length);
+        q('[data-stat-format]', root)!.textContent = detected;
+        q('[data-stat-looks]', root)!.textContent = analysis.looksLike;
+        q('[data-stat-printable]', root)!.textContent =
+          bytes.length === 0 ? '—' : `${Math.round((analysis.printableAscii / bytes.length) * 100)}%`;
+
+        if (view === 'dump') {
+          output.value = hexDump(bytes);
+          clearStatus(root);
+          markUsed();
+          return;
+        }
+
+        output.value = bytesToText(bytes, encoding.value as ByteEncoding);
+
+        if (encoding.value === 'latin1') {
+          setStatus(
+            root,
+            'Decoded as Latin-1: each byte became one character. That always produces output, but it is only correct if the source really was Latin-1.',
+            'warn',
+          );
+        } else if (analysis.nullBytes > bytes.length / 4 && encoding.value === 'utf-8') {
+          setStatus(
+            root,
+            'Every other byte is zero, which is the signature of UTF-16. Try one of the UTF-16 options.',
+            'warn',
+          );
+        } else {
+          clearStatus(root);
+        }
+        markUsed();
+      } catch (err) {
+        output.value = '';
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    for (const button of qa('[data-view]', root)) {
+      on(button, 'click', () => {
+        view = button.dataset.view === 'dump' ? 'dump' : 'text';
+        for (const other of qa('[data-view]', root)) {
+          other.setAttribute('aria-pressed', String(other === button));
+        }
+        run();
+      });
+    }
+
+    on(input, 'input', debounce(run, 200));
+    on(encoding, 'change', run);
+
+    on(q('[data-download-binary]', root), 'click', () => {
+      if (!currentBytes) return setStatus(root, 'Parse some hex first.', 'warn');
+      downloadBlob(
+        'decoded.bin',
+        new Blob([currentBytes.slice()], { type: 'application/octet-stream' }),
+      );
+    });
+
+    wireSwap(root, '[data-primary-input]', '[data-output]', () => {
+      setStatus(root, 'Fields swapped. To turn text into hex, open Text to Hex.', 'warn');
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          run();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, { onChange: run });
+  });
+</script>

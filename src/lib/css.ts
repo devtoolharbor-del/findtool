@@ -146,11 +146,23 @@ export function tokenizeCss(source: string): CssToken[] {
       while (j < source.length && /\s/.test(source[j]!)) j++;
       if (source[j] !== '"' && source[j] !== "'") {
         const start = i;
-        const close = source.indexOf(')', j);
-        if (close === -1) {
+        // Balance brackets rather than stopping at the first ")". Strictly,
+        // an unquoted URL may not contain one, but `url(hero(1).png)` is
+        // common enough in the wild that swallowing half of it would be the
+        // exact silent corruption this tokenizer exists to avoid.
+        let depth = 1;
+        let k = j;
+        while (k < source.length && depth > 0) {
+          const c = source[k]!;
+          if (c === '\\') k++;
+          else if (c === '(') depth++;
+          else if (c === ')') depth--;
+          k++;
+        }
+        if (depth > 0) {
           throw new CssParseError('A url( is never closed with )', line);
         }
-        i = close + 1;
+        i = k;
         push('url', start, i);
         countLines(start, i);
         continue;
@@ -381,7 +393,14 @@ export function minifyCss(source: string, options: MinifyOptions = {}): MinifyRe
 
     if (token.type === 'ws') {
       const next = significantAfter(index + 1);
-      if (needsSpace(lastSignificant, next, ctx, parenDepth, bracketDepth)) out.push(' ');
+      // The `!== ' '` guard keeps output idempotent: two whitespace runs
+      // separated by a dropped comment must not become two spaces.
+      if (
+        needsSpace(lastSignificant, next, ctx, parenDepth, bracketDepth) &&
+        out[out.length - 1] !== ' '
+      ) {
+        out.push(' ');
+      }
       continue;
     }
 

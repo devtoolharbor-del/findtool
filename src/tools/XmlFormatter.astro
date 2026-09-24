@@ -1,0 +1,354 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_XML } from '~/lib/xml';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="xml-formatter" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="xf-indent" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Indent
+        </label>
+        <select id="xf-indent" class="bc-select w-auto py-1.5 text-xs" data-indent>
+          <option value="2" selected>2 spaces</option>
+          <option value="4">4 spaces</option>
+          <option value="tab">Tab</option>
+        </select>
+      </div>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-collapse-empty />
+        Collapse empty tags
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-keep-comments checked />
+        Keep comments
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-keep-declaration checked />
+        Keep declaration
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_XML}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>Upload file</button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input
+          type="file"
+          accept=".xml,.svg,.rss,.atom,.xsd,.xsl,.txt,text/xml,application/xml,text/plain"
+          class="hidden"
+          data-file-input
+        />
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="xf-input" class="bc-label">XML input</label>
+      <textarea
+        id="xf-input"
+        class="bc-textarea min-h-48"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste XML, a SOAP envelope, an RSS feed or an SVG here…"
+        aria-describedby="xf-status"></textarea>
+    </div>
+
+    <div id="xf-status" data-status role="status" aria-live="polite" hidden></div>
+
+    <pre class="bc-output text-xs" data-caret hidden aria-label="Location of the error" tabindex="0"></pre>
+
+    {/* ── Actions ── */}
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-action="format">Format</button>
+      <button type="button" class="bc-btn bc-btn-secondary" data-action="minify">Minify</button>
+      <button type="button" class="bc-btn bc-btn-secondary" data-action="validate">Validate</button>
+      <div class="ml-auto flex gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-output>
+          <span data-label>Copy</span>
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>Download</button>
+      </div>
+    </div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-elements>—</div>
+        <div class="bc-stat-label">Elements</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-attributes>—</div>
+        <div class="bc-stat-label">Attributes</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-depth>—</div>
+        <div class="bc-stat-label">Max depth</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-size>—</div>
+        <div class="bc-stat-label">Size</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <label for="xf-output" class="bc-label">Result</label>
+      <textarea
+        id="xf-output"
+        class="bc-textarea max-h-96 min-h-40"
+        data-output
+        readonly
+        spellcheck="false"
+        placeholder="The formatted XML appears here."></textarea>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      This formatter re-indents XML and checks that it is well-formed before it writes anything. An
+      element whose content is only text stays on one line, so a feed's
+      <code>&lt;title&gt;</code> is not spread across three, while nested elements are indented one
+      level per generation. Comments, CDATA sections, processing instructions and the DOCTYPE are
+      all preserved exactly as written.
+    </p>
+    <p>
+      When the document is not well-formed you get the line number and a caret under the problem,
+      with both ends of the mismatch named: which tag was opened, on which line, and which tag tried
+      to close it. Minify does the reverse — every byte of whitespace between tags removed, for
+      embedding in a request body.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Reading a SOAP response that arrived as one 12,000-character line, where the fault string
+        is buried somewhere in the middle.
+      </li>
+      <li>Checking an RSS or Atom feed before a validator sees it, or after hand-editing an entry.</li>
+      <li>Tidying an SVG exported by a design tool so a diff shows the path that actually changed.</li>
+      <li>Fixing a Maven <code>pom.xml</code>, an Android layout or a <code>web.config</code> whose parser complains about line 1.</li>
+      <li>Minifying an XML payload before pasting it into a test fixture or a shell command.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>This input:</p>
+    <pre><code>{`<channel><title>Changelog</title><item><guid>bc-1</guid></item></channel>`}</code></pre>
+    <p>becomes:</p>
+    <pre><code>{`<channel>
+  <title>Changelog</title>
+  <item>
+    <guid>bc-1</guid>
+  </item>
+</channel>`}</code></pre>
+
+    <h2>Well-formed is not the same as valid</h2>
+    <p>
+      XML uses those two words for different things, and only the first is checked here.
+      <strong>Well-formed</strong> means the syntax holds together: one root element, every tag
+      closed by a matching tag in the right order, attribute values quoted, and the reserved
+      characters escaped. <strong>Valid</strong> means the document also obeys a schema — a DTD, an
+      XSD or a RELAX NG grammar. A perfectly well-formed <code>&lt;invoice&gt;</code> is still
+      rejected by an XSD that requires a <code>&lt;total&gt;</code> child.
+    </p>
+    <p>Three things break well-formedness more often than anything else:</p>
+    <ul>
+      <li>
+        A bare ampersand. <code>&amp;</code> must be written <code>&amp;amp;</code> — which is why
+        URLs with query parameters so often break a feed.
+      </li>
+      <li>
+        An unescaped <code>&lt;</code> in text content, usually from pasting code without a CDATA
+        section.
+      </li>
+      <li>
+        A namespace prefix that was never declared, such as <code>soap:Body</code> in a fragment
+        copied out of its envelope. The prefix is fine syntactically but a namespace-aware parser
+        will refuse it.
+      </li>
+    </ul>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Indenting changes whitespace, and in XML whitespace inside an element is character data that
+      belongs to the document. For SOAP, RSS, config and most data XML nothing depends on it. It
+      matters in mixed content, where text and elements are siblings — reformatting
+      <code>&lt;p&gt;see &lt;b&gt;this&lt;/b&gt; page&lt;/p&gt;</code> can add spaces a renderer
+      shows — and anywhere <code>xml:space="preserve"</code> is set. Never reformat a signed
+      document: XML Signature hashes a canonical form of the bytes, and reindenting invalidates it.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    wireStandardActions,
+    wireFileInput,
+    readFileText,
+    formatBytes,
+    byteLength,
+    markUsed,
+  } from '~/lib/toolkit';
+  import { formatXml, minifyXml, parseXml, xmlStats, XmlParseError } from '~/lib/xml';
+
+  mount('xml-formatter', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const caret = q<HTMLPreElement>('[data-caret]', root)!;
+
+    const indent = (): number | '\t' => {
+      const value = q<HTMLSelectElement>('[data-indent]', root)!.value;
+      return value === 'tab' ? '\t' : Number(value);
+    };
+
+    const showCaret = (excerpt: string | undefined, column: number | undefined) => {
+      if (!excerpt) return;
+      if (column === undefined) {
+        caret.textContent = excerpt;
+      } else {
+        const prefix = Array.from(excerpt.slice(0, Math.max(0, column - 1)))
+          .map((ch) => (ch === '\t' ? '\t' : ' '))
+          .join('');
+        caret.textContent = `${excerpt}\n${prefix}^`;
+      }
+      caret.removeAttribute('hidden');
+    };
+
+    const showStats = (text: string, element: Parameters<typeof xmlStats>[0]) => {
+      const s = xmlStats(element);
+      stats.removeAttribute('hidden');
+      q('[data-stat-elements]', root)!.textContent = s.elements.toLocaleString();
+      q('[data-stat-attributes]', root)!.textContent = s.attributes.toLocaleString();
+      q('[data-stat-depth]', root)!.textContent = String(s.depth);
+      q('[data-stat-size]', root)!.textContent = formatBytes(byteLength(text));
+    };
+
+    const run = (mode: 'format' | 'minify' | 'validate') => {
+      const text = input.value;
+      if (!text.trim()) {
+        clearStatus(root);
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        caret.setAttribute('hidden', '');
+        return;
+      }
+
+      try {
+        guardSize(text);
+        caret.setAttribute('hidden', '');
+        caret.textContent = '';
+
+        // parseXml uses DOMParser in the browser, so entity and namespace
+        // problems the tokeniser tolerates are still caught.
+        const rootElement = parseXml(text);
+
+        if (mode === 'minify') {
+          const result = minifyXml(text, { validate: false });
+          output.value = result;
+          clearStatus(root);
+          showStats(result, rootElement);
+        } else if (mode === 'validate') {
+          const s = xmlStats(rootElement);
+          output.value = formatXml(text, { indent: indent(), validate: false });
+          setStatus(
+            root,
+            `Well-formed XML — root <${rootElement.nodeName}>, ${s.elements.toLocaleString()} elements, ` +
+              `${s.attributes.toLocaleString()} attributes, max depth ${s.depth}.`,
+            'ok',
+          );
+          showStats(output.value, rootElement);
+        } else {
+          const result = formatXml(text, {
+            indent: indent(),
+            collapseEmpty: q<HTMLInputElement>('[data-collapse-empty]', root)!.checked,
+            keepComments: q<HTMLInputElement>('[data-keep-comments]', root)!.checked,
+            keepDeclaration: q<HTMLInputElement>('[data-keep-declaration]', root)!.checked,
+            validate: false,
+          });
+          output.value = result;
+          clearStatus(root);
+          showStats(result, rootElement);
+        }
+        markUsed();
+      } catch (err) {
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        if (err instanceof XmlParseError) {
+          const d = err.detail;
+          const where =
+            d.line !== undefined
+              ? ` (line ${d.line}${d.column !== undefined ? `, column ${d.column}` : ''})`
+              : '';
+          setStatus(root, `Not well-formed: ${d.message}${where}`, 'error');
+          showCaret(d.excerpt, d.column);
+        } else {
+          setStatus(root, messageFor(err), 'error');
+        }
+      }
+    };
+
+    for (const mode of ['format', 'minify', 'validate'] as const) {
+      on(q(`[data-action="${mode}"]`, root), 'click', () => run(mode));
+    }
+    for (const control of qa(
+      '[data-indent], [data-collapse-empty], [data-keep-comments], [data-keep-declaration]',
+      root,
+    )) {
+      on(control, 'change', () => output.value && run('format'));
+    }
+
+    on(q('[data-copy-output]', root), 'click', (e) => {
+      if (!output.value) return setStatus(root, 'Format some XML first.', 'warn');
+      void copyText(output.value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Format some XML first.', 'warn');
+      downloadText('formatted.xml', output.value, 'application/xml');
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          run('format');
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, {
+      onChange: () => {
+        stats.setAttribute('hidden', '');
+        caret.setAttribute('hidden', '');
+        if (input.value) run('format');
+      },
+    });
+  });
+</script>

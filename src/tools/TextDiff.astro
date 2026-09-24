@@ -129,10 +129,9 @@ const { tool } = Astro.props;
   <Fragment slot="content">
     <h2>What this tool does</h2>
     <p>
-      Put two versions of a text side by side and it marks every line that was added, removed or
-      edited, with line numbers from both versions. Inside an edited line it goes further and
-      highlights the individual words that changed, so a one-character difference in a long line
-      does not require you to read the line twice.
+      Put two versions side by side and it marks every line that was added, removed or edited,
+      with line numbers from both. Inside an edited line it highlights the individual words that
+      changed, so a one-character difference in a long line does not need reading twice.
     </p>
     <p>
       There is a unified view as well, using the <code>+</code> and <code>-</code> prefixes you
@@ -146,19 +145,16 @@ const { tool } = Astro.props;
         Comparing two config files — a working <code>.env</code> against a broken one is the
         fastest way to find a missing variable.
       </li>
-      <li>
-        Checking what a formatter, a minifier or a code generator actually changed.
-      </li>
+      <li>Checking what a formatter, a minifier or a code generator actually changed.</li>
       <li>
         Diffing two API responses. Format both with the
         <a href="/tools/json-formatter">JSON formatter</a> and sort the keys first, or you will see
         reordering rather than real differences.
       </li>
       <li>
-        Reviewing an edited paragraph when you do not have version control — a contract clause, a
-        commit message, a translated string.
+        Reviewing an edited paragraph with no version control — a contract clause, a translated
+        string, a list where you need the entries present in only one side.
       </li>
-      <li>Comparing two lists to find which entries are only in one of them.</li>
     </ul>
 
     <h2>A short example</h2>
@@ -181,39 +177,32 @@ driver: memory      driver: redis
 
     <h2>How the comparison works</h2>
     <p>
-      The engine finds the longest common subsequence of lines — the largest set of lines that
-      appear in both versions in the same order — and treats everything else as inserted or
-      deleted. That is the same foundation as <code>diff(1)</code>, and it is why the output never
-      drifts out of alignment the way a naive line-by-line comparison does after a single
-      insertion.
+      The engine finds the longest common subsequence of lines — the largest set appearing in both
+      versions in the same order — and treats the rest as inserted or deleted. That is the same
+      foundation as <code>diff(1)</code>, and it is why the output never drifts out of alignment
+      the way a naive line-by-line comparison does after one insertion.
     </p>
     <p>
-      Deletions and insertions that land next to each other are then paired up. If two such lines
-      are similar enough — measured by how many two-character sequences they share — they are
-      shown as one modified row rather than a delete followed by an insert. Lines that are merely
-      adjacent but unrelated stay apart, because forcing them into one row reads far worse than
-      showing them separately.
+      Deletions and insertions that land next to each other are then paired. If two such lines are
+      similar enough — measured by how many two-character sequences they share — they become one
+      modified row instead of a delete plus an insert. Merely adjacent, unrelated lines stay apart.
     </p>
     <p>
-      The two ignore options affect only the comparison, never the display. With "ignore
-      whitespace" on, runs of spaces are treated as equal and leading and trailing space is
-      disregarded — so a re-indentation shows as no change — but the text you see is still exactly
-      what you pasted.
+      The ignore options affect only the comparison, never the display: with "ignore whitespace"
+      on, a re-indentation shows as no change, but the text you see is exactly what you pasted.
     </p>
 
     <h2>Worth knowing</h2>
     <p>
       A moved block is not detected as a move. Line-based diffing has no concept of relocation, so
       a paragraph cut from the top and pasted at the bottom appears as one deletion and one
-      addition. Every tool built on this algorithm behaves the same way, including Git without
-      <code>--color-moved</code>.
+      addition — as it does in Git without <code>--color-moved</code>.
     </p>
     <p>
-      Identical leading and trailing sections are skipped before the real work starts, so two
-      2,000-line files differing in one place compare instantly. When the genuinely different
-      region is very large — beyond roughly 2,000 × 2,000 lines — the tool says so and shows the
-      region as one replaced block rather than freezing the tab for a minute. Comparing smaller
-      sections then gives an exact result.
+      Identical leading and trailing sections are skipped first, so two 2,000-line files differing
+      in one place compare instantly. When the genuinely different region is larger than roughly
+      2,000 × 2,000 lines, the tool says so and shows it as one replaced block rather than freezing
+      the tab. Comparing smaller sections then gives an exact result.
     </p>
   </Fragment>
 </ToolLayout>

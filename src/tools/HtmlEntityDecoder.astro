@@ -1,0 +1,330 @@
+---
+/**
+ * HTML Entity Decoder.
+ *
+ * Turns named and numeric references back into characters — without ever
+ * assigning the input to innerHTML, which is how most "decode with a div"
+ * implementations become an XSS vector. Logic lives in src/lib/html-entities.ts.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_ENTITIES } from '~/lib/html-entities';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="html-entity-decoder" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-deep />
+        Decode repeatedly (fixes &amp;amp;amp;)
+      </label>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-strict />
+        Require the closing semicolon
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_ENTITIES}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="hed-input" class="bc-label">Text containing entities</label>
+      <textarea
+        id="hed-input"
+        class="bc-textarea min-h-32 font-mono"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste scraped HTML, a feed item, a database field…"
+        aria-describedby="hed-status"></textarea>
+    </div>
+
+    {/* ── Status ── */}
+    <div id="hed-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-found>—</div>
+        <div class="bc-stat-label">References found</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-distinct>—</div>
+        <div class="bc-stat-label">Distinct</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-depth>—</div>
+        <div class="bc-stat-label">Escaping layers</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-length>—</div>
+        <div class="bc-stat-label">Result length</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+        <label for="hed-output" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Decoded text
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+            <span data-label>Copy</span>
+          </button>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-swap>Swap fields</button>
+        </div>
+      </div>
+      <textarea
+        id="hed-output"
+        class="bc-textarea min-h-32"
+        data-output
+        readonly
+        spellcheck="false"
+        aria-label="Decoded text"></textarea>
+    </div>
+
+    {/* ── Breakdown ── */}
+    <div data-breakdown-panel hidden>
+      <h3 class="mb-2 text-xs font-medium tracking-wide text-muted uppercase">
+        What each reference resolved to
+      </h3>
+      <div class="bc-output max-h-72 p-0">
+        <table class="w-full text-left text-xs">
+          <thead class="sticky top-0 bg-surface-2 text-muted">
+            <tr>
+              <th scope="col" class="px-3 py-2 font-medium">Reference</th>
+              <th scope="col" class="px-3 py-2 font-medium">Character</th>
+              <th scope="col" class="px-3 py-2 font-medium">Code point</th>
+              <th scope="col" class="px-3 py-2 font-medium">Kind</th>
+            </tr>
+          </thead>
+          <tbody data-breakdown-body></tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="text-xs text-muted">
+      Escaping rather than unescaping? Use the
+      <a class="text-accent underline" href="/tools/html-entity-encoder">HTML Entity Encoder</a>.
+    </p>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      It resolves entity references back to the characters they stand for:
+      <code>&amp;eacute;</code> to é, <code>&amp;#8212;</code> to an em dash,
+      <code>&amp;#x1F600;</code> to an emoji. Named references, decimal references and hexadecimal
+      references are all handled, and each one is listed underneath so you can see what resolved to
+      what.
+    </p>
+    <p>
+      Text scraped from a page, pulled from an RSS feed or copied out of a database column is full
+      of these. Reading it is unpleasant; searching it is impossible until they are gone.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Cleaning up scraped content before indexing it — <code>&amp;nbsp;</code> and
+        <code>&amp;rsquo;</code> otherwise break every keyword match.
+      </li>
+      <li>
+        Fixing a double-escaped field, where a page is showing a literal <code>&amp;amp;</code>
+        instead of an ampersand.
+      </li>
+      <li>
+        Reading a CMS export or a WordPress database dump, where smart quotes arrive as numeric
+        references.
+      </li>
+      <li>Working out which invisible character a <code>&amp;#8203;</code> in your content is.</li>
+      <li>Turning an email subject line full of entities back into something legible.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>This input:</p>
+    <pre><code>Caf&amp;eacute; &amp;mdash; &amp;ldquo;best in town&amp;rdquo;&amp;nbsp;(&amp;frac12; price)</code></pre>
+    <p>decodes to:</p>
+    <pre><code>Café — “best in town” (½ price)</code></pre>
+    <p>
+      Note the space between <code>”</code> and <code>(</code>: that is a no-break space, U+00A0,
+      not an ordinary one. It looks identical and will not match a plain space in a search.
+    </p>
+
+    <h2>Two quirks worth knowing about</h2>
+    <p>
+      <strong>Numeric references in the 128–159 range are not what they say.</strong> Those code
+      points are C1 control characters, but authors writing them meant Windows-1252, so the HTML
+      standard mandates a substitution table. <code>&amp;#147;</code> is formally a control
+      character and every browser renders it as a left double quotation mark. This decoder applies
+      the same table, so you get the character a browser would show.
+    </p>
+    <p>
+      <strong>A missing semicolon is often still decoded.</strong> Browsers accept
+      <code>&amp;amp</code> without one for a fixed legacy list, which is why
+      <code>?x=1&amp;copy=2</code> can mysteriously become <code>?x=1©=2</code>. Strict mode turns
+      that behaviour off if you want to see exactly what a well-formed parser would do.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Decoded text is not safe text. If the result contains <code>&lt;script&gt;</code>, it now
+      contains a working script tag — re-escape it before putting it anywhere near a page. The
+      common shortcut of decoding by assigning to a <code>div</code>'s <code>innerHTML</code> and
+      reading back <code>textContent</code> is exactly how that goes wrong; this tool parses the
+      references itself and never touches <code>innerHTML</code>.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    wireStandardActions,
+    wireSwap,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import {
+    decodeHtmlEntities,
+    decodeHtmlEntitiesDeep,
+    entityDepth,
+    findEntities,
+  } from '~/lib/html-entities';
+
+  mount('html-entity-decoder', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const deep = q<HTMLInputElement>('[data-deep]', root)!;
+    const strict = q<HTMLInputElement>('[data-strict]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const panel = q('[data-breakdown-panel]', root)!;
+    const tbody = q('[data-breakdown-body]', root)!;
+
+    const cell = (text: string, className: string) => {
+      const td = document.createElement('td');
+      td.className = className;
+      td.textContent = text;
+      return td;
+    };
+
+    const displayChar = (char: string, codePoint: number) => {
+      if (codePoint === 0x00a0) return '(no-break space)';
+      if (codePoint === 0x200b) return '(zero-width space)';
+      if (codePoint === 0x00ad) return '(soft hyphen)';
+      if (codePoint < 0x20) return '(control)';
+      return char;
+    };
+
+    const renderBreakdown = (text: string) => {
+      tbody.textContent = '';
+      const hits = findEntities(text);
+      if (hits.length === 0) {
+        panel.setAttribute('hidden', '');
+        return 0;
+      }
+      panel.removeAttribute('hidden');
+
+      for (const hit of hits.slice(0, 200)) {
+        const tr = document.createElement('tr');
+        tr.className = 'border-t border-line';
+        tr.append(
+          cell(hit.reference + (hit.unterminated ? '  (no semicolon)' : ''), 'px-3 py-1.5 font-mono'),
+          cell(displayChar(hit.character, hit.codePoint), 'px-3 py-1.5'),
+          cell(`U+${hit.codePoint.toString(16).toUpperCase().padStart(4, '0')}`, 'px-3 py-1.5 text-muted'),
+          cell(hit.kind, 'px-3 py-1.5 text-muted'),
+        );
+        tbody.appendChild(tr);
+      }
+      return hits.length;
+    };
+
+    const run = () => {
+      const text = input.value;
+      if (!text) {
+        clearStatus(root);
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        panel.setAttribute('hidden', '');
+        tbody.textContent = '';
+        return;
+      }
+
+      try {
+        guardSize(text);
+        const options = { strict: strict.checked };
+        const decoded = deep.checked
+          ? decodeHtmlEntitiesDeep(text)
+          : decodeHtmlEntities(text, options);
+        output.value = decoded;
+
+        const distinct = renderBreakdown(text);
+        const total = (text.match(/&(?:#x?[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]{1,31});?/g) ?? []).length;
+        const layers = entityDepth(text);
+
+        stats.removeAttribute('hidden');
+        q('[data-stat-found]', root)!.textContent = total.toLocaleString();
+        q('[data-stat-distinct]', root)!.textContent = distinct.toLocaleString();
+        q('[data-stat-depth]', root)!.textContent = String(layers);
+        q('[data-stat-length]', root)!.textContent = `${decoded.length.toLocaleString()} chars`;
+
+        if (/<\s*(script|iframe|object|embed|svg|img)\b/i.test(decoded)) {
+          setStatus(
+            root,
+            'The decoded text contains HTML tags. It is plain text here, but inserting it into a page without escaping it again would execute it.',
+            'warn',
+          );
+        } else if (layers > 1 && !deep.checked) {
+          setStatus(
+            root,
+            `This text is escaped ${layers} times — the result still contains references. Turn on repeated decoding to unwind all of it.`,
+            'warn',
+          );
+        } else if (distinct === 0) {
+          setStatus(root, 'No entity references found — this text is already plain.', 'ok');
+        } else {
+          clearStatus(root);
+        }
+        markUsed();
+      } catch (err) {
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    on(input, 'input', debounce(run, 150));
+    on(deep, 'change', run);
+    on(strict, 'change', run);
+
+    wireSwap(root, '[data-primary-input]', '[data-output]', () => {
+      setStatus(
+        root,
+        'Fields swapped. To turn characters into entities, open the HTML Entity Encoder.',
+        'warn',
+      );
+    });
+
+    wireStandardActions(root, { onChange: run });
+  });
+</script>

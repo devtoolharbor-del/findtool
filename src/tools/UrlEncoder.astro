@@ -1,0 +1,329 @@
+---
+/**
+ * URL Encoder.
+ *
+ * Percent-encoding with an explicit choice of semantics, plus a table showing
+ * exactly which characters changed. Logic lives in src/lib/url.ts.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_PLAIN } from '~/lib/url';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="url-encoder" class="space-y-4">
+    {/* ── Mode ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="urle-mode" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Mode
+        </label>
+        <select id="urle-mode" class="bc-select w-auto py-1.5 text-xs">
+          <option value="component" selected>Component — one parameter or path segment</option>
+          <option value="uri">Whole URL — keep : / ? # &amp; = intact</option>
+          <option value="form">Form body — space becomes +</option>
+          <option value="rfc3986">Strict RFC 3986 — also escape ! ' ( ) *</option>
+        </select>
+      </div>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_PLAIN}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      </div>
+    </div>
+
+    <p class="text-xs text-muted" data-mode-note></p>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="urle-input" class="bc-label">Text to encode</label>
+      <textarea
+        id="urle-input"
+        class="bc-textarea min-h-32"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="A parameter value, a search term, a whole URL…"
+        aria-describedby="urle-status"></textarea>
+    </div>
+
+    {/* ── Status ── */}
+    <div id="urle-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-before>—</div>
+        <div class="bc-stat-label">Before</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-after>—</div>
+        <div class="bc-stat-label">After</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-growth>—</div>
+        <div class="bc-stat-label">Growth</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-changed>—</div>
+        <div class="bc-stat-label">Characters escaped</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+        <label for="urle-output" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Encoded result
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+            <span data-label>Copy</span>
+          </button>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-swap>Swap fields</button>
+        </div>
+      </div>
+      <textarea
+        id="urle-output"
+        class="bc-textarea min-h-32 font-mono"
+        data-output
+        readonly
+        spellcheck="false"
+        aria-label="Encoded result"></textarea>
+    </div>
+
+    {/* ── What changed ── */}
+    <div data-changed-panel hidden>
+      <h3 class="mb-2 text-xs font-medium tracking-wide text-muted uppercase">
+        Characters that were escaped
+      </h3>
+      <div class="bc-output max-h-64 p-0">
+        <table class="w-full text-left text-xs">
+          <thead class="sticky top-0 bg-surface-2 text-muted">
+            <tr>
+              <th scope="col" class="px-3 py-2 font-medium">Character</th>
+              <th scope="col" class="px-3 py-2 font-medium">Becomes</th>
+              <th scope="col" class="px-3 py-2 font-medium">Count</th>
+            </tr>
+          </thead>
+          <tbody data-changed-body></tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="text-xs text-muted">
+      Reading an encoded URL instead? Use the
+      <a class="text-accent underline" href="/tools/url-decoder">URL Decoder</a>.
+    </p>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      URLs may only contain a restricted set of characters. Everything else has to be written as a
+      percent sign followed by the two hex digits of each byte — <code>%20</code> for a space,
+      <code>%26</code> for an ampersand. This tool applies that transformation and, just as usefully,
+      shows you which characters it touched.
+    </p>
+    <p>
+      The mode matters more than anything else on this page. Encoding a whole URL the way you would
+      encode a single parameter destroys it: every <code>/</code> and <code>?</code> becomes an
+      escape and the address stops pointing anywhere.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Building a search or filter link by hand, where the value contains spaces, ampersands or
+        quotation marks.
+      </li>
+      <li>
+        Putting a redirect target inside a query parameter — the inner URL must be fully escaped or
+        its own <code>?</code> and <code>&amp;</code> will be read as part of the outer one.
+      </li>
+      <li>Escaping a filename or an email address before dropping it into a path segment.</li>
+      <li>
+        Preparing a <code>curl</code> command where the shell and the server would otherwise both
+        try to interpret the same characters.
+      </li>
+      <li>Writing an <code>application/x-www-form-urlencoded</code> body by hand for a test.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>The same string, in two different modes:</p>
+    <pre><code>Input:      https://x.dev/a b?q=1&amp;r=2
+
+Component:  https%3A%2F%2Fx.dev%2Fa%20b%3Fq%3D1%26r%3D2
+Whole URL:  https://x.dev/a%20b?q=1&amp;r=2</code></pre>
+    <p>
+      The first is correct when the URL is a parameter inside another URL. The second is correct
+      when it is the address you want to visit.
+    </p>
+
+    <h2>Space, plus, and the mode that catches people out</h2>
+    <p>
+      A space has two valid encodings and they are not interchangeable. In a path it must be
+      <code>%20</code>. In an <code>application/x-www-form-urlencoded</code> body — the format a
+      plain HTML form posts, and the format many query strings imitate — it may be <code>+</code>.
+      A literal plus sign in that context has to become <code>%2B</code>, which is why
+      <code>a+b</code> so often arrives as <code>a b</code>.
+    </p>
+    <p>
+      Strict mode exists for a narrower reason. <code>encodeURIComponent</code> leaves
+      <code>!</code>, <code>'</code>, <code>(</code>, <code>)</code> and <code>*</code> unescaped
+      even though RFC 3986 lists them as reserved sub-delimiters. Most servers do not care. OAuth 1.0
+      signatures, S3 request signing and a few strict parsers do.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Non-ASCII characters are encoded as UTF-8 bytes, so <code>é</code> becomes <code>%C3%A9</code>
+      — two escapes, not one. If you see <code>%E9</code> somewhere, that string was produced by
+      JavaScript's long-deprecated <code>escape()</code> function, which emitted Latin-1 and will not
+      round-trip through a modern decoder.
+    </p>
+    <p>
+      Finally, encode once. A value that is already escaped and gets escaped again turns every
+      <code>%</code> into <code>%25</code>, producing <code>%2520</code> where you wanted
+      <code>%20</code> — the classic double-encoding bug.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    wireStandardActions,
+    wireSwap,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import { encodeWithReport, type EncodeMode } from '~/lib/url';
+
+  const MODE_NOTES: Record<EncodeMode, string> = {
+    component:
+      'encodeURIComponent semantics: everything structural is escaped. Correct for a single parameter value or path segment.',
+    uri: 'encodeURI semantics: : / ? # [ ] @ ! $ & \' ( ) * + , ; = are preserved so the URL still works as an address.',
+    form: 'application/x-www-form-urlencoded: like component, but a space becomes + and a literal + becomes %2B.',
+    rfc3986:
+      "Strict RFC 3986: component encoding plus ! ' ( ) * — needed by OAuth 1.0 and AWS request signing.",
+  };
+
+  mount('url-encoder', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const mode = q<HTMLSelectElement>('#urle-mode', root)!;
+    const note = q('[data-mode-note]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const panel = q('[data-changed-panel]', root)!;
+    const tbody = q('[data-changed-body]', root)!;
+
+    const describeChar = (char: string) => {
+      const cp = char.codePointAt(0)!;
+      if (char === ' ') return 'space';
+      if (char === '\n') return 'newline';
+      if (char === '\t') return 'tab';
+      if (cp < 0x20 || cp === 0x7f) return `control U+${cp.toString(16).toUpperCase().padStart(4, '0')}`;
+      return char;
+    };
+
+    /** Built from DOM nodes — user text never goes near innerHTML. */
+    const renderChanged = (changed: Array<{ char: string; escaped: string; count: number }>) => {
+      tbody.textContent = '';
+      if (changed.length === 0) {
+        panel.setAttribute('hidden', '');
+        return;
+      }
+      panel.removeAttribute('hidden');
+
+      for (const entry of [...changed].sort((a, b) => b.count - a.count)) {
+        const row = document.createElement('tr');
+        row.className = 'border-t border-line';
+
+        const charCell = document.createElement('td');
+        charCell.className = 'px-3 py-1.5';
+        charCell.textContent = describeChar(entry.char);
+
+        const escapedCell = document.createElement('td');
+        escapedCell.className = 'px-3 py-1.5 text-accent';
+        escapedCell.textContent = entry.escaped;
+
+        const countCell = document.createElement('td');
+        countCell.className = 'px-3 py-1.5 tabular-nums text-muted';
+        countCell.textContent = String(entry.count);
+
+        row.append(charCell, escapedCell, countCell);
+        tbody.appendChild(row);
+      }
+    };
+
+    const run = () => {
+      const currentMode = mode.value as EncodeMode;
+      note.textContent = MODE_NOTES[currentMode];
+
+      const text = input.value;
+      if (!text) {
+        clearStatus(root);
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        panel.setAttribute('hidden', '');
+        tbody.textContent = '';
+        return;
+      }
+
+      try {
+        guardSize(text);
+        const report = encodeWithReport(text, currentMode);
+        output.value = report.output;
+
+        stats.removeAttribute('hidden');
+        q('[data-stat-before]', root)!.textContent = `${text.length.toLocaleString()} chars`;
+        q('[data-stat-after]', root)!.textContent = `${report.output.length.toLocaleString()} chars`;
+        q('[data-stat-growth]', root)!.textContent = `+${report.growth}%`;
+        q('[data-stat-changed]', root)!.textContent = String(report.changed.length);
+
+        renderChanged(report.changed);
+
+        if (report.changed.length === 0) {
+          setStatus(root, 'Nothing needed escaping — every character in this input is already URL-safe.', 'ok');
+        } else if (/%[0-9a-fA-F]{2}/.test(text)) {
+          setStatus(
+            root,
+            'This input already contains percent-escapes, so encoding it again will double-encode them (%20 becomes %2520). Decode it first if that is not what you want.',
+            'warn',
+          );
+        } else {
+          clearStatus(root);
+        }
+        markUsed();
+      } catch (err) {
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    on(input, 'input', debounce(run, 150));
+    on(mode, 'change', run);
+
+    wireSwap(root, '[data-primary-input]', '[data-output]', run);
+
+    wireStandardActions(root, { onChange: run });
+
+    note.textContent = MODE_NOTES.component;
+  });
+</script>

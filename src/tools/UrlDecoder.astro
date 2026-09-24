@@ -1,0 +1,377 @@
+---
+/**
+ * URL Decoder.
+ *
+ * Decodes percent-escapes, unwinds double encoding, and breaks a pasted URL
+ * into its parts and its query parameters. Logic lives in src/lib/url.ts.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_ENCODED } from '~/lib/url';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="url-decoder" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-plus checked />
+        Treat + as a space
+      </label>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-deep />
+        Keep decoding until it stops changing
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_ENCODED}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="urld-input" class="bc-label">Encoded URL or value</label>
+      <textarea
+        id="urld-input"
+        class="bc-textarea min-h-32 font-mono"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste a full URL, a query string, or a single encoded value…"
+        aria-describedby="urld-status"></textarea>
+    </div>
+
+    {/* ── Status ── */}
+    <div id="urld-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Output ── */}
+    <div>
+      <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+        <label for="urld-output" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Decoded result
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+            <span data-label>Copy</span>
+          </button>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-swap>Swap fields</button>
+        </div>
+      </div>
+      <textarea
+        id="urld-output"
+        class="bc-textarea min-h-32"
+        data-output
+        readonly
+        spellcheck="false"
+        aria-label="Decoded result"></textarea>
+    </div>
+
+    {/* ── URL parts ── */}
+    <div data-parts-panel hidden>
+      <h3 class="mb-2 text-xs font-medium tracking-wide text-muted uppercase">URL parts</h3>
+      <div class="bc-output p-0">
+        <table class="w-full text-left text-xs">
+          <tbody data-parts-body></tbody>
+        </table>
+      </div>
+    </div>
+
+    {/* ── Query parameters ── */}
+    <div data-params-panel hidden>
+      <div class="mb-2 flex items-center justify-between">
+        <h3 class="text-xs font-medium tracking-wide text-muted uppercase">Query parameters</h3>
+        <span class="text-xs text-muted" data-params-count></span>
+      </div>
+      <div class="bc-output max-h-80 p-0">
+        <table class="w-full text-left text-xs">
+          <thead class="sticky top-0 bg-surface-2 text-muted">
+            <tr>
+              <th scope="col" class="px-3 py-2 font-medium">Key</th>
+              <th scope="col" class="px-3 py-2 font-medium">Value</th>
+            </tr>
+          </thead>
+          <tbody data-params-body></tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="text-xs text-muted">
+      Building a link instead? Use the
+      <a class="text-accent underline" href="/tools/url-encoder">URL Encoder</a>.
+    </p>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      It turns <code>%C3%A9</code> back into <code>é</code>, <code>%2F</code> back into
+      <code>/</code>, and a 400-character analytics URL back into something you can read. Paste a
+      whole address and it also splits out the scheme, host, path and fragment, and lists every
+      query parameter as a row you can actually scan.
+    </p>
+    <p>
+      Multi-byte characters are reassembled properly. A single emoji arrives as four separate
+      escapes, and decoding them one at a time produces four pieces of nonsense — so consecutive
+      escapes are collected and decoded together.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Reading an OAuth callback or SSO redirect, where the interesting value is a nested URL
+        wrapped in escapes.
+      </li>
+      <li>
+        Working out what a tracking link is actually pointing at before clicking it.
+      </li>
+      <li>
+        Debugging a request where a parameter arrived wrong — seeing the raw and decoded forms side
+        by side usually identifies whether the sender or the receiver is at fault.
+      </li>
+      <li>Pulling a signed URL apart to inspect its expiry and signature parameters.</li>
+      <li>Recovering a filename from a <code>Content-Disposition</code> header.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>This value:</p>
+    <pre><code>next=https%3A%2F%2Fapp.example.com%2Fbilling%3Fplan%3Dpro</code></pre>
+    <p>decodes to:</p>
+    <pre><code>next=https://app.example.com/billing?plan=pro</code></pre>
+    <p>
+      Note that the inner <code>?</code> was encoded. Had it not been, the outer URL would have
+      treated <code>plan=pro</code> as one of its own parameters.
+    </p>
+
+    <h2>Double encoding, and how to recognise it</h2>
+    <p>
+      If decoding leaves <code>%3A</code> still visible in the output, the value was encoded twice.
+      The giveaway is <code>%25</code> in the input: that is an encoded percent sign, which means
+      the escapes after it are themselves escaped. Turning on repeated decoding unwinds the whole
+      chain and reports how many passes it took.
+    </p>
+    <p>
+      This matters beyond tidiness. A proxy or gateway that decodes once while the application
+      decodes twice is the basis of several path-traversal bypasses — <code>%252e%252e%252f</code>
+      passes a filter looking for <code>../</code> and becomes it a layer later.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      A decode can legitimately fail. <code>%ZZ</code> is not an escape, and <code>%E9</code> alone
+      is a Latin-1 byte from the old <code>escape()</code> function, not valid UTF-8. Rather than
+      silently producing replacement characters, this tool names the position that failed and
+      explains what the sequence probably was.
+    </p>
+    <p>
+      One caution about the parameter table: duplicate keys are kept, because they are meaningful.
+      <code>?tag=a&amp;tag=b</code> is two values, and frameworks disagree about whether that means
+      a list, the first value, or the last one.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    wireStandardActions,
+    wireSwap,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import {
+    decodeUrl,
+    decodeUrlDeep,
+    splitUrl,
+    encodingDepth,
+    classifyValue,
+    UrlDecodeError,
+  } from '~/lib/url';
+
+  mount('url-decoder', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const plus = q<HTMLInputElement>('[data-plus]', root)!;
+    const deep = q<HTMLInputElement>('[data-deep]', root)!;
+    const partsPanel = q('[data-parts-panel]', root)!;
+    const partsBody = q('[data-parts-body]', root)!;
+    const paramsPanel = q('[data-params-panel]', root)!;
+    const paramsBody = q('[data-params-body]', root)!;
+
+    const cell = (text: string, className: string) => {
+      const td = document.createElement('td');
+      td.className = className;
+      td.textContent = text;
+      return td;
+    };
+
+    const renderParts = (raw: string) => {
+      partsBody.textContent = '';
+      const looksLikeUrl = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw.trim());
+      if (!looksLikeUrl) {
+        partsPanel.setAttribute('hidden', '');
+        return;
+      }
+
+      const parts = splitUrl(raw);
+      const rows: Array<[string, string | undefined]> = [
+        ['Scheme', parts.scheme],
+        ['Host', parts.authority],
+        ['Path', parts.path || undefined],
+        ['Query', parts.query || undefined],
+        ['Fragment', parts.fragment],
+      ];
+
+      let shown = 0;
+      for (const [label, value] of rows) {
+        if (!value) continue;
+        shown++;
+        const tr = document.createElement('tr');
+        tr.className = 'border-t border-line first:border-t-0';
+        tr.append(
+          cell(label, 'w-24 px-3 py-1.5 align-top text-muted'),
+          cell(decodeSafely(value), 'px-3 py-1.5 break-all'),
+        );
+        partsBody.appendChild(tr);
+      }
+
+      partsPanel.toggleAttribute('hidden', shown === 0);
+    };
+
+    const decodeSafely = (value: string) =>
+      decodeUrl(value, { plusAsSpace: plus.checked, lenient: true });
+
+    const renderParams = (raw: string) => {
+      paramsBody.textContent = '';
+      const parts = splitUrl(raw);
+      const params = parts.params.length ? parts.params : splitUrl(`?${raw}`).params;
+
+      // Only show the table when the input genuinely looks like a query string.
+      const meaningful = parts.query !== '' || /^[^=&]+=[^&]*(&|$)/.test(raw.trim().replace(/^\?/, ''));
+      if (!meaningful || params.length === 0) {
+        paramsPanel.setAttribute('hidden', '');
+        return;
+      }
+
+      paramsPanel.removeAttribute('hidden');
+      q('[data-params-count]', root)!.textContent =
+        `${params.length} parameter${params.length === 1 ? '' : 's'}`;
+
+      for (const param of params) {
+        const tr = document.createElement('tr');
+        tr.className = 'border-t border-line align-top';
+
+        tr.appendChild(cell(param.key, 'px-3 py-1.5 font-medium break-all'));
+
+        const valueCell = document.createElement('td');
+        valueCell.className = 'px-3 py-1.5 break-all';
+        valueCell.textContent = param.valueless ? '(no value)' : param.value;
+        if (param.valueless) valueCell.classList.add('text-muted', 'italic');
+
+        const kind = classifyValue(param.value);
+        if (kind !== 'text' && !param.valueless) {
+          const badge = document.createElement('span');
+          badge.className = 'ml-2 rounded border border-line px-1.5 py-0.5 text-[0.65rem] text-muted uppercase';
+          badge.textContent = kind;
+          valueCell.appendChild(badge);
+        }
+
+        if (param.error) {
+          const warning = document.createElement('p');
+          warning.className = 'mt-1 text-[0.7rem] text-muted';
+          warning.textContent = param.error;
+          valueCell.appendChild(warning);
+        }
+
+        tr.appendChild(valueCell);
+        paramsBody.appendChild(tr);
+      }
+    };
+
+    const clearPanels = () => {
+      output.value = '';
+      partsPanel.setAttribute('hidden', '');
+      paramsPanel.setAttribute('hidden', '');
+      partsBody.textContent = '';
+      paramsBody.textContent = '';
+    };
+
+    const run = () => {
+      const raw = input.value;
+      if (!raw.trim()) {
+        clearStatus(root);
+        clearPanels();
+        return;
+      }
+
+      try {
+        guardSize(raw);
+
+        if (deep.checked) {
+          const result = decodeUrlDeep(raw, 5, { plusAsSpace: plus.checked });
+          output.value = result.value;
+          setStatus(
+            root,
+            result.passes <= 1
+              ? `Decoded in ${result.passes} pass${result.passes === 1 ? '' : 'es'}.`
+              : `This value was encoded ${result.passes} times — it took ${result.passes} passes to decode fully.`,
+            result.passes > 1 ? 'warn' : 'ok',
+          );
+        } else {
+          output.value = decodeUrl(raw, { plusAsSpace: plus.checked });
+          const depth = encodingDepth(raw);
+          if (depth > 1) {
+            setStatus(
+              root,
+              `The result still contains percent-escapes: this value was encoded ${depth} times. Turn on repeated decoding to unwind it.`,
+              'warn',
+            );
+          } else {
+            clearStatus(root);
+          }
+        }
+
+        renderParts(raw);
+        renderParams(raw);
+        markUsed();
+      } catch (err) {
+        clearPanels();
+        if (err instanceof UrlDecodeError) {
+          setStatus(root, err.message, 'error');
+          // Still show what can be read, so a single bad escape is not fatal.
+          output.value = decodeUrl(raw, { plusAsSpace: plus.checked, lenient: true });
+        } else {
+          setStatus(root, messageFor(err), 'error');
+        }
+      }
+    };
+
+    on(input, 'input', debounce(run, 200));
+    on(plus, 'change', run);
+    on(deep, 'change', run);
+
+    wireSwap(root, '[data-primary-input]', '[data-output]', run);
+
+    wireStandardActions(root, {
+      onChange: () => {
+        clearPanels();
+        if (input.value) run();
+      },
+    });
+  });
+</script>

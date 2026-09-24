@@ -1,0 +1,289 @@
+---
+/**
+ * HTTP Status Code Lookup.
+ *
+ * Every code and every explanation is rendered server-side, grouped by class.
+ * The search box is progressive enhancement only: it hides cards that do not
+ * match, it never fetches or builds them. That is deliberate — a page that
+ * renders its content from JavaScript cannot rank for "what is a 409", which
+ * is the whole reason this page exists.
+ *
+ * The dataset lives in src/lib/http-status.ts and is unit-tested.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { HTTP_STATUSES, statusesByCategory } from '~/lib/http-status';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+const groups = statusesByCategory();
+const total = HTTP_STATUSES.length;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="http-status-codes" class="space-y-4">
+    {/* ── Search ── */}
+    <div>
+      <label for="hs-search" class="bc-label">Search by code, name or keyword</label>
+      <input
+        id="hs-search"
+        type="search"
+        class="bc-input"
+        data-primary-input
+        data-clear-target
+        autocomplete="off"
+        placeholder="404, rate limit, etag, redirect…"
+        aria-describedby="hs-status"
+      />
+    </div>
+
+    {/* ── Class filter ── */}
+    <div class="bc-toolbar" role="group" aria-label="Filter by status class">
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-class="all" aria-pressed="true">
+        All
+      </button>
+      {
+        groups.map(({ category }) => (
+          <button
+            type="button"
+            class="bc-btn bc-btn-secondary bc-btn-sm"
+            data-class={category.id}
+            aria-pressed="false"
+          >
+            {category.id} {category.name}
+          </button>
+        ))
+      }
+      <div class="ml-auto flex gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example="409">
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+      </div>
+    </div>
+
+    <div id="hs-status" data-status role="status" aria-live="polite" hidden></div>
+
+    <p class="text-sm text-muted" data-count>
+      Showing all {total} status codes.
+    </p>
+
+    {/* ── The reference itself, fully rendered ── */}
+    <div class="space-y-6">
+      {
+        groups.map(({ category, statuses }) => (
+          <section data-group={category.id} aria-labelledby={`hs-head-${category.id}`}>
+            <h2 id={`hs-head-${category.id}`} class="text-base font-semibold">
+              {category.id} — {category.name}
+            </h2>
+            <p class="mt-1 mb-3 text-sm text-muted">{category.summary}</p>
+
+            <div class="space-y-2">
+              {statuses.map((status) => (
+                <article
+                  id={`status-${status.code}`}
+                  class="bc-card scroll-mt-24 p-3"
+                  data-code={status.code}
+                >
+                  <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span class="font-mono text-lg font-semibold tabular-nums text-accent">
+                      {status.code}
+                    </span>
+                    <h3 class="text-[0.9375rem] font-semibold">{status.name}</h3>
+                    {status.deprecated && (
+                      <span class="rounded border border-line-strong px-1.5 py-0.5 text-[0.6875rem] text-muted">
+                        not in current use
+                      </span>
+                    )}
+                    <span class="ml-auto text-xs text-muted">{status.spec}</span>
+                    <button
+                      type="button"
+                      class="bc-btn bc-btn-ghost bc-btn-sm"
+                      data-copy={`#hs-text-${status.code}`}
+                      aria-label={`Copy the explanation of ${status.code} ${status.name}`}
+                    >
+                      <span data-label>Copy</span>
+                    </button>
+                  </div>
+
+                  <div id={`hs-text-${status.code}`} class="mt-2 space-y-1.5 text-sm">
+                    <p>{status.meaning}</p>
+                    <p class="text-muted">
+                      <strong class="font-medium text-ink-soft">When to send it:</strong>{' '}
+                      {status.whenToSend}
+                    </p>
+                    {status.confusion && (
+                      <p class="text-muted">
+                        <strong class="font-medium text-ink-soft">Often confused:</strong>{' '}
+                        {status.confusion}
+                      </p>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ))
+      }
+    </div>
+
+    <p class="text-sm text-muted" data-empty hidden>
+      No status code matches that search. Try a number, a reason phrase such as “gateway”, or a
+      symptom such as “rate limit”.
+    </p>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      This is the complete HTTP status code registry — {total} codes from 100 to 511 — with each one
+      explained in terms of the decision you are actually making: what the code asserts, when a
+      server is right to send it, and which other code it is usually mistaken for. Search accepts a
+      number, a reason phrase, or the symptom you are looking at: type <code>etag</code> and you get
+      304 and 412.
+    </p>
+    <p>
+      Partial numbers work as prefixes, so <code>42</code> lists the whole 42x run together —
+      useful when you remember the shape of a code but not the digits.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Deciding what an endpoint should return when validation fails, which is 422 far more
+        often than it is 400.</li>
+      <li>Reading a load balancer's access log, where the split between 502, 503 and 504 tells you
+        which component broke.</li>
+      <li>Settling the 401-versus-403 argument in a code review with the actual definition.</li>
+      <li>Choosing between 301 and 308 before a permanent redirect gets cached for a year.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>A client PUTs an updated record whose version is stale:</p>
+    <pre><code>HTTP/1.1 409 Conflict
+Content-Type: application/problem+json
+
+&#123;"title":"Version conflict","current":42,"submitted":39&#125;</code></pre>
+    <p>
+      409 is right because the request is well-formed and would have succeeded a moment ago: the
+      client can re-read, merge and retry. Had the body simply failed validation — a negative
+      quantity, a malformed date — nothing about the server's state would change the outcome, and
+      the correct answer would be 422.
+    </p>
+
+    <h2>The classes, and what they promise</h2>
+    <p>
+      The first digit is a contract with every intermediary between client and server, and it
+      matters more than the remaining two. A 4xx tells caches and clients that retrying the
+      identical request is pointless; a 5xx invites a retry with backoff. That is why classifying a
+      client mistake as 500 is worse than merely inaccurate — it invites a retry storm and sends
+      the caller to debug your infrastructure instead of their payload.
+    </p>
+    <p>
+      Cacheability follows the same rule. By default 200, 203, 204, 206, 300, 301, 308, 404, 405,
+      410, 414 and 501 are cacheable by a shared cache even without explicit headers, which is how
+      a 404 served during a botched deploy can outlive the deploy by hours.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      The reason phrase — the “Not Found” after the 404 — is decorative, and HTTP/2 and HTTP/3
+      dropped it from the wire entirely, so anything parsing it breaks on a modern connection.
+      Codes outside the registry are legal: a client must treat an unknown 4xx as 400 and an
+      unknown 5xx as 500, which is what lets Cloudflare use 520–527 and nginx use 444 without
+      breaking anyone. And 418 is reserved rather than free precisely because so many frameworks
+      implemented the teapot joke that reassigning the number became impossible.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import { mount, q, qa, on, setStatus, clearStatus, wireStandardActions, markUsed, debounce } from '~/lib/toolkit';
+  import { searchStatuses } from '~/lib/http-status';
+
+  mount('http-status-codes', (root) => {
+    const search = q<HTMLInputElement>('[data-primary-input]', root)!;
+    const count = q('[data-count]', root)!;
+    const empty = q('[data-empty]', root)!;
+    const cards = qa<HTMLElement>('[data-code]', root);
+    const sections = qa<HTMLElement>('[data-group]', root);
+    const total = cards.length;
+
+    let activeClass = 'all';
+
+    const apply = () => {
+      const term = search.value.trim();
+      // The dataset is imported rather than read back out of the DOM so that
+      // the filter and the page agree on what "matches" by construction, and
+      // so the keyword synonyms — "rate limit" finding 429 — work without
+      // stamping a duplicate search index into every card's attributes.
+      const allowed = new Set(searchStatuses(term).map((s) => s.code));
+
+      let visible = 0;
+      for (const card of cards) {
+        const code = Number(card.dataset.code);
+        const inClass = activeClass === 'all' || card.dataset.code!.startsWith(activeClass[0]!);
+        const show = allowed.has(code) && inClass;
+        card.toggleAttribute('hidden', !show);
+        if (show) visible++;
+      }
+
+      // Hide a class heading whose codes were all filtered out.
+      for (const section of sections) {
+        const any = qa('[data-code]', section).some((c) => !c.hasAttribute('hidden'));
+        section.toggleAttribute('hidden', !any);
+      }
+
+      empty.toggleAttribute('hidden', visible > 0);
+      count.textContent =
+        visible === total
+          ? `Showing all ${total} status codes.`
+          : `Showing ${visible} of ${total} status codes.`;
+
+      if (term) {
+        if (visible === 0) {
+          setStatus(root, `Nothing matches “${term}”.`, 'warn');
+        } else {
+          clearStatus(root);
+          markUsed();
+        }
+      } else {
+        clearStatus(root);
+      }
+    };
+
+    on(search, 'input', debounce(apply, 120));
+
+    for (const button of qa('[data-class]', root)) {
+      on(button, 'click', () => {
+        activeClass = button.dataset.class!;
+        for (const other of qa('[data-class]', root)) {
+          other.setAttribute('aria-pressed', String(other === button));
+        }
+        apply();
+      });
+    }
+
+    wireStandardActions(root, {
+      onChange: () => {
+        activeClass = 'all';
+        for (const other of qa('[data-class]', root)) {
+          other.setAttribute('aria-pressed', String(other.dataset.class === 'all'));
+        }
+        apply();
+      },
+    });
+
+    // Arriving at /tools/http-status-codes#status-409 should filter to it,
+    // not just scroll — the anchor is how people share a single code.
+    const fromHash = /^#status-(\d{3})$/.exec(location.hash);
+    if (fromHash) {
+      search.value = fromHash[1]!;
+      apply();
+      q(`#status-${fromHash[1]}`, root)?.scrollIntoView({ block: 'center' });
+    }
+  });
+</script>

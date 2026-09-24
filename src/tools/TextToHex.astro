@@ -1,0 +1,372 @@
+---
+/**
+ * Text to Hex.
+ *
+ * Encodes text as bytes and formats them however the destination wants.
+ * Logic lives in src/lib/hex.ts.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_TEXT } from '~/lib/hex';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="text-to-hex" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="t2h-separator" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Separator
+        </label>
+        <select id="t2h-separator" class="bc-select w-auto py-1.5 text-xs">
+          <option value="space" selected>Space</option>
+          <option value="none">None</option>
+          <option value="comma">Comma</option>
+          <option value="colon">Colon</option>
+          <option value="dash">Dash</option>
+          <option value="newline">One per line</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label for="t2h-prefix" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Prefix
+        </label>
+        <select id="t2h-prefix" class="bc-select w-auto py-1.5 text-xs">
+          <option value="none" selected>None</option>
+          <option value="0x">0x</option>
+          <option value="backslash-x">\x</option>
+          <option value="percent">%</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label for="t2h-encoding" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Encoding
+        </label>
+        <select id="t2h-encoding" class="bc-select w-auto py-1.5 text-xs">
+          <option value="utf-8" selected>UTF-8</option>
+          <option value="latin1">Latin-1</option>
+        </select>
+      </div>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-uppercase />
+        Uppercase
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_TEXT}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>Upload file</button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input type="file" accept=".txt,text/plain" class="hidden" data-file-input />
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="t2h-input" class="bc-label">Text</label>
+      <textarea
+        id="t2h-input"
+        class="bc-textarea min-h-32"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Type or paste text to see its bytes…"
+        aria-describedby="t2h-status"></textarea>
+    </div>
+
+    {/* ── Status ── */}
+    <div id="t2h-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-chars>—</div>
+        <div class="bc-stat-label">Characters</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-bytes>—</div>
+        <div class="bc-stat-label">Bytes</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-multibyte>—</div>
+        <div class="bc-stat-label">Multi-byte characters</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-digits>—</div>
+        <div class="bc-stat-label">Hex digits</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-1 text-xs">
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-view="hex" aria-pressed="true">
+            Hex
+          </button>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-view="binary" aria-pressed="false">
+            Binary
+          </button>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-view="decimal" aria-pressed="false">
+            Decimal
+          </button>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-view="dump" aria-pressed="false">
+            Hexdump
+          </button>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+            <span data-label>Copy</span>
+          </button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>Download</button>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-swap>Swap fields</button>
+        </div>
+      </div>
+      <textarea
+        id="t2h-output"
+        class="bc-textarea min-h-40 font-mono"
+        data-output
+        readonly
+        spellcheck="false"
+        aria-label="Hexadecimal result"></textarea>
+    </div>
+
+    <p class="text-xs text-muted">
+      Decoding rather than encoding? Use
+      <a class="text-accent underline" href="/tools/hex-to-text">Hex to Text</a>.
+    </p>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      It shows you the bytes behind your text. Each one becomes two hexadecimal digits, formatted
+      the way the thing you are pasting into expects — spaced for a dump, continuous for a database
+      literal, <code>0x</code>-prefixed for a C array, <code>\x</code>-prefixed for a Python bytes
+      literal.
+    </p>
+    <p>
+      Because hex represents bytes rather than characters, the encoding matters. UTF-8 is the
+      default and gives one byte for ASCII, two for most European accents, three for CJK and four
+      for emoji. Latin-1 gives exactly one byte per character and refuses anything it cannot
+      represent, rather than quietly substituting.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>
+        Building a test fixture: a byte array for a unit test, or a <code>\x</code> literal for a
+        protocol parser.
+      </li>
+      <li>
+        Writing a binary value into SQL, where MySQL wants <code>X'48656C'</code> and Postgres wants
+        <code>'\x48656c'</code>.
+      </li>
+      <li>
+        Checking exactly which bytes a string occupies before it goes into a fixed-width column or a
+        length-limited header.
+      </li>
+      <li>
+        Confirming that a separator really is a tab and not four spaces, or that a line ends with
+        <code>0d 0a</code> rather than <code>0a</code>.
+      </li>
+      <li>Producing a hexdump to compare against one from another machine.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>The same six characters in the four formats:</p>
+    <pre><code>Input:     Hi! é
+
+Hex:       48 69 21 20 c3 a9
+Binary:    01001000 01101001 00100001 00100000 11000011 10101001
+Decimal:   72 105 33 32 195 169
+Hexdump:   00000000  48 69 21 20 c3 a9    |Hi! ..|</code></pre>
+    <p>
+      Five characters, six bytes: <code>é</code> is <code>c3 a9</code>, which is why byte counts and
+      character counts disagree the moment text leaves ASCII.
+    </p>
+
+    <h2>Picking a format your tool will accept</h2>
+    <p>
+      The separator and prefix options are not cosmetic — most consumers accept exactly one shape:
+    </p>
+    <ul>
+      <li><strong>Continuous, lowercase</strong> — SHA and MD5 digests, git object IDs, colour values.</li>
+      <li><strong>Space-separated</strong> — packet dumps, <code>hexdump -C</code>, debugger output.</li>
+      <li><strong>Colon-separated</strong> — MAC addresses, certificate fingerprints, OpenSSL output.</li>
+      <li><strong>0x with commas</strong> — C, Go and Rust byte arrays.</li>
+      <li><strong>\x prefixed</strong> — Python bytes literals and Postgres bytea.</li>
+    </ul>
+    <p>
+      Casing is almost always cosmetic; the exception is anything compared as a string, where a
+      lowercase digest will not equal an uppercase one.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      Hex doubles the size of your data — two characters per byte, plus separators. That is the
+      price of being readable, and it is why Base64 (four characters per three bytes) is preferred
+      whenever the value only has to survive transport rather than be inspected by a person.
+    </p>
+    <p>
+      One thing the byte view makes visible that nothing else does: a byte order mark. A file that
+      starts <code>ef bb bf</code> has a UTF-8 BOM, which is invisible in every editor and will
+      break a strict JSON or CSV parser on the first line.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    downloadText,
+    wireStandardActions,
+    wireSwap,
+    wireFileInput,
+    readFileText,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import {
+    bytesToHex,
+    bytesToBinary,
+    bytesToDecimal,
+    hexDump,
+    textToHexLatin1,
+    type Separator,
+    type Prefix,
+  } from '~/lib/hex';
+
+  mount('text-to-hex', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const separator = q<HTMLSelectElement>('#t2h-separator', root)!;
+    const prefix = q<HTMLSelectElement>('#t2h-prefix', root)!;
+    const encoding = q<HTMLSelectElement>('#t2h-encoding', root)!;
+    const uppercase = q<HTMLInputElement>('[data-uppercase]', root)!;
+    const stats = q('[data-stats]', root)!;
+
+    let view: 'hex' | 'binary' | 'decimal' | 'dump' = 'hex';
+
+    const toBytes = (text: string): Uint8Array => {
+      if (encoding.value !== 'latin1') return new TextEncoder().encode(text);
+      // textToHexLatin1 throws a user-facing error for out-of-range characters;
+      // reuse that validation, then build the bytes.
+      textToHexLatin1(text, { separator: 'none' });
+      const bytes = new Uint8Array(text.length);
+      for (let i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i);
+      return bytes;
+    };
+
+    const render = (bytes: Uint8Array) => {
+      const options = {
+        separator: separator.value as Separator,
+        prefix: prefix.value as Prefix,
+        uppercase: uppercase.checked,
+      };
+
+      switch (view) {
+        case 'binary':
+          return bytesToBinary(bytes);
+        case 'decimal':
+          return bytesToDecimal(bytes);
+        case 'dump':
+          return hexDump(bytes);
+        default:
+          return bytesToHex(bytes, options);
+      }
+    };
+
+    const run = () => {
+      const text = input.value;
+      if (!text) {
+        clearStatus(root);
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        return;
+      }
+
+      try {
+        guardSize(text);
+        const bytes = toBytes(text);
+        output.value = render(bytes);
+
+        const codePointCount = [...text].length;
+        const multibyte = [...text].filter((c) => new TextEncoder().encode(c).length > 1).length;
+
+        stats.removeAttribute('hidden');
+        q('[data-stat-chars]', root)!.textContent = codePointCount.toLocaleString();
+        q('[data-stat-bytes]', root)!.textContent = bytes.length.toLocaleString();
+        q('[data-stat-multibyte]', root)!.textContent = multibyte.toLocaleString();
+        q('[data-stat-digits]', root)!.textContent = (bytes.length * 2).toLocaleString();
+
+        if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+          setStatus(root, 'This text starts with a UTF-8 byte order mark (ef bb bf). It is invisible in an editor and breaks strict JSON and CSV parsers.', 'warn');
+        } else if (multibyte > 0 && encoding.value !== 'latin1') {
+          setStatus(root, `${multibyte} character(s) need more than one byte, so the byte count is higher than the character count.`, 'ok');
+        } else {
+          clearStatus(root);
+        }
+        markUsed();
+      } catch (err) {
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    for (const button of qa('[data-view]', root)) {
+      on(button, 'click', () => {
+        view = (button.dataset.view as typeof view) ?? 'hex';
+        for (const other of qa('[data-view]', root)) {
+          other.setAttribute('aria-pressed', String(other === button));
+        }
+        run();
+      });
+    }
+
+    on(input, 'input', debounce(run, 150));
+    for (const control of [separator, prefix, encoding, uppercase]) on(control, 'change', run);
+
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Encode something first.', 'warn');
+      downloadText('bytes.hex.txt', output.value);
+    });
+
+    wireSwap(root, '[data-primary-input]', '[data-output]', () => {
+      setStatus(root, 'Fields swapped. To turn hex back into text, open Hex to Text.', 'warn');
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          run();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, { onChange: run });
+  });
+</script>

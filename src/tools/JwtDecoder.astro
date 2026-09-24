@@ -1,0 +1,528 @@
+---
+/**
+ * JWT Decoder.
+ *
+ * Decodes header and payload, renders the registered claims readably, and
+ * performs REAL signature verification through Web Crypto when the user
+ * supplies a key. Nothing on this page may imply a token is genuine unless
+ * crypto.subtle.verify() actually returned true.
+ *
+ * Logic lives in src/lib/jwt.ts. No network calls anywhere.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_JWT, SAMPLE_SECRET } from '~/lib/jwt';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="jwt-decoder" class="space-y-4">
+    {/* ── Input ── */}
+    <div>
+      <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+        <label for="jwt-input" class="text-xs font-medium tracking-wide text-muted uppercase">
+          JSON Web Token
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_JWT}>
+            Example
+          </button>
+          <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        </div>
+      </div>
+      <textarea
+        id="jwt-input"
+        class="bc-textarea min-h-32 font-mono"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…  (a Bearer prefix is fine)"
+        aria-describedby="jwt-status"></textarea>
+    </div>
+
+    {/* ── Status ── */}
+    <div id="jwt-status" data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Badges: expiry and algorithm ── */}
+    <div class="flex flex-wrap gap-2" data-badges hidden>
+      <span class="rounded-lg border px-3 py-1.5 text-xs font-medium" data-badge-expiry></span>
+      <span class="rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-xs font-medium text-ink" data-badge-alg></span>
+      <span class="rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-xs font-medium text-muted" data-badge-verify></span>
+    </div>
+
+    <p class="text-xs text-muted" data-expiry-detail hidden></p>
+
+    {/* ── Warnings ── */}
+    <div class="space-y-2" data-warnings hidden></div>
+
+    {/* ── Header and payload ── */}
+    <div class="grid gap-4 lg:grid-cols-2" data-segments hidden>
+      <div>
+        <div class="mb-1.5 flex items-center justify-between">
+          <span class="text-xs font-medium tracking-wide text-muted uppercase">Header</span>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-copy="[data-header-json]">
+            <span data-label>Copy</span>
+          </button>
+        </div>
+        <pre class="bc-output max-h-64 min-h-32" data-header-json tabindex="0"></pre>
+      </div>
+
+      <div>
+        <div class="mb-1.5 flex items-center justify-between">
+          <span class="text-xs font-medium tracking-wide text-muted uppercase">Payload</span>
+          <button type="button" class="bc-btn bc-btn-ghost bc-btn-sm" data-copy="[data-payload-json]">
+            <span data-label>Copy</span>
+          </button>
+        </div>
+        <pre class="bc-output max-h-64 min-h-32" data-payload-json tabindex="0"></pre>
+      </div>
+    </div>
+
+    {/* ── Claims table ── */}
+    <div data-claims-panel hidden>
+      <h3 class="mb-2 text-xs font-medium tracking-wide text-muted uppercase">Registered claims</h3>
+      <div class="bc-output p-0">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-surface-2 text-muted">
+            <tr>
+              <th scope="col" class="px-3 py-2 font-medium">Claim</th>
+              <th scope="col" class="px-3 py-2 font-medium">Value</th>
+              <th scope="col" class="px-3 py-2 font-medium">Meaning</th>
+            </tr>
+          </thead>
+          <tbody data-claims-body></tbody>
+        </table>
+      </div>
+      <p class="mt-2 text-xs text-muted" data-custom-claims></p>
+    </div>
+
+    {/* ── Verification ── */}
+    <div class="bc-card p-4">
+      <h3 class="mb-1 text-sm font-semibold text-ink">Signature verification</h3>
+      <p class="mb-3 text-xs text-muted">
+        Verification runs in this tab with the Web Crypto API. The token and the key you paste are
+        never sent anywhere.
+      </p>
+
+      <div class="bc-toolbar mb-3">
+        <div class="flex items-center gap-2">
+          <label for="jwt-keykind" class="text-xs font-medium tracking-wide text-muted uppercase">
+            Key type
+          </label>
+          <select id="jwt-keykind" class="bc-select w-auto py-1.5 text-xs">
+            <option value="auto" selected>Detect automatically</option>
+            <option value="secret">Shared secret (HS256/384/512)</option>
+            <option value="pem">PEM public key (SPKI)</option>
+            <option value="jwk">JWK JSON</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-2" data-secret-encoding-wrap>
+          <label for="jwt-secret-encoding" class="text-xs font-medium tracking-wide text-muted uppercase">
+            Secret is
+          </label>
+          <select id="jwt-secret-encoding" class="bc-select w-auto py-1.5 text-xs">
+            <option value="utf-8" selected>Plain text</option>
+            <option value="base64">Base64</option>
+            <option value="base64url">Base64url</option>
+            <option value="hex">Hex</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <label for="jwt-alg" class="text-xs font-medium tracking-wide text-muted uppercase">
+            Algorithm
+          </label>
+          <select id="jwt-alg" class="bc-select w-auto py-1.5 text-xs">
+            <option value="" selected>From the header</option>
+            <option value="HS256">HS256</option>
+            <option value="HS384">HS384</option>
+            <option value="HS512">HS512</option>
+            <option value="RS256">RS256</option>
+            <option value="RS384">RS384</option>
+            <option value="RS512">RS512</option>
+            <option value="PS256">PS256</option>
+            <option value="PS384">PS384</option>
+            <option value="PS512">PS512</option>
+            <option value="ES256">ES256</option>
+            <option value="ES384">ES384</option>
+          </select>
+        </div>
+      </div>
+
+      <label for="jwt-key" class="bc-label">Secret or public key</label>
+      <textarea
+        id="jwt-key"
+        class="bc-textarea min-h-24 font-mono"
+        data-key
+        data-clear-target
+        spellcheck="false"
+        placeholder={`A shared secret (try "${SAMPLE_SECRET}" with the example token), a -----BEGIN PUBLIC KEY----- block, or a JWK object`}
+        autocomplete="off"></textarea>
+
+      <div class="bc-toolbar mt-3">
+        <button type="button" class="bc-btn bc-btn-primary" data-verify>Verify signature</button>
+        <span class="text-xs text-muted" data-verify-hint>
+          Signature not verified — paste a key to verify.
+        </span>
+      </div>
+
+      <div class="mt-3" data-verify-result role="status" aria-live="polite" hidden></div>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      It splits a token into its three parts, decodes the header and payload from base64url, and
+      renders them as formatted JSON. Timestamp claims become real dates with a relative form, so
+      you see that a token expired forty minutes ago instead of converting 1758675600 by hand.
+    </p>
+    <p>
+      Paste a key and it also verifies the signature — genuinely, with the Web Crypto API, in this
+      tab. HS256/384/512 against a shared secret; RS, PS and ES against a public key in PEM or JWK
+      form. Without a key it says the signature was not verified and implies nothing else.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Checking whether a 401 is caused by expiry or something else.</li>
+      <li>
+        Confirming an identity provider issues the claims you expect: the right <code>aud</code>,
+        scopes and subject.
+      </li>
+      <li>Reading <code>kid</code> to see which JWKS key signed a token.</li>
+      <li>Proving a token was signed by the key you think, before trusting a bug report.</li>
+      <li>Spotting a token issued with <code>alg</code> set to <code>none</code>.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>Three base64url segments joined by full stops:</p>
+    <pre><code>eyJhbGciOiJIUzI1NiJ9 . eyJzdWIiOiI0MiIsImV4cCI6MTc1ODY3NTYwMH0 . 3vQ…
+     header                  payload                              signature</code></pre>
+    <p>which decode to:</p>
+    <pre><code>{'{"alg":"HS256"}'}
+{'{"sub":"42","exp":1758675600}'}</code></pre>
+    <p>No key was needed to read either — the point of the next section.</p>
+
+    <h2>Decoding is not verifying</h2>
+    <p>
+      The header and payload are <em>encoded</em>, not encrypted. Anyone holding a token can read
+      every claim, and anyone can craft one containing any claims they like. What makes a token
+      trustworthy is the third segment: an HMAC or signature over the first two, which only the
+      key holder could produce. A token that decodes cleanly proves nothing.
+    </p>
+    <p>Three failure modes matter:</p>
+    <ul>
+      <li>
+        <strong><code>alg: none</code></strong> — an unsecured token with no signature. Accepting
+        one is CVE-2015-9235, the original JWT vulnerability. It is flagged here and never reported
+        as verified.
+      </li>
+      <li>
+        <strong>Algorithm confusion</strong> — an attacker relabels an RS256 token as HS256 and
+        signs it with the public key, which is not secret. A verifier that reads the algorithm from
+        the header accepts it. Pin the expected algorithm in your own code; the override selector
+        here lets you test that theory deliberately.
+      </li>
+      <li>
+        <strong>Embedded keys</strong> — the <code>jwk</code>, <code>jku</code> and <code>x5u</code>
+        headers let a token point at its own key. Trusting them means trusting the attacker's key,
+        so libraries ignore them by default.
+      </li>
+    </ul>
+
+    <h2>Worth knowing</h2>
+    <p>
+      A valid signature is necessary but not sufficient. Check that <code>iss</code> is your
+      issuer, <code>aud</code> names your service, and <code>exp</code> and <code>nbf</code>
+      bracket the current time — with 30 to 60 seconds of leeway for clock skew.
+    </p>
+    <p>
+      A recurring bug this tool flags: <code>exp</code>, <code>iat</code> and <code>nbf</code> are
+      NumericDate values — <em>seconds</em> since the epoch (RFC 7519 §2). Passing
+      <code>Date.now()</code> in produces milliseconds, and a token expiring in the year 57000.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    wireStandardActions,
+    markUsed,
+    debounce,
+  } from '~/lib/toolkit';
+  import {
+    decodeJwt,
+    verifySignature,
+    detectKeyKind,
+    type DecodedJwt,
+    type KeyKind,
+    type SecretEncoding,
+  } from '~/lib/jwt';
+
+  mount('jwt-decoder', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const keyField = q<HTMLTextAreaElement>('[data-key]', root)!;
+    const keyKind = q<HTMLSelectElement>('#jwt-keykind', root)!;
+    const secretEncoding = q<HTMLSelectElement>('#jwt-secret-encoding', root)!;
+    const secretEncodingWrap = q('[data-secret-encoding-wrap]', root)!;
+    const algSelect = q<HTMLSelectElement>('#jwt-alg', root)!;
+
+    const badges = q('[data-badges]', root)!;
+    const badgeExpiry = q('[data-badge-expiry]', root)!;
+    const badgeAlg = q('[data-badge-alg]', root)!;
+    const badgeVerify = q('[data-badge-verify]', root)!;
+    const expiryDetail = q('[data-expiry-detail]', root)!;
+    const warnings = q('[data-warnings]', root)!;
+    const segments = q('[data-segments]', root)!;
+    const headerJson = q('[data-header-json]', root)!;
+    const payloadJson = q('[data-payload-json]', root)!;
+    const claimsPanel = q('[data-claims-panel]', root)!;
+    const claimsBody = q('[data-claims-body]', root)!;
+    const customClaims = q('[data-custom-claims]', root)!;
+    const verifyResult = q('[data-verify-result]', root)!;
+    const verifyHint = q('[data-verify-hint]', root)!;
+
+    /** The last successfully decoded token, so Verify need not re-parse. */
+    let current: DecodedJwt | null = null;
+
+    /** Reuses the shared alert palette so the badge flips with the theme. */
+    const EXPIRY_CLASSES: Record<string, string> = {
+      valid: 'bc-alert bc-alert-ok',
+      expired: 'bc-alert bc-alert-error',
+      'not-yet-valid': 'bc-alert bc-alert-warn',
+      'no-expiry': 'bc-alert bc-alert-warn',
+    };
+
+    const resetVerification = () => {
+      verifyResult.setAttribute('hidden', '');
+      verifyResult.textContent = '';
+      verifyResult.className = 'mt-3';
+      badgeVerify.textContent = 'Signature not verified';
+      verifyHint.textContent = 'Signature not verified — paste a key to verify.';
+    };
+
+    const clearAll = () => {
+      current = null;
+      badges.setAttribute('hidden', '');
+      expiryDetail.setAttribute('hidden', '');
+      warnings.setAttribute('hidden', '');
+      warnings.textContent = '';
+      segments.setAttribute('hidden', '');
+      headerJson.textContent = '';
+      payloadJson.textContent = '';
+      claimsPanel.setAttribute('hidden', '');
+      claimsBody.textContent = '';
+      customClaims.textContent = '';
+      resetVerification();
+    };
+
+    const cell = (text: string, className: string) => {
+      const td = document.createElement('td');
+      td.className = className;
+      td.textContent = text;
+      return td;
+    };
+
+    const renderClaims = (decoded: DecodedJwt) => {
+      claimsBody.textContent = '';
+
+      if (decoded.claims.length === 0 && decoded.customClaims.length === 0) {
+        claimsPanel.setAttribute('hidden', '');
+        return;
+      }
+      claimsPanel.removeAttribute('hidden');
+
+      for (const claim of decoded.claims) {
+        const tr = document.createElement('tr');
+        tr.className = 'border-t border-line align-top';
+
+        const keyCell = document.createElement('td');
+        keyCell.className = 'px-3 py-2 whitespace-nowrap';
+        const code = document.createElement('code');
+        code.textContent = claim.key;
+        const name = document.createElement('div');
+        name.className = 'text-[0.7rem] text-muted';
+        name.textContent = claim.name;
+        keyCell.append(code, name);
+
+        const valueCell = document.createElement('td');
+        valueCell.className = 'px-3 py-2 break-all';
+        const value = document.createElement('div');
+        value.className = 'font-mono';
+        value.textContent = claim.value;
+        valueCell.appendChild(value);
+
+        if (claim.absolute) {
+          const absolute = document.createElement('div');
+          absolute.className = 'mt-0.5 text-[0.7rem] text-muted';
+          absolute.textContent = claim.absolute;
+          valueCell.appendChild(absolute);
+        }
+        if (claim.relative) {
+          const relative = document.createElement('div');
+          relative.className = 'text-[0.7rem] font-medium text-accent';
+          relative.textContent = claim.relative;
+          valueCell.appendChild(relative);
+        }
+        if (claim.warning) {
+          const warning = document.createElement('div');
+          warning.className = 'bc-alert bc-alert-warn mt-1 text-[0.7rem]';
+          warning.textContent = claim.warning;
+          valueCell.appendChild(warning);
+        }
+
+        tr.append(keyCell, valueCell, cell(claim.description, 'px-3 py-2 text-muted'));
+        claimsBody.appendChild(tr);
+      }
+
+      customClaims.textContent = decoded.customClaims.length
+        ? `Other claims in this payload: ${decoded.customClaims.join(', ')}. These are application-specific — nothing in the JWT spec defines them.`
+        : 'This token carries no claims beyond the registered ones.';
+    };
+
+    const renderWarnings = (messages: string[]) => {
+      warnings.textContent = '';
+      if (messages.length === 0) {
+        warnings.setAttribute('hidden', '');
+        return;
+      }
+      warnings.removeAttribute('hidden');
+      for (const message of messages) {
+        const div = document.createElement('div');
+        div.className = 'bc-alert bc-alert-warn';
+        div.textContent = message;
+        warnings.appendChild(div);
+      }
+    };
+
+    const run = () => {
+      const raw = input.value;
+      if (!raw.trim()) {
+        clearStatus(root);
+        clearAll();
+        return;
+      }
+
+      try {
+        guardSize(raw);
+        const decoded = decodeJwt(raw);
+        current = decoded;
+        clearStatus(root);
+        resetVerification();
+
+        badges.removeAttribute('hidden');
+        badgeExpiry.className = `${EXPIRY_CLASSES[decoded.expiry.state] ?? 'bc-alert bc-alert-warn'} text-xs font-medium`;
+        badgeExpiry.textContent = decoded.expiry.label;
+        badgeAlg.textContent = decoded.alg ? `alg: ${decoded.alg}` : 'alg: missing';
+
+        expiryDetail.removeAttribute('hidden');
+        expiryDetail.textContent = decoded.expiry.detail;
+
+        renderWarnings(decoded.warnings);
+
+        segments.removeAttribute('hidden');
+        headerJson.textContent = decoded.headerJson;
+        payloadJson.textContent = decoded.payloadJson;
+
+        renderClaims(decoded);
+
+        markUsed();
+      } catch (err) {
+        clearAll();
+        setStatus(root, messageFor(err), 'error');
+      }
+    };
+
+    const showVerification = (kind: 'ok' | 'error' | 'warn', message: string) => {
+      verifyResult.removeAttribute('hidden');
+      verifyResult.className = 'mt-3';
+      const div = document.createElement('div');
+      div.className = `bc-alert ${kind === 'ok' ? 'bc-alert-ok' : kind === 'warn' ? 'bc-alert-warn' : 'bc-alert-error'}`;
+      div.textContent = message;
+      verifyResult.textContent = '';
+      verifyResult.appendChild(div);
+    };
+
+    const verify = async () => {
+      if (!current) {
+        setStatus(root, 'Paste a token first.', 'warn');
+        return;
+      }
+
+      const keyValue = keyField.value.trim();
+      if (!keyValue) {
+        badgeVerify.textContent = 'Signature not verified';
+        verifyHint.textContent = 'Signature not verified — paste a key to verify.';
+        showVerification(
+          'warn',
+          'No key supplied, so the signature was not checked. Nothing on this page tells you whether this token is genuine until a key is provided.',
+        );
+        return;
+      }
+
+      const kind: KeyKind = keyKind.value === 'auto' ? detectKeyKind(keyValue) : (keyKind.value as KeyKind);
+
+      try {
+        const result = await verifySignature(
+          input.value,
+          { kind, value: keyValue, encoding: secretEncoding.value as SecretEncoding },
+          algSelect.value || undefined,
+        );
+
+        badgeVerify.textContent = result.verified
+          ? `Signature verified (${result.algorithm})`
+          : `Signature NOT verified (${result.algorithm})`;
+        verifyHint.textContent = result.verified
+          ? 'The signature matches this key.'
+          : 'The signature does not match this key.';
+        showVerification(result.verified ? 'ok' : 'error', result.message);
+
+        if (result.verified && current.alg && algSelect.value && algSelect.value !== current.alg) {
+          showVerification(
+            'warn',
+            `${result.message} Note that you verified with ${algSelect.value} while the header says ${current.alg} — that mismatch is itself worth investigating.`,
+          );
+        }
+      } catch (err) {
+        badgeVerify.textContent = 'Signature not verified';
+        verifyHint.textContent = 'Signature not verified — the key could not be used.';
+        showVerification('error', messageFor(err));
+      }
+    };
+
+    on(input, 'input', debounce(run, 250));
+    on(q('[data-verify]', root), 'click', () => void verify());
+    on(keyField, 'input', () => {
+      // A changed key invalidates any previous verdict — never leave a stale
+      // "verified" badge on screen next to a different key.
+      resetVerification();
+    });
+    on(keyKind, 'change', () => {
+      const showsSecret = keyKind.value === 'secret' || keyKind.value === 'auto';
+      secretEncodingWrap.classList.toggle('hidden', !showsSecret);
+      resetVerification();
+    });
+    on(algSelect, 'change', resetVerification);
+
+    wireStandardActions(root, {
+      onChange: () => {
+        clearAll();
+        if (input.value) run();
+      },
+    });
+  });
+</script>

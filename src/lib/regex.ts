@@ -506,7 +506,9 @@ export const COMMON_PATTERNS: PatternExample[] = [
   {
     id: 'email',
     label: 'Email address',
-    pattern: String.raw`[\w.+-]+@[\w-]+\.[\w.-]+`,
+    // Each domain label is matched separately so a full stop at the end of a
+    // sentence is not swallowed into the address.
+    pattern: String.raw`[\w.+-]+@[\w-]+(?:\.[\w-]+)+`,
     flags: 'g',
     sample:
       'Contact ada@bytecabin.dev or the team at support+billing@example.co.uk.\nBroken: not.an.email@, @nope.com',

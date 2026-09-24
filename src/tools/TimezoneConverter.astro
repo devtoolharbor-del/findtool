@@ -86,11 +86,7 @@ const { tool } = Astro.props;
       at once. Each row shows the local date and time, the UTC offset in force at that instant,
       the abbreviation the zone uses, and whether daylight saving is active. Rows that land on a
       different calendar day from the source are marked, which is the detail that ruins meeting
-      invitations.
-    </p>
-    <p>
-      The source zone defaults to the one your browser reports, so the first reading you see is
-      already anchored to where you are.
+      invitations. The source zone defaults to the one your browser reports.
     </p>
 
     <h2>Common uses</h2>
@@ -105,7 +101,6 @@ const { tool } = Astro.props;
       <li>
         Checking what a server in UTC will report when an event happens at a given local time.
       </li>
-      <li>Confirming whether a partner's country has already switched to summer time.</li>
       <li>Reading a customer-reported incident time back into your own clock.</li>
     </ul>
 
@@ -125,18 +120,16 @@ Australia/Sydney    2026-09-24 22:30   +10:00  AEST`}</code></pre>
     <p>
       An IANA zone such as <code>America/New_York</code> is not a fixed offset. It is a rule set
       covering the whole history of civil time in one place: New York has used −05:00 in winter
-      and −04:00 in summer since 1918, with wartime exceptions, a different transition date
-      before 2007, and no daylight saving at all in several early years. Asking for "the offset
-      of New York" is only meaningful once you name the instant, which is why this tool never
-      shows an offset without a date attached.
+      and −04:00 in summer since 1918, with wartime exceptions and a different transition date
+      before 2007. "The offset of New York" is only meaningful once you name the instant, which
+      is why this tool never shows an offset without a date attached.
     </p>
     <p>
       Two local times a year are not ordinary. On the spring transition an hour never happens —
-      02:30 on the second Sunday in March simply does not exist in New York — and on the autumn
-      transition an hour happens twice, so 01:30 is ambiguous without an offset. If you enter a
-      time that falls into either case, the page tells you which and shows what it resolved to.
-      Zones that shift by something other than an hour exist too: Lord Howe Island moves by
-      thirty minutes.
+      02:30 on the second Sunday in March does not exist in New York — and on the autumn
+      transition an hour happens twice, so 01:30 is ambiguous without an offset. Enter a time in
+      either case and the page says which and what it resolved to. Zones that shift by something
+      other than an hour exist too: Lord Howe Island moves by thirty minutes.
     </p>
 
     <h2>Worth knowing</h2>
@@ -222,6 +215,15 @@ Australia/Sydney    2026-09-24 22:30   +10:00  AEST`}</code></pre>
 
     /** One row. Built with DOM nodes — zone names come from Intl, but the
      *  add-field is user input, so nothing here goes near innerHTML. */
+    /** zoneInfo, but null instead of throwing for a name Intl rejects. */
+    const safeZoneInfo = (ms: number, zone: string) => {
+      try {
+        return zoneInfo(ms, zone);
+      } catch {
+        return null;
+      }
+    };
+
     /** A sortable numeric key for a calendar day, e.g. 2026-09-24 → 20260924. */
     const dayKey = (ms: number, zone: string): number => {
       const w = getWallTime(ms, zone);
@@ -241,10 +243,8 @@ Australia/Sydney    2026-09-24 22:30   +10:00  AEST`}</code></pre>
       name.textContent = zone;
       left.appendChild(name);
 
-      let info: ReturnType<typeof zoneInfo>;
-      try {
-        info = zoneInfo(ms, zone);
-      } catch {
+      const info = safeZoneInfo(ms, zone);
+      if (!info) {
         const error = document.createElement('div');
         error.className = 'text-xs text-muted';
         error.textContent = 'This zone is not recognised by your browser.';

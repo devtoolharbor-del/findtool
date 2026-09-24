@@ -1,0 +1,360 @@
+---
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+import { SAMPLE_SOAP_XML } from '~/lib/xml';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="xml-to-json" class="space-y-4">
+    {/* ── Options ── */}
+    <div class="bc-toolbar">
+      <div class="flex items-center gap-2">
+        <label for="xj-attrs" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Attributes
+        </label>
+        <select id="xj-attrs" class="bc-select w-auto py-1.5 text-xs" data-attrs>
+          <option value="@" selected>Prefix with @</option>
+          <option value="_">Prefix with _</option>
+          <option value="$">Prefix with $</option>
+          <option value="none">Merge with elements</option>
+          <option value="ignore">Ignore attributes</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label for="xj-text" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Text key
+        </label>
+        <select id="xj-text" class="bc-select w-auto py-1.5 text-xs" data-text-key>
+          <option value="#text" selected>#text</option>
+          <option value="_text">_text</option>
+          <option value="value">value</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label for="xj-indent" class="text-xs font-medium tracking-wide text-muted uppercase">
+          Indent
+        </label>
+        <select id="xj-indent" class="bc-select w-auto py-1.5 text-xs" data-indent>
+          <option value="2" selected>2 spaces</option>
+          <option value="4">4 spaces</option>
+          <option value="0">Minified</option>
+        </select>
+      </div>
+
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-force-arrays />
+        Always use arrays
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-parse-values />
+        Convert numbers and booleans
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-keep-comments />
+        Keep comments
+      </label>
+      <label class="bc-check-label">
+        <input type="checkbox" class="bc-checkbox" data-include-root checked />
+        Keep the root element
+      </label>
+
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-example={SAMPLE_SOAP_XML}>
+          Example
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-upload>Upload file</button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-clear>Clear</button>
+        <input
+          type="file"
+          accept=".xml,.rss,.atom,.svg,.txt,text/xml,application/xml,text/plain"
+          class="hidden"
+          data-file-input
+        />
+      </div>
+    </div>
+
+    {/* ── Input ── */}
+    <div>
+      <label for="xj-input" class="bc-label">XML input</label>
+      <textarea
+        id="xj-input"
+        class="bc-textarea min-h-48"
+        data-primary-input
+        data-clear-target
+        spellcheck="false"
+        placeholder="Paste XML here…"
+        aria-describedby="xj-status"></textarea>
+    </div>
+
+    <div id="xj-status" data-status role="status" aria-live="polite" hidden></div>
+
+    <pre class="bc-output text-xs" data-caret hidden aria-label="Location of the error" tabindex="0"></pre>
+
+    {/* ── Actions ── */}
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-primary" data-action="convert">Convert to JSON</button>
+      <div class="ml-auto flex gap-2">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy-output>
+          <span data-label>Copy</span>
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-download>
+          Download .json
+        </button>
+      </div>
+    </div>
+
+    {/* ── Stats ── */}
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" data-stats hidden>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-root>—</div>
+        <div class="bc-stat-label">Root</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-elements>—</div>
+        <div class="bc-stat-label">Elements</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-attributes>—</div>
+        <div class="bc-stat-label">Attributes</div>
+      </div>
+      <div class="bc-stat">
+        <div class="bc-stat-value" data-stat-size>—</div>
+        <div class="bc-stat-label">JSON size</div>
+      </div>
+    </div>
+
+    {/* ── Output ── */}
+    <div>
+      <label for="xj-output" class="bc-label">JSON result</label>
+      <textarea
+        id="xj-output"
+        class="bc-textarea max-h-96 min-h-40"
+        data-output
+        readonly
+        spellcheck="false"
+        placeholder="The JSON appears here."></textarea>
+    </div>
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      XML and JSON do not have the same shape, so any conversion is a set of choices. This one makes
+      those choices visible: attributes become keys with a prefix you pick, an element's text
+      content lands under a key you pick, repeated sibling elements collapse into an array, and an
+      element with nothing but text becomes a plain string rather than a wrapper object.
+    </p>
+    <p>
+      Parsing is done by your browser's own <code>DOMParser</code>, the same engine that reads XML
+      for <code>fetch</code> and <code>XSLTProcessor</code>, so entities, CDATA sections and
+      namespace prefixes behave exactly as they would anywhere else on the platform. Nothing is
+      uploaded.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Turning a SOAP response into something a JavaScript or Python client can index directly.</li>
+      <li>Reading an RSS or Atom feed in a script that expects JSON.</li>
+      <li>Converting a vendor's XML export into fixtures for tests.</li>
+      <li>Inspecting an SVG's structure — its attributes are where everything interesting lives.</li>
+      <li>Migrating an old XML config to a JSON-based one, field by field.</li>
+    </ul>
+
+    <h2>A short example</h2>
+    <p>This fragment:</p>
+    <pre><code>{`<price currency="USD">184.25</price>
+<items><item>a</item><item>b</item></items>`}</code></pre>
+    <p>converts to:</p>
+    <pre><code>{`{
+  "price": { "@currency": "USD", "#text": "184.25" },
+  "items": { "item": ["a", "b"] }
+}`}</code></pre>
+
+    <h2>The one-or-many problem</h2>
+    <p>
+      This is the trap that breaks production code, and no converter can solve it alone. In XML, a
+      list of one and a list of many look structurally identical — there is no bracket to say "this
+      repeats". So <code>&lt;items&gt;&lt;item&gt;a&lt;/item&gt;&lt;/items&gt;</code> becomes
+      <code>{'{"item": "a"}'}</code> while two items become <code>{'{"item": ["a", "b"]}'}</code>,
+      and code written against a two-item response crashes the first time a feed has one entry.
+    </p>
+    <p>
+      Only the schema knows which elements are repeatable. Two ways out: tick
+      <strong>Always use arrays</strong> so every child element is wrapped, giving a shape that
+      never changes with the data; or normalise on the consuming side with the equivalent of
+      <code>[].concat(value)</code>. The same ambiguity applies to text: an element that is empty
+      one day and has content the next converts to <code>""</code> and then to a string.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      There is no standard for this conversion. Badgerfish, Parker, GData and the
+      <code>fast-xml-parser</code> convention all map XML differently, which is why the attribute
+      prefix and text key are options here rather than fixed — match whatever your target library
+      expects. Three further losses are unavoidable: JSON objects have no defined order, so
+      interleaved elements of different names lose their document order; mixed content (text and
+      elements as siblings) merges all the text into one key, so
+      <code>&lt;p&gt;see &lt;b&gt;this&lt;/b&gt;&lt;/p&gt;</code> cannot be reassembled; and
+      namespace prefixes are kept verbatim as part of the key — <code>soap:Body</code> stays
+      <code>soap:Body</code> — without resolving them to the URIs they are bound to. Converting back
+      to XML from this JSON will not reproduce the original document byte for byte.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import {
+    mount,
+    q,
+    qa,
+    on,
+    setStatus,
+    clearStatus,
+    messageFor,
+    guardSize,
+    copyText,
+    downloadText,
+    wireStandardActions,
+    wireFileInput,
+    readFileText,
+    formatBytes,
+    byteLength,
+    markUsed,
+  } from '~/lib/toolkit';
+  import { parseXml, elementToJson, xmlStats, XmlParseError, type XmlToJsonOptions } from '~/lib/xml';
+
+  mount('xml-to-json', (root) => {
+    const input = q<HTMLTextAreaElement>('[data-primary-input]', root)!;
+    const output = q<HTMLTextAreaElement>('[data-output]', root)!;
+    const stats = q('[data-stats]', root)!;
+    const caret = q<HTMLPreElement>('[data-caret]', root)!;
+
+    const options = (): XmlToJsonOptions => {
+      const attrs = q<HTMLSelectElement>('[data-attrs]', root)!.value;
+      return {
+        attributePrefix: attrs === 'none' || attrs === 'ignore' ? '' : attrs,
+        ignoreAttributes: attrs === 'ignore',
+        textKey: q<HTMLSelectElement>('[data-text-key]', root)!.value,
+        forceArrays: q<HTMLInputElement>('[data-force-arrays]', root)!.checked,
+        parseValues: q<HTMLInputElement>('[data-parse-values]', root)!.checked,
+        ignoreComments: !q<HTMLInputElement>('[data-keep-comments]', root)!.checked,
+        includeRoot: q<HTMLInputElement>('[data-include-root]', root)!.checked,
+      };
+    };
+
+    const showCaret = (excerpt: string | undefined, column: number | undefined) => {
+      if (!excerpt) return;
+      const prefix =
+        column === undefined
+          ? ''
+          : Array.from(excerpt.slice(0, Math.max(0, column - 1)))
+              .map((ch) => (ch === '\t' ? '\t' : ' '))
+              .join('');
+      caret.textContent = column === undefined ? excerpt : `${excerpt}\n${prefix}^`;
+      caret.removeAttribute('hidden');
+    };
+
+    const convert = () => {
+      const text = input.value;
+      if (!text.trim()) {
+        clearStatus(root);
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        caret.setAttribute('hidden', '');
+        return;
+      }
+
+      try {
+        guardSize(text);
+        caret.setAttribute('hidden', '');
+
+        const opts = options();
+        const element = parseXml(text);
+        const value = opts.includeRoot === false
+          ? elementToJson(element, opts)
+          : { [element.nodeName]: elementToJson(element, opts) };
+
+        const width = Number(q<HTMLSelectElement>('[data-indent]', root)!.value);
+        const json = JSON.stringify(value, null, width);
+        output.value = json;
+        clearStatus(root);
+
+        const s = xmlStats(element);
+        stats.removeAttribute('hidden');
+        q('[data-stat-root]', root)!.textContent = element.nodeName;
+        q('[data-stat-elements]', root)!.textContent = s.elements.toLocaleString();
+        q('[data-stat-attributes]', root)!.textContent = s.attributes.toLocaleString();
+        q('[data-stat-size]', root)!.textContent = formatBytes(byteLength(json));
+
+        if (s.attributes > 0 && opts.attributePrefix === '' && !opts.ignoreAttributes) {
+          setStatus(
+            root,
+            'Attributes are merged with child elements: an attribute and a child sharing a name will collide, and the child wins.',
+            'warn',
+          );
+        }
+        markUsed();
+      } catch (err) {
+        output.value = '';
+        stats.setAttribute('hidden', '');
+        if (err instanceof XmlParseError) {
+          const d = err.detail;
+          const where =
+            d.line !== undefined
+              ? ` (line ${d.line}${d.column !== undefined ? `, column ${d.column}` : ''})`
+              : '';
+          setStatus(root, `${d.message}${where}`, 'error');
+          showCaret(d.excerpt, d.column);
+        } else {
+          setStatus(root, messageFor(err), 'error');
+        }
+      }
+    };
+
+    on(q('[data-action="convert"]', root), 'click', convert);
+    for (const control of qa(
+      '[data-attrs], [data-text-key], [data-indent], [data-force-arrays], [data-parse-values], [data-keep-comments], [data-include-root]',
+      root,
+    )) {
+      on(control, 'change', () => input.value && convert());
+    }
+
+    on(q('[data-copy-output]', root), 'click', (e) => {
+      if (!output.value) return setStatus(root, 'Convert some XML first.', 'warn');
+      void copyText(output.value, e.currentTarget as HTMLElement);
+    });
+    on(q('[data-download]', root), 'click', () => {
+      if (!output.value) return setStatus(root, 'Convert some XML first.', 'warn');
+      downloadText('converted.json', output.value, 'application/json');
+    });
+
+    wireFileInput(
+      root,
+      async (file) => {
+        try {
+          input.value = await readFileText(file);
+          convert();
+        } catch (err) {
+          setStatus(root, messageFor(err), 'error');
+        }
+      },
+      { dropZone: input },
+    );
+
+    wireStandardActions(root, {
+      onChange: () => {
+        stats.setAttribute('hidden', '');
+        caret.setAttribute('hidden', '');
+        if (input.value) convert();
+      },
+    });
+  });
+</script>

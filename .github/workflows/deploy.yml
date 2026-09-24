@@ -53,8 +53,19 @@ jobs:
       - name: Verify build output
         run: npm run verify
 
+      # Secrets cannot be referenced in a job-level `if`, so the token is
+      # surfaced as an env var and the step skips itself when it is absent.
+      # This keeps CI green before Cloudflare is wired up, and on pull
+      # requests from forks, which never receive secrets.
+      - name: Check for deploy credentials
+        id: creds
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: echo "present=${{ env.CF_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+
       - name: Deploy to Cloudflare Pages
         id: deploy
+        if: steps.creds.outputs.present == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -64,8 +75,14 @@ jobs:
             --project-name=bytecabin
             --branch=${{ github.head_ref || github.ref_name }}
 
+      - name: Report skipped deploy
+        if: steps.creds.outputs.present != 'true'
+        run: |
+          echo "::notice::Build and tests passed. Deploy skipped — set the" \
+               "CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets to enable it."
+
       - name: Comment preview URL on PR
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.creds.outputs.present == 'true'
         uses: actions/github-script@v7
         with:
           script: |
