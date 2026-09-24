@@ -19,6 +19,7 @@ import sharp from 'sharp';
 import { writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SITE_NAME, SITE_DOMAIN } from '../site.config.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = join(ROOT, 'public');
@@ -78,7 +79,7 @@ function ogSvg() {
     </g>
 
     <text x="96" y="352" font-family="Inter, -apple-system, Segoe UI, Helvetica, Arial, sans-serif"
-          font-size="82" font-weight="650" fill="${INK}" letter-spacing="-2.5">ByteCabin</text>
+          font-size="82" font-weight="650" fill="${INK}" letter-spacing="-2.5">${SITE_NAME}</text>
 
     <text x="96" y="424" font-family="Inter, -apple-system, Segoe UI, Helvetica, Arial, sans-serif"
           font-size="34" font-weight="400" fill="${MUTED}">Developer tools that run in your browser</text>
@@ -99,7 +100,7 @@ function ogSvg() {
 
     <text x="1104" y="566" text-anchor="end"
           font-family="Inter, -apple-system, Segoe UI, Helvetica, Arial, sans-serif"
-          font-size="26" fill="${ACCENT}">bytecabin.dev</text>
+          font-size="26" fill="${ACCENT}">${SITE_DOMAIN}</text>
   </svg>`;
 }
 

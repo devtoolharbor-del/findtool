@@ -5,11 +5,13 @@
  * Secrets live in environment variables / GitHub Actions secrets (see README).
  */
 
+import { SITE_NAME, SITE_DOMAIN, SITE_URL } from '../site.config.mjs';
+
 export const SITE = {
-  name: 'ByteCabin',
+  name: SITE_NAME,
   /** Canonical production origin. Every other host redirects here. */
-  url: 'https://bytecabin.dev',
-  domain: 'bytecabin.dev',
+  url: SITE_URL,
+  domain: SITE_DOMAIN,
   tagline: 'Fast, private developer tools',
   description:
     'A fast, ad-light collection of developer utilities — JSON, encoding, hashing, time, text and web tools that run entirely in your browser.',
@@ -22,9 +24,9 @@ export const SITE = {
 } as const;
 
 export const CONTACT = {
-  general: 'contact@bytecabin.dev',
-  support: 'support@bytecabin.dev',
-  privacy: 'privacy@bytecabin.dev',
+  general: `contact@${SITE_DOMAIN}`,
+  support: `support@${SITE_DOMAIN}`,
+  privacy: `privacy@${SITE_DOMAIN}`,
 } as const;
 
 export const REPO_URL = 'https://github.com/devtoolharbor-del/bytecabin';

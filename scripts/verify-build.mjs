@@ -15,10 +15,11 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, relative, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SITE_URL as ORIGIN } from '../site.config.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
-const ORIGIN = 'https://bytecabin.dev';
+
 
 const errors = [];
 const warnings = [];

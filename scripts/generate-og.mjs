@@ -20,6 +20,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SITE_NAME, SITE_DOMAIN } from '../site.config.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
@@ -127,7 +128,7 @@ function card({ title, description, badge }) {
     <rect width="52" height="52" rx="13" fill="${ACCENT}"/>
     <g transform="translate(10, 10)">${MARK}</g>
     <text x="70" y="35" font-family="${FONT}" font-size="30" font-weight="600" fill="${INK}"
-      letter-spacing="-0.5">ByteCabin</text>
+      letter-spacing="-0.5">${SITE_NAME}</text>
   </g>
 
   <!-- category badge -->
@@ -156,7 +157,7 @@ function card({ title, description, badge }) {
   <text x="96" y="566" font-family="${FONT}" font-size="26" fill="${MUTED}">
     Runs in your browser · nothing uploaded
   </text>
-  <text x="1104" y="566" text-anchor="end" font-family="${FONT}" font-size="26" fill="${ACCENT_LIGHT}">bytecabin.dev</text>
+  <text x="1104" y="566" text-anchor="end" font-family="${FONT}" font-size="26" fill="${ACCENT_LIGHT}">${SITE_DOMAIN}</text>
 </svg>`;
 }
 
