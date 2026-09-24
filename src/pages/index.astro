@@ -82,9 +82,14 @@ const schema = [
     </div>
 
     {/* Deliberately outside the max-w-lg wrapper above: constrained to the
-        search field's width, the sixth shortcut orphans onto its own row. */}
+        search field's width, the sixth shortcut orphans onto its own row.
+
+        On a return visit the script below replaces these shortcuts with the
+        visitor's own recent tools. It reuses this row rather than adding a
+        section so the swap costs nothing in layout shift. */}
     <div class="mx-auto mt-3 max-w-2xl">
-      <ul class="flex flex-wrap justify-center gap-1.5">
+      <p class="sr-only" data-shortcut-label>Popular tools</p>
+      <ul class="flex flex-wrap justify-center gap-1.5" data-shortcuts>
         {
           [
             ['JSON Formatter', 'json-formatter'],
@@ -107,6 +112,48 @@ const schema = [
       </ul>
     </div>
   </section>
+
+  <script>
+    import { readRecent } from '~/lib/recent';
+
+    /**
+     * Swap the hero shortcuts for the visitor's own recent tools.
+     *
+     * Names come from the search index rather than being embedded in the page,
+     * so this costs nothing for a first-time visitor — the fetch only happens
+     * when there is actually a history to show.
+     */
+    const recent = readRecent();
+    const list = document.querySelector('[data-shortcuts]');
+    const label = document.querySelector('[data-shortcut-label]');
+
+    if (recent.length >= 2 && list) {
+      fetch('/search.json')
+        .then((r) => r.json())
+        .then((index: { s: string; n: string }[]) => {
+          const byslug = new Map(index.map((e) => [e.s, e.n]));
+          const items = recent.filter((s) => byslug.has(s));
+          if (items.length < 2) return;
+
+          list.textContent = '';
+          for (const slug of items) {
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            a.href = `/tools/${slug}`;
+            a.className =
+              'inline-block rounded-full border border-accent-line bg-surface px-3 py-1 text-xs text-accent transition-colors hover:border-accent';
+            // textContent, never innerHTML: the name comes from a fetched file.
+            a.textContent = byslug.get(slug)!;
+            li.appendChild(a);
+            list.appendChild(li);
+          }
+          if (label) label.textContent = 'Tools you used recently';
+        })
+        .catch(() => {
+          /* keep the default shortcuts */
+        });
+    }
+  </script>
 
   {/* ── Popular ────────────────────────────────────────────────────────── */}
   <section aria-labelledby="popular-heading" class="pb-14">

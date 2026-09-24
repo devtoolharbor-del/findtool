@@ -125,3 +125,15 @@ const schema = [appSchema, ...(faqSchema ? [faqSchema] : [])];
     <RelatedTools tool={tool} />
   </div>
 </BaseLayout>
+
+<script>
+  // Remember this tool locally so the homepage can offer it back on a return
+  // visit. Device-local only — see src/lib/recent.ts.
+  //
+  // The slug is read from the DOM rather than passed with define:vars, which
+  // would force this script inline and leave the bare module import unresolved.
+  import { recordVisit } from '~/lib/recent';
+
+  const slug = document.querySelector('[data-tool]')?.getAttribute('data-tool');
+  if (slug) recordVisit(slug);
+</script>
