@@ -1,9 +1,9 @@
 # FindTool
 
 Fast, private developer tools that run entirely in the browser.
-Production: **https://bytecabin.dev**
+Production: **https://findtool.dev**
 
-50 utilities for JSON, encoding, hashing, dates, text and web development.
+52 utilities for JSON, encoding, hashing, dates, text and web development.
 No accounts, no uploads, no backend.
 
 ---
@@ -159,7 +159,7 @@ npm run dev          # http://localhost:4321
 | `npm run verify`   | Post-build QA (links, canonicals, sitemap, metadata) |
 | `npm run audit`    | Real-browser audit of every page (a11y, JS, tools)   |
 | `npm run audit:shots` | The same, plus screenshots in `.audit-screenshots/` |
-| `npm run cross-browser` | All 50 tools in Chromium, Firefox and WebKit    |
+| `npm run cross-browser` | All 52 tools in Chromium, Firefox and WebKit    |
 | `npm run security` | XSS payloads, CSP checks, ReDoS and input limits     |
 | `npm run edge`     | Empty / malformed / 2.1 MB input, plus keyboard use  |
 | `npm run perf`     | Core Web Vitals against a budget, throttled          |
@@ -248,7 +248,7 @@ paths.
 
 ## SEO behaviour
 
-- **Canonical URLs** are absolute, on `https://bytecabin.dev`, with no
+- **Canonical URLs** are absolute, on `https://findtool.dev`, with no
   trailing slash. `astro.config.mjs` sets `trailingSlash: 'never'`.
 - **One `<h1>` per page**, enforced by `npm run verify`.
 - **Unique title and description per page**, enforced by `npm run verify`.
@@ -318,17 +318,21 @@ Required GitHub repository secrets:
 
 ## Cloudflare configuration
 
-- **Pages project**: `bytecabin`, direct-upload mode, deployed by Wrangler.
-- **Custom domain**: `bytecabin.dev` (apex) plus `www.bytecabin.dev`.
-- **DNS**: managed in the `bytecabin.dev` zone. Apex and `www` are proxied
+- **Pages project**: `findtool`, direct-upload mode, deployed by Wrangler.
+- **Custom domain**: `findtool.dev` (apex) plus `www.findtool.dev`.
+- **DNS**: managed in the `findtool.dev` zone. Apex and `www` are proxied
   CNAMEs to the Pages project.
 - **SSL/TLS**: Full (strict). Always Use HTTPS on. `.dev` is HSTS-preloaded,
   so browsers enforce HTTPS regardless.
-- **Redirect rules** collapse every non-canonical host onto
-  `https://bytecabin.dev`, preserving path and query:
-  - `http://bytecabin.dev` → `https://bytecabin.dev`
-  - `http(s)://www.bytecabin.dev` → `https://bytecabin.dev`
-  - `*.pages.dev` → `https://bytecabin.dev` (stops preview URLs being indexed)
+- **Redirect rules** collapse the non-canonical hosts onto
+  `https://findtool.dev`, preserving path and query. Verified in production:
+  - `http://findtool.dev` → `https://findtool.dev` (301)
+  - `http(s)://www.findtool.dev` → `https://findtool.dev` (301)
+  - **`*.pages.dev` is NOT redirected.** `findtool.pages.dev` serves the whole
+    site, and so does every preview deployment. Redirecting it would make
+    preview URLs useless, which is what they are for. Duplicate content is
+    held off by the absolute `<link rel="canonical">` on every page, which
+    always names `findtool.dev` — see GitHub issue #6.
 - **Email Routing**: `contact@`, `support@` and `privacy@` forward to the
   project mailbox. Destination addresses are never shown on the site.
 - **Caching**: driven by `public/_headers` — hashed assets immutable for a
