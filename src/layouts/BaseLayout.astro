@@ -31,6 +31,12 @@ interface Props {
   schema?: Record<string, unknown>[];
   /** Wider container for index-style pages. */
   wide?: boolean;
+  /**
+   * Path to a page-specific social preview image. Tool and category pages
+   * pass their own generated card so a shared link names the actual tool;
+   * everything else falls back to the site default.
+   */
+  ogImage?: string;
   ogType?: 'website' | 'article';
 }
 
@@ -42,6 +48,7 @@ const {
   noindex = false,
   schema = [],
   wide = false,
+  ogImage,
   ogType = 'website',
 } = Astro.props;
 
@@ -50,7 +57,7 @@ const canonicalUrl = new URL(canonical ?? Astro.url.pathname, SITE.url).href.rep
   /\/$/,
   '',
 );
-const ogImageUrl = new URL(SITE.ogImage, SITE.url).href;
+const ogImageUrl = new URL(ogImage ?? SITE.ogImage, SITE.url).href;
 
 /**
  * Analytics configuration, read at build time.

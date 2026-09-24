@@ -136,6 +136,20 @@ for (const page of expected) {
     if (!html.includes(`property="${prop}"`)) fail(`${page}: missing ${prop}`);
   }
 
+  // The social card must actually exist. A missing one is invisible until
+  // somebody shares the link and gets a blank rectangle.
+  const ogImage = html.match(/property="og:image" content="([^"]+)"/)?.[1];
+  if (ogImage) {
+    if (!ogImage.startsWith(ORIGIN)) {
+      fail(`${page}: og:image is not an absolute URL on the canonical origin — ${ogImage}`);
+    } else {
+      const imagePath = ogImage.slice(ORIGIN.length);
+      if (!existsSync(join(DIST, imagePath))) {
+        fail(`${page}: og:image points at ${imagePath}, which is not in the build`);
+      }
+    }
+  }
+
   // Tool pages must have actually rendered their interface and prose.
   if (page.startsWith('/tools/') && page !== '/tools') {
     const slug = page.slice('/tools/'.length);
