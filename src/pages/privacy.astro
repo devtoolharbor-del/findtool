@@ -66,10 +66,22 @@ const updated = 'September 24, 2026';
 
       <h2>Cookies and local storage</h2>
       <p>
-        FindTool sets no cookies. It uses your browser's <code>localStorage</code> for exactly one
-        thing: remembering whether you chose light or dark mode. That value stays on your device,
-        is never transmitted, and clearing your browser data removes it. Some tools remember your
-        option settings the same way, again locally only.
+        FindTool sets no cookies — not for analytics, not for anything. It uses your browser's
+        <code>localStorage</code> for three things, all of them conveniences:
+      </p>
+      <ul>
+        <li>whether you chose light or dark mode</li>
+        <li>
+          the names of the last few tools you opened, so the homepage can offer them back. This
+          is a list of tool names and nothing else — no timestamps, no identifiers, and nothing
+          about what you did with them
+        </li>
+        <li>option settings on individual tools, such as your preferred indent width</li>
+      </ul>
+      <p>
+        All three stay on your device, are never transmitted, and are removed when you clear your
+        browser data. None of them can identify you, and the site works normally if your browser
+        blocks storage entirely.
       </p>
 
       <h2>Hosting and data processors</h2>
