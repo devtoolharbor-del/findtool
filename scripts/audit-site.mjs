@@ -65,11 +65,60 @@ const record = (page, kind, detail) => problems.push({ page, kind, detail });
 
 const browser = await chromium.launch({ headless: true });
 
-/** Requests to any origin other than our local server are a privacy failure. */
+/**
+ * Analytics endpoints, which are the only third parties the site is allowed
+ * to contact. They are listed explicitly rather than pattern-matched so that
+ * adding a new one is a deliberate edit to this file, reviewed alongside the
+ * privacy policy it affects.
+ *
+ * Requests to them are ABORTED during the audit rather than merely tolerated.
+ * Two reasons: the pages must be proven to work for visitors running an ad
+ * blocker, and the audit serves from 127.0.0.1, which these endpoints reject
+ * with a CORS error that would otherwise drown the console check in noise.
+ */
+const ANALYTICS_HOSTS = [
+  'static.cloudflareinsights.com', // Cloudflare Web Analytics beacon script
+  'cloudflareinsights.com', // its collection endpoint
+  'www.googletagmanager.com', // Google Analytics 4
+  'www.google-analytics.com',
+  'region1.google-analytics.com',
+];
+
+/**
+ * Open a page with analytics blocked. Every pass must go through this — a
+ * pass that opens a raw page silently reintroduces the CORS noise this
+ * interception exists to remove.
+ */
+async function newAuditPage(ctx) {
+  const page = await ctx.newPage();
+  await page.route('**/*', (route) =>
+    isAnalytics(route.request().url()) ? route.abort() : route.continue(),
+  );
+  return page;
+}
+
+const isAnalytics = (url) => {
+  try {
+    return ANALYTICS_HOSTS.includes(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Requests to any origin other than our local server are a privacy failure —
+ * with the single, enumerated exception of the analytics endpoints above.
+ * Anything else reaching the network means a tool is leaking user input.
+ */
 function watchNetwork(page, pagePath) {
   page.on('request', (req) => {
     const url = req.url();
-    if (!url.startsWith(BASE) && !url.startsWith('data:') && !url.startsWith('blob:')) {
+    if (
+      !url.startsWith(BASE) &&
+      !url.startsWith('data:') &&
+      !url.startsWith('blob:') &&
+      !isAnalytics(url)
+    ) {
       record(pagePath, 'network', `Outbound request to ${url}`);
     }
   });
@@ -82,7 +131,14 @@ function watchNetwork(page, pagePath) {
 
 function watchConsole(page, pagePath) {
   page.on('console', (msg) => {
-    if (msg.type() === 'error') record(pagePath, 'console', msg.text().slice(0, 200));
+    if (msg.type() !== 'error') return;
+    const text = msg.text();
+    // The audit aborts analytics requests itself (see ANALYTICS_HOSTS), and
+    // the browser reports each abort as a failed resource. Recording those
+    // would be reporting our own test setup as a site defect — and would
+    // bury any real console error under seventy copies of it.
+    if (/net::ERR_FAILED|ERR_BLOCKED_BY_CLIENT|Failed to load resource/.test(text)) return;
+    record(pagePath, 'console', text.slice(0, 200));
   });
   page.on('pageerror', (err) => record(pagePath, 'jserror', String(err).slice(0, 200)));
 }
@@ -97,7 +153,7 @@ const context = await browser.newContext({
 });
 
 for (const pagePath of allPages) {
-  const page = await context.newPage();
+  const page = await newAuditPage(context);
   watchConsole(page, pagePath);
   watchNetwork(page, pagePath);
 
@@ -281,7 +337,7 @@ for (const pagePath of allPages) {
 {
   const noJs = await browser.newContext({ javaScriptEnabled: false });
   for (const pagePath of allPages) {
-    const page = await noJs.newPage();
+    const page = await newAuditPage(noJs);
     await page.goto(`${BASE}${pagePath}`, { waitUntil: 'domcontentloaded' });
 
     const shape = await page.evaluate(() => ({
@@ -324,7 +380,7 @@ for (const scheme of ['dark']) {
     colorScheme: scheme,
   });
   for (const pagePath of sample) {
-    const page = await ctx.newPage();
+    const page = await newAuditPage(ctx);
     watchConsole(page, `${pagePath} [${scheme}]`);
     await page.goto(`${BASE}${pagePath}`, { waitUntil: 'networkidle' });
     const axe = await new AxeBuilder({ page })
@@ -350,7 +406,7 @@ const mobile = await browser.newContext({
   hasTouch: true,
 });
 for (const pagePath of allPages) {
-  const page = await mobile.newPage();
+  const page = await newAuditPage(mobile);
   await page.goto(`${BASE}${pagePath}`, { waitUntil: 'networkidle' });
   const overflow = await page.evaluate(() => {
     const doc = document.documentElement;
@@ -431,7 +487,7 @@ if (wantShots) {
         colorScheme: scheme,
       });
       for (const pagePath of sample) {
-        const page = await ctx.newPage();
+        const page = await newAuditPage(ctx);
         await page.goto(`${BASE}${pagePath}`, { waitUntil: 'networkidle' });
         const name = (pagePath === '/' ? 'home' : pagePath.replace(/\//g, '-').slice(1))
           + `-${scheme}-${label}.png`;

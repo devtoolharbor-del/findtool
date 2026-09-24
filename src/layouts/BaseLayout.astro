@@ -15,7 +15,7 @@ import '~/styles/global.css';
  * visitor never requests them.
  */
 import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
-import { SITE } from '~/consts';
+import { SITE, BEACON_TOKEN } from '~/consts';
 import Header from '~/components/Header.astro';
 import Footer from '~/components/Footer.astro';
 
@@ -67,7 +67,7 @@ const ogImageUrl = new URL(ogImage ?? SITE.ogImage, SITE.url).href;
  * ever receives an event name plus a tool slug. Neither is a secret, and
  * neither is required for the site to work.
  */
-const beaconToken = import.meta.env.PUBLIC_CF_BEACON_TOKEN ?? '';
+const beaconToken = import.meta.env.PUBLIC_CF_BEACON_TOKEN || BEACON_TOKEN;
 const eventsEndpoint = import.meta.env.PUBLIC_EVENTS_ENDPOINT ?? '';
 
 /**

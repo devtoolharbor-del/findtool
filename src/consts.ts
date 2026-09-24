@@ -5,7 +5,12 @@
  * Secrets live in environment variables / GitHub Actions secrets (see README).
  */
 
-import { SITE_NAME, SITE_DOMAIN, SITE_URL } from '../site.config.mjs';
+import {
+  SITE_NAME,
+  SITE_DOMAIN,
+  SITE_URL,
+  ANALYTICS_BEACON_TOKEN,
+} from '../site.config.mjs';
 
 export const SITE = {
   name: SITE_NAME,
@@ -28,6 +33,13 @@ export const CONTACT = {
   support: `support@${SITE_DOMAIN}`,
   privacy: `privacy@${SITE_DOMAIN}`,
 } as const;
+
+/**
+ * Cloudflare Web Analytics beacon token, re-exported for the layout.
+ * An explicit PUBLIC_CF_BEACON_TOKEN in the environment overrides it, which
+ * is how a fork points at its own analytics without editing source.
+ */
+export const BEACON_TOKEN = ANALYTICS_BEACON_TOKEN;
 
 export const REPO_URL = 'https://github.com/devtoolharbor-del/findtool';
 

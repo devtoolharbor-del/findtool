@@ -18,3 +18,19 @@ export const SITE_DOMAIN = 'findtool.dev';
 
 /** Canonical production origin. Every other host redirects here. */
 export const SITE_URL = `https://${SITE_DOMAIN}`;
+
+/**
+ * Cloudflare Web Analytics beacon token.
+ *
+ * Public by design — it appears verbatim in every page's HTML and grants no
+ * access; it only identifies which site a pageview belongs to. It lives here
+ * rather than in a CI secret because a secret it is not, and because the
+ * build must work for anyone who clones the repository.
+ *
+ * Cloudflare calls this the "site tag" for proxied domains and does not
+ * present it as a snippet, which is why it has to be read from the API.
+ *
+ * Empty string disables analytics entirely — which is what happens on local
+ * builds and previews, so development traffic never reaches production stats.
+ */
+export const ANALYTICS_BEACON_TOKEN = '5ed785b444ed451b8753d8d279b545bd';
