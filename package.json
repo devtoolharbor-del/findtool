@@ -23,7 +23,8 @@
     "perf": "node scripts/measure-perf.mjs",
     "cross-browser": "node scripts/cross-browser.mjs",
     "security": "node scripts/security-check.mjs",
-    "ci": "npm run check && npm run test && npm run build && npm run verify && npm run audit && npm run cross-browser && npm run security && npm run perf"
+    "edge": "node scripts/edge-cases.mjs",
+    "ci": "npm run check && npm run test && npm run build && npm run verify && npm run audit && npm run cross-browser && npm run security && npm run edge && npm run perf"
   },
   "dependencies": {
     "astro": "^7.3.5",

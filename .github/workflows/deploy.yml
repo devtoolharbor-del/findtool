@@ -73,6 +73,11 @@ jobs:
       - name: Security check
         run: npm run security
 
+      # Drives every tool through empty, malformed and 2.1 MB input, and
+      # checks the site is operable from the keyboard alone.
+      - name: Edge cases and keyboard
+        run: npm run edge
+
       # Fails the build if Core Web Vitals or the transfer budget regress.
       - name: Core Web Vitals budget
         run: npm run perf

@@ -120,6 +120,7 @@ npm run dev          # http://localhost:4321
 | `npm run audit:shots` | The same, plus screenshots in `.audit-screenshots/` |
 | `npm run cross-browser` | All 50 tools in Chromium, Firefox and WebKit    |
 | `npm run security` | XSS payloads, CSP checks, ReDoS and input limits     |
+| `npm run edge`     | Empty / malformed / 2.1 MB input, plus keyboard use  |
 | `npm run perf`     | Core Web Vitals against a budget, throttled          |
 | `npm run assets`   | Regenerate favicons / PWA icons / OG image           |
 | `npm run ci`       | Everything above in order — what CI runs              |
@@ -364,6 +365,23 @@ confirms `(a+)+$` against a pathological input leaves the page responsive,
 and confirms a 2.2 MB paste is refused with a message rather than freezing.
 
 Current result: 350 injection attempts, none executed.
+
+### Edge cases and keyboard (`scripts/edge-cases.mjs`)
+
+Drives every tool through the inputs people hit by accident: nothing at all,
+something malformed, and 2.1 MB — just over the input limit. The bar is not
+that a tool succeeds; refusing bad input *is* success. It is that a tool
+always either produces output or explains in its status area why it cannot,
+and never fails silently, throws or hangs. Silent failure is the specific
+defect being hunted, because a tool that produces nothing and says nothing
+looks broken even when the input was at fault, and no screenshot reveals it.
+
+Also checks the skip link is the first Tab stop and becomes visible, that
+every interactive element has a focus indicator, and that Ctrl-K opens search.
+
+Current result: 44 of 50 tools take text input and all 44 pass; 35 refuse the
+oversized input by name and the rest process it fast enough that refusing
+would be wrong.
 
 ### Manual QA before a release
 
