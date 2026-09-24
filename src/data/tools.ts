@@ -21,6 +21,7 @@ export const TOOLS: Tool[] = [
     slug: 'json-formatter',
     name: 'JSON Formatter',
     category: 'json',
+    order: 1,
     description:
       'Pretty-print, validate and minify JSON with syntax highlighting and precise error locations.',
     seoTitle: 'JSON Formatter — Format, Validate and Beautify JSON Online',
@@ -39,6 +40,7 @@ export const TOOLS: Tool[] = [
     slug: 'json-validator',
     name: 'JSON Validator',
     category: 'json',
+    order: 2,
     description:
       'Check whether JSON is valid and get the exact line, column and cause of any syntax error.',
     seoTitle: 'JSON Validator — Check JSON Syntax and Find Errors Online',
@@ -57,6 +59,7 @@ export const TOOLS: Tool[] = [
     slug: 'json-minifier',
     name: 'JSON Minifier',
     category: 'json',
+    order: 3,
     description:
       'Strip whitespace from JSON to shrink payloads, with a live byte-size saving comparison.',
     seoTitle: 'JSON Minifier — Compress and Minify JSON Online',
@@ -74,6 +77,7 @@ export const TOOLS: Tool[] = [
     slug: 'json-viewer',
     name: 'JSON Viewer',
     category: 'json',
+    order: 4,
     description:
       'Explore large JSON as a collapsible tree, with search, type badges and copyable paths.',
     seoTitle: 'JSON Viewer — Interactive JSON Tree Explorer Online',
@@ -92,6 +96,7 @@ export const TOOLS: Tool[] = [
     slug: 'json-to-csv',
     name: 'JSON to CSV',
     category: 'json',
+    order: 5,
     description:
       'Convert a JSON array into CSV, flattening nested objects into dotted column headers.',
     seoTitle: 'JSON to CSV Converter — Export JSON as CSV',
@@ -109,6 +114,7 @@ export const TOOLS: Tool[] = [
     slug: 'csv-to-json',
     name: 'CSV to JSON',
     category: 'json',
+    order: 6,
     description:
       'Turn CSV or TSV into a JSON array, with header detection and automatic type inference.',
     seoTitle: 'CSV to JSON Converter — Convert CSV Data to JSON Online',
@@ -126,6 +132,7 @@ export const TOOLS: Tool[] = [
     slug: 'json-to-yaml',
     name: 'JSON to YAML',
     category: 'json',
+    order: 7,
     description: 'Convert JSON into readable YAML for Kubernetes manifests, CI files and config.',
     seoTitle: 'JSON to YAML Converter — Convert JSON into YAML Online',
     seoDescription:
@@ -142,6 +149,7 @@ export const TOOLS: Tool[] = [
     slug: 'yaml-to-json',
     name: 'YAML to JSON',
     category: 'json',
+    order: 8,
     description: 'Convert YAML into JSON and surface indentation or syntax errors with line numbers.',
     seoTitle: 'YAML to JSON Converter — Convert YAML into JSON Online',
     seoDescription:
@@ -158,6 +166,7 @@ export const TOOLS: Tool[] = [
     slug: 'xml-formatter',
     name: 'XML Formatter',
     category: 'json',
+    order: 9,
     description: 'Indent and validate XML, including SOAP envelopes, RSS feeds and SVG markup.',
     seoTitle: 'XML Formatter — Format, Beautify and Validate XML Online',
     seoDescription:
@@ -174,6 +183,7 @@ export const TOOLS: Tool[] = [
     slug: 'xml-to-json',
     name: 'XML to JSON',
     category: 'json',
+    order: 10,
     description: 'Convert XML documents to JSON, with clear handling of attributes and text nodes.',
     seoTitle: 'XML to JSON Converter — Convert XML Documents into JSON',
     seoDescription:
@@ -192,6 +202,7 @@ export const TOOLS: Tool[] = [
     slug: 'base64-encoder',
     name: 'Base64 Encoder',
     category: 'encoding',
+    order: 1,
     description: 'Encode text or files to Base64, with URL-safe output and data URI generation.',
     seoTitle: 'Base64 Encoder — Encode Text and Files to Base64 Online',
     seoDescription:
@@ -209,6 +220,7 @@ export const TOOLS: Tool[] = [
     slug: 'base64-decoder',
     name: 'Base64 Decoder',
     category: 'encoding',
+    order: 2,
     description: 'Decode Base64 back to text or download it as the original file.',
     seoTitle: 'Base64 Decoder — Decode Base64 to Text or File Online',
     seoDescription:
@@ -226,6 +238,7 @@ export const TOOLS: Tool[] = [
     slug: 'url-encoder',
     name: 'URL Encoder',
     category: 'encoding',
+    order: 4,
     description: 'Percent-encode text for safe use in URLs, query strings and form bodies.',
     seoTitle: 'URL Encoder — Percent-Encode Text for URLs Online',
     seoDescription:
@@ -242,6 +255,7 @@ export const TOOLS: Tool[] = [
     slug: 'url-decoder',
     name: 'URL Decoder',
     category: 'encoding',
+    order: 5,
     description: 'Decode percent-encoded URLs and break query strings into a readable table.',
     seoTitle: 'URL Decoder — Decode Percent-Encoded URLs Online',
     seoDescription:
@@ -258,6 +272,7 @@ export const TOOLS: Tool[] = [
     slug: 'html-entity-encoder',
     name: 'HTML Entity Encoder',
     category: 'encoding',
+    order: 6,
     description: 'Escape HTML special characters to prevent markup injection and rendering bugs.',
     seoTitle: 'HTML Entity Encoder — Escape HTML Characters',
     seoDescription:
@@ -274,6 +289,7 @@ export const TOOLS: Tool[] = [
     slug: 'html-entity-decoder',
     name: 'HTML Entity Decoder',
     category: 'encoding',
+    order: 7,
     description: 'Convert HTML entities back into the characters they represent.',
     seoTitle: 'HTML Entity Decoder — Decode HTML Entities to Text Online',
     seoDescription:
@@ -290,6 +306,7 @@ export const TOOLS: Tool[] = [
     slug: 'unicode-converter',
     name: 'Unicode Converter',
     category: 'encoding',
+    order: 10,
     description:
       'Inspect and convert between characters, code points, escape sequences and UTF-8 bytes.',
     seoTitle: 'Unicode Converter — Characters, Code Points and Escapes',
@@ -307,6 +324,7 @@ export const TOOLS: Tool[] = [
     slug: 'hex-to-text',
     name: 'Hex to Text',
     category: 'encoding',
+    order: 8,
     description: 'Decode hexadecimal byte sequences into readable UTF-8 text.',
     seoTitle: 'Hex to Text — Decode Hexadecimal to String',
     seoDescription:
@@ -323,6 +341,7 @@ export const TOOLS: Tool[] = [
     slug: 'text-to-hex',
     name: 'Text to Hex',
     category: 'encoding',
+    order: 9,
     description: 'Encode text as hexadecimal bytes in the format your tooling expects.',
     seoTitle: 'Text to Hex — Encode Text as Hexadecimal',
     seoDescription:
@@ -339,6 +358,7 @@ export const TOOLS: Tool[] = [
     slug: 'jwt-decoder',
     name: 'JWT Decoder',
     category: 'encoding',
+    order: 3,
     description:
       'Decode JWT header and payload, read claim timestamps in plain English, and optionally verify the signature.',
     seoTitle: 'JWT Decoder — Decode and Verify JSON Web Tokens Online',
@@ -361,6 +381,7 @@ export const TOOLS: Tool[] = [
     slug: 'uuid-generator',
     name: 'UUID Generator',
     category: 'generators',
+    order: 1,
     description: 'Generate v4 and v7 UUIDs in bulk, with formatting options and one-click copy.',
     seoTitle: 'UUID Generator — Create v4 and v7 UUIDs Online',
     seoDescription:
@@ -378,6 +399,7 @@ export const TOOLS: Tool[] = [
     slug: 'random-string-generator',
     name: 'Random String Generator',
     category: 'generators',
+    order: 3,
     description: 'Build random strings from exactly the character set and length you specify.',
     seoTitle: 'Random String Generator — Custom Alphabets',
     seoDescription:
@@ -394,6 +416,7 @@ export const TOOLS: Tool[] = [
     slug: 'password-generator',
     name: 'Password Generator',
     category: 'generators',
+    order: 2,
     description:
       'Create strong random passwords or passphrases, with a real entropy estimate in bits.',
     seoTitle: 'Password Generator — Strong Random Passwords',
@@ -414,6 +437,7 @@ export const TOOLS: Tool[] = [
     slug: 'lorem-ipsum-generator',
     name: 'Lorem Ipsum Generator',
     category: 'generators',
+    order: 6,
     description: 'Generate placeholder paragraphs, sentences, words or list items for mockups.',
     seoTitle: 'Lorem Ipsum Generator — Placeholder Text',
     seoDescription:
@@ -430,6 +454,7 @@ export const TOOLS: Tool[] = [
     slug: 'random-number-generator',
     name: 'Random Number Generator',
     category: 'generators',
+    order: 5,
     description: 'Draw random integers or decimals in a range, with optional uniqueness and sorting.',
     seoTitle: 'Random Number Generator — Pick Numbers in Any Range',
     seoDescription:
@@ -446,6 +471,7 @@ export const TOOLS: Tool[] = [
     slug: 'nano-id-generator',
     name: 'Nano ID Generator',
     category: 'generators',
+    order: 4,
     description: 'Generate compact URL-safe Nano IDs with a live collision-probability estimate.',
     seoTitle: 'Nano ID Generator — Short URL-Safe Unique IDs Online',
     seoDescription:
@@ -464,6 +490,7 @@ export const TOOLS: Tool[] = [
     slug: 'sha256-generator',
     name: 'SHA-256 Generator',
     category: 'security',
+    order: 1,
     description: 'Compute SHA-256 digests of text or files using the Web Crypto API.',
     seoTitle: 'SHA-256 Hash Generator — Hash Text and Files Online',
     seoDescription:
@@ -481,6 +508,7 @@ export const TOOLS: Tool[] = [
     slug: 'sha1-generator',
     name: 'SHA-1 Generator',
     category: 'security',
+    order: 2,
     description:
       'Compute SHA-1 digests for legacy compatibility — no longer collision-resistant.',
     seoTitle: 'SHA-1 Hash Generator — Compute SHA-1 Digests Online',
@@ -500,6 +528,7 @@ export const TOOLS: Tool[] = [
     slug: 'md5-generator',
     name: 'MD5 Generator',
     category: 'security',
+    order: 3,
     description: 'Compute MD5 checksums for legacy file verification — not a security function.',
     seoTitle: 'MD5 Hash Generator — Compute MD5 Checksums Online',
     seoDescription:
@@ -518,6 +547,7 @@ export const TOOLS: Tool[] = [
     slug: 'hmac-generator',
     name: 'HMAC Generator',
     category: 'security',
+    order: 4,
     description: 'Generate HMAC signatures with a secret key for webhooks and API authentication.',
     seoTitle: 'HMAC Generator — Create HMAC-SHA256 Signatures Online',
     seoDescription:
@@ -557,9 +587,6 @@ export const TOOLS: Tool[] = [
     slug: 'current-unix-timestamp',
     name: 'Current Unix Timestamp',
     category: 'time',
-    // "What is the timestamp right now" is the commonest reason to open this
-    // category at all, so it leads; the converter that answers the follow-up
-    // question sits directly beneath it.
     order: 1,
     description: 'The live Unix timestamp right now, in seconds and milliseconds, ready to copy.',
     seoTitle: 'Current Unix Timestamp — Live Epoch Time Right Now',
@@ -577,6 +604,7 @@ export const TOOLS: Tool[] = [
     slug: 'date-difference-calculator',
     name: 'Date Difference Calculator',
     category: 'time',
+    order: 4,
     description: 'Measure the span between two dates in years, months, weeks, days, hours and seconds.',
     seoTitle: 'Date Difference Calculator — Days Between Two Dates',
     seoDescription:
@@ -593,6 +621,7 @@ export const TOOLS: Tool[] = [
     slug: 'iso-date-converter',
     name: 'ISO Date Converter',
     category: 'time',
+    order: 5,
     description: 'Parse and build ISO 8601 / RFC 3339 dates and convert between common formats.',
     seoTitle: 'ISO 8601 Date Converter — Parse and Format RFC 3339 Dates',
     seoDescription:
@@ -609,6 +638,7 @@ export const TOOLS: Tool[] = [
     slug: 'timezone-converter',
     name: 'Timezone Converter',
     category: 'time',
+    order: 3,
     description: 'Compare one moment across multiple timezones, with DST handled correctly.',
     seoTitle: 'Timezone Converter — Compare Times Across Time Zones',
     seoDescription:
@@ -625,6 +655,7 @@ export const TOOLS: Tool[] = [
     slug: 'cron-expression-generator',
     name: 'Cron Expression Generator',
     category: 'time',
+    order: 6,
     description: 'Build a cron expression from plain controls and preview the next run times.',
     seoTitle: 'Cron Expression Generator — Build Cron Schedules Visually',
     seoDescription:
@@ -641,6 +672,7 @@ export const TOOLS: Tool[] = [
     slug: 'cron-expression-parser',
     name: 'Cron Expression Parser',
     category: 'time',
+    order: 7,
     description: 'Explain any cron expression in plain English and list its upcoming run times.',
     seoTitle: 'Cron Expression Parser — Explain Any Crontab',
     seoDescription:
@@ -659,6 +691,7 @@ export const TOOLS: Tool[] = [
     slug: 'word-counter',
     name: 'Word Counter',
     category: 'text',
+    order: 1,
     description: 'Count words, sentences, paragraphs and reading time as you type.',
     seoTitle: 'Word Counter — Count Words, Sentences and Reading Time',
     seoDescription:
@@ -676,6 +709,7 @@ export const TOOLS: Tool[] = [
     slug: 'character-counter',
     name: 'Character Counter',
     category: 'text',
+    order: 2,
     description:
       'Count characters, bytes and graphemes against platform limits like Twitter and SMS.',
     seoTitle: 'Character Counter — Characters, Bytes, Emoji',
@@ -693,6 +727,7 @@ export const TOOLS: Tool[] = [
     slug: 'text-case-converter',
     name: 'Text Case Converter',
     category: 'text',
+    order: 3,
     description:
       'Convert between camelCase, snake_case, kebab-case, Title Case and eight more styles.',
     seoTitle: 'Text Case Converter — camelCase, snake_case',
@@ -711,6 +746,7 @@ export const TOOLS: Tool[] = [
     slug: 'remove-duplicate-lines',
     name: 'Remove Duplicate Lines',
     category: 'text',
+    order: 5,
     description: 'Strip repeated lines from a list, with case and whitespace options.',
     seoTitle: 'Remove Duplicate Lines — Deduplicate Any List Online',
     seoDescription:
@@ -727,6 +763,7 @@ export const TOOLS: Tool[] = [
     slug: 'sort-lines',
     name: 'Sort Lines',
     category: 'text',
+    order: 6,
     description: 'Sort lines alphabetically, numerically, by length, or shuffle them randomly.',
     seoTitle: 'Sort Lines — Alphabetical, Numeric, Natural',
     seoDescription:
@@ -743,6 +780,7 @@ export const TOOLS: Tool[] = [
     slug: 'text-diff',
     name: 'Text Diff',
     category: 'text',
+    order: 4,
     description: 'Compare two blocks of text and highlight every added, removed and changed line.',
     seoTitle: 'Text Diff — Compare Two Texts, See Changes',
     seoDescription:
@@ -760,6 +798,7 @@ export const TOOLS: Tool[] = [
     slug: 'remove-extra-spaces',
     name: 'Remove Extra Spaces',
     category: 'text',
+    order: 7,
     description: 'Collapse repeated spaces, trim lines and strip blank lines or invisible characters.',
     seoTitle: 'Remove Extra Spaces — Clean Up Whitespace in Text Online',
     seoDescription:
@@ -776,6 +815,7 @@ export const TOOLS: Tool[] = [
     slug: 'slug-generator',
     name: 'Slug Generator',
     category: 'text',
+    order: 8,
     description: 'Turn any title into a clean URL slug, with accent folding and transliteration.',
     seoTitle: 'Slug Generator — Convert Titles into Clean URL Slugs',
     seoDescription:
@@ -794,6 +834,7 @@ export const TOOLS: Tool[] = [
     slug: 'regex-tester',
     name: 'Regex Tester',
     category: 'web',
+    order: 1,
     description:
       'Test regular expressions with highlighted matches, capture groups and a safety timeout.',
     seoTitle: 'Regex Tester — Test Regular Expressions Live',
@@ -814,6 +855,7 @@ export const TOOLS: Tool[] = [
     slug: 'http-status-codes',
     name: 'HTTP Status Code Lookup',
     category: 'web',
+    order: 3,
     description: 'Search every HTTP status code with its meaning, typical cause and correct usage.',
     seoTitle: 'HTTP Status Codes — Complete Searchable Reference',
     seoDescription:
@@ -830,6 +872,7 @@ export const TOOLS: Tool[] = [
     slug: 'user-agent-parser',
     name: 'User Agent Parser',
     category: 'web',
+    order: 4,
     description: 'Break a user agent string into browser, engine, operating system and device.',
     seoTitle: 'User Agent Parser — Decode Browser and Device Strings',
     seoDescription:
@@ -846,6 +889,7 @@ export const TOOLS: Tool[] = [
     slug: 'color-converter',
     name: 'Color Converter',
     category: 'web',
+    order: 2,
     description:
       'Convert colors between HEX, RGB, HSL, HWB, OKLCH and CMYK with a live contrast check.',
     seoTitle: 'Color Converter — HEX, RGB, HSL, OKLCH and CMYK',
@@ -864,6 +908,7 @@ export const TOOLS: Tool[] = [
     slug: 'css-minifier',
     name: 'CSS Minifier',
     category: 'web',
+    order: 5,
     description: 'Minify CSS safely, preserving strings, custom properties and licence comments.',
     seoTitle: 'CSS Minifier — Compress and Minify CSS Online',
     seoDescription:
