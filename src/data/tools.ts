@@ -538,6 +538,7 @@ export const TOOLS: Tool[] = [
     slug: 'unix-timestamp-converter',
     name: 'Unix Timestamp Converter',
     category: 'time',
+    order: 2,
     description:
       'Convert Unix timestamps to human dates and back, in seconds or milliseconds, UTC and local.',
     seoTitle: 'Unix Timestamp Converter — Epoch to Date and Date to Epoch',
@@ -556,6 +557,10 @@ export const TOOLS: Tool[] = [
     slug: 'current-unix-timestamp',
     name: 'Current Unix Timestamp',
     category: 'time',
+    // "What is the timestamp right now" is the commonest reason to open this
+    // category at all, so it leads; the converter that answers the follow-up
+    // question sits directly beneath it.
+    order: 1,
     description: 'The live Unix timestamp right now, in seconds and milliseconds, ready to copy.',
     seoTitle: 'Current Unix Timestamp — Live Epoch Time Right Now',
     seoDescription:
@@ -883,9 +888,18 @@ export function getTool(slug: string): Tool | undefined {
   return TOOL_MAP[slug];
 }
 
+/**
+ * Tools in a category, ordered for reading.
+ *
+ * Explicit `order` first, then alphabetical for everything else. Alphabetical
+ * remains the default because it is what someone scanning a long list expects;
+ * `order` exists for the cases where that is actively unhelpful.
+ */
 export function toolsInCategory(categoryId: string): Tool[] {
-  return TOOLS.filter((t) => t.category === categoryId).sort((a, b) =>
-    a.name.localeCompare(b.name),
+  return TOOLS.filter((t) => t.category === categoryId).sort(
+    (a, b) =>
+      (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER) ||
+      a.name.localeCompare(b.name),
   );
 }
 

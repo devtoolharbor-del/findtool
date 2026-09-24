@@ -177,9 +177,16 @@ questions. It renders as crawlable HTML and as `FAQPage` structured data.
   component: 'Base64Encoder',      // src/tools/Base64Encoder.astro
   icon: 'binary',                  // must exist in IconName / Icon.astro
   serverProcessing: false,         // true ⇒ the privacy note is NOT shown
+  order: 1,                        // optional: position within the category
   addedAt: '2026-09-24',
 }
 ```
+
+`order` controls position within a category. Lower sorts first; anything
+without one falls in behind, alphabetically. Use it sparingly — alphabetical
+is what someone scanning a long list expects, so reach for `order` only where
+that is actively unhelpful, such as a tool people open the category *for*, or
+a pair that reads better together.
 
 `aliases` is what makes search feel good — put in what a hurried developer
 actually types: `b64`, `epoch`, `guid`, `regexp`, `crontab`, `nbsp`.

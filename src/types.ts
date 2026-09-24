@@ -108,6 +108,16 @@ export interface Tool {
   privacyNote?: string;
   /** Surfaced on the homepage "Popular" grid. */
   popular?: boolean;
+  /**
+   * Position within its category. Lower sorts first; anything without an
+   * order falls in behind, alphabetically.
+   *
+   * Use it only where a deliberate reading order beats alphabetical — a tool
+   * people reach for first, or a pair that only makes sense read together.
+   * Leaving it unset is the right default, because alphabetical is what a
+   * visitor scanning a long list expects.
+   */
+  order?: number;
   /** ISO date (YYYY-MM-DD). Drives sitemap lastmod and "recently added". */
   addedAt: string;
   /**

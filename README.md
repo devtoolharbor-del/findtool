@@ -176,6 +176,7 @@ title or description is duplicated.
   serverProcessing: false,       // true ⇒ privacy note is NOT shown
   privacyNote: '…',              // optional extra privacy wording
   popular: true,                 // optional: surfaces on the homepage
+  order: 1,                      // optional: position within its category
   addedAt: '2026-09-24',         // drives sitemap lastmod + "recently added"
 }
 ```
