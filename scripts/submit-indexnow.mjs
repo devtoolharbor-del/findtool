@@ -19,19 +19,16 @@
 
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { SITE_URL as ORIGIN } from '../site.config.mjs';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-// Read the canonical origin from source so this can never drift from the site.
-const constsSrc = await readFile(join(ROOT, 'src/consts.ts'), 'utf8');
-const ORIGIN = constsSrc.match(/url:\s*'(https:\/\/[^']+)'/)?.[1];
-if (!ORIGIN) {
-  console.error('Could not read SITE.url from src/consts.ts');
-  process.exit(1);
-}
+// The origin comes from site.config.mjs, the one place it is written down.
+// This previously scraped src/consts.ts with a regex, which broke silently
+// the moment that file started importing the value instead of literalising it.
 const HOST = new URL(ORIGIN).host;
 
 const args = process.argv.slice(2);
