@@ -2,16 +2,20 @@
 /**
  * The local-processing guarantee.
  *
- * Rendered only when `tool.serverProcessing === false`. If a future tool ever
- * needs a server, this component must not appear on it — the claim has to stay
- * literally true everywhere it is shown.
+ * Rendered when `tool.serverProcessing === false`, where the standard claim
+ * applies verbatim. A tool that genuinely needs a server may still show this
+ * panel, but only by supplying `headline` — wording written for that tool.
+ * The default claim must stay literally true everywhere it appears.
  */
 import { LOCAL_PROCESSING_NOTE } from '~/consts';
 
 interface Props {
+  /** Replaces the standard local-processing claim. */
+  headline?: string;
+  /** Appended below the claim. */
   extra?: string;
 }
-const { extra } = Astro.props;
+const { headline, extra } = Astro.props;
 ---
 
 <aside
@@ -32,7 +36,7 @@ const { extra } = Astro.props;
     <path d="m9.5 12 2 2 3.5-4"></path>
   </svg>
   <p class="leading-relaxed">
-    <strong class="font-medium text-ink-soft">{LOCAL_PROCESSING_NOTE}</strong>
+    <strong class="font-medium text-ink-soft">{headline ?? LOCAL_PROCESSING_NOTE}</strong>
     {extra && <span class="mt-1 block">{extra}</span>}
   </p>
 </aside>

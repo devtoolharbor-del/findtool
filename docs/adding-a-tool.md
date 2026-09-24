@@ -202,7 +202,60 @@ Only set it to `false` if that is **literally true** — no `fetch`, no beacon,
 no third-party script touching the input. If a tool ever needs a server, set
 it to `true` and the claim disappears automatically.
 
-## 6. Checklist before you call a tool done
+A server-processing tool may still show a privacy panel, but only through
+`privacyNoteOverride`, which replaces the standard claim with wording written
+for that tool:
+
+```ts
+serverProcessing: true,
+privacyNoteOverride:
+  'This page is built from the request your browser already made, so nothing is looked up…',
+```
+
+`privacyNote` is *appended* to the standard claim, so a tool that never shows
+that claim must not use it — the sentence would silently vanish.
+`npm run verify` fails on the combination, and separately fails if an override
+is declared but does not appear in the built HTML.
+
+## 6. Tools that need the edge
+
+Almost nothing does. Before reaching for a Pages Function, check that the
+answer is not already in the browser: `navigator.userAgent`,
+`Intl.DateTimeFormat().resolvedOptions()` and `crypto.subtle` cover far more
+than people expect, and a tool that calls an API is a tool that leaks its
+input.
+
+The one genuine case on this site is `/tools/what-is-my-ip`, where the answer
+is the visitor's own IP address — already present in the request, and
+obtainable client-side only by sending it to a third party.
+
+If a tool truly needs the edge, **do not build a separate page for it.** Build
+the tool as a normal static Astro page and add a Cloudflare Pages Function at
+the matching path under `functions/`, which fetches the built page with
+`next()` and rewrites values into it with `HTMLRewriter`. Everything that
+makes a tool page work — layout, prose, FAQ, structured data, sitemap entry,
+the build verifier, the browser audit — then keeps working unchanged.
+
+The rules that follow from that split:
+
+- **Every placeholder needs an honest static fallback**, because the built
+  file is what local dev and the audit serve. Add a visible element explaining
+  the unfilled state, and hide it from the function.
+- **Set `Cache-Control: no-store`** and delete `ETag` and `Last-Modified` from
+  the response. Strip conditional headers from the request before calling
+  `next()`, or a 304 will hand a visitor the previous visitor's values.
+- **Never `setInnerContent(…, { html: true })`** with anything from a request.
+  The default escapes; that is the whole reason to use it.
+- **Catch everything.** The page is indexed. Falling back to the untransformed
+  HTML is always better than a 500.
+- **Declare the keys once.** The function's key names must match the page's
+  `data-*` placeholders; `verify-build.mjs` checks both directions and fails
+  on a rename to either side.
+- **Duplicate no logic silently.** A function cannot import from `src/lib`. If
+  something has to be written twice, pin the two copies together with a test
+  — see `tests/edge-ip.test.ts`.
+
+## 7. Checklist before you call a tool done
 
 - [ ] `npm run build` passes
 - [ ] `npx astro check` reports no errors for your files

@@ -1,0 +1,242 @@
+---
+/**
+ * What Is My IP.
+ *
+ * The only page on the site whose values come from the server, and it is
+ * deliberately not a client-side tool: the visitor's IP is already in the
+ * request that fetched this page, so asking a third-party API for it would
+ * mean leaking the address to someone else to be told something we were
+ * handed for free.
+ *
+ * The page is built statically like every other tool — layout, prose, FAQ,
+ * structured data, sitemap entry — and a Cloudflare Pages Function at
+ * functions/tools/what-is-my-ip.js intercepts the route and fills the
+ * placeholders in with HTMLRewriter before the HTML leaves the edge.
+ *
+ * Consequences of that split, all of them load-bearing:
+ *
+ *   - Every [data-ip] cell must carry a sensible static fallback, because the
+ *     built file is what a local `npm run dev`, the audit suite and any
+ *     mirror of dist/ will serve.
+ *   - [data-ip-fallback] explains the placeholder state and is hidden by the
+ *     Function. It must never claim a value the page does not have.
+ *   - The row markup is the contract. The Function matches
+ *     `tr[data-ip-row="<key>"]` and `[data-ip="<key>"]`; renaming a key here
+ *     without renaming it there silently blanks a row.
+ */
+import type { Tool } from '~/types';
+import ToolLayout from '~/layouts/ToolLayout.astro';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+
+/**
+ * Every field the edge can report, in reading order.
+ *
+ * `note` is shown under the label for fields whose meaning is not obvious —
+ * a colo code and an ASN both look like noise without one line of context.
+ */
+const rows: { key: string; label: string; note?: string }[] = [
+  { key: 'version', label: 'Protocol' },
+  { key: 'reverse', label: 'Reverse DNS name', note: 'The .arpa name a PTR lookup would use' },
+  { key: 'country', label: 'Country' },
+  { key: 'region', label: 'Region' },
+  { key: 'city', label: 'City' },
+  { key: 'postal', label: 'Postal code' },
+  { key: 'timezone', label: 'Time zone' },
+  { key: 'asn', label: 'Network (ASN)', note: 'The autonomous system announcing this address' },
+  { key: 'org', label: 'Network operator' },
+];
+
+const connectionRows: { key: string; label: string; note?: string }[] = [
+  { key: 'protocol', label: 'HTTP version' },
+  { key: 'tls', label: 'TLS version' },
+  { key: 'cipher', label: 'Cipher suite' },
+  { key: 'colo', label: 'Edge location', note: 'The Cloudflare data centre that served this page' },
+  { key: 'language', label: 'Accept-Language', note: 'Sent by your browser, not derived from your IP' },
+];
+---
+
+<ToolLayout tool={tool}>
+  <div data-tool="what-is-my-ip" class="space-y-4">
+    {/* ── The answer ── */}
+    <div class="bc-panel p-4 sm:p-5">
+      <span class="bc-label">Your public IP address</span>
+      <p
+        class="font-mono text-2xl leading-tight font-semibold break-all select-all sm:text-3xl"
+        data-ip="address"
+      >
+        Not available
+      </p>
+      <div class="bc-toolbar mt-3">
+        <button type="button" class="bc-btn bc-btn-primary bc-btn-sm" data-copy='[data-ip="address"]'>
+          <span data-label>Copy address</span>
+        </button>
+        <a class="bc-btn bc-btn-secondary bc-btn-sm" href="/tools/subnet-calculator"
+          >Open in subnet calculator</a
+        >
+      </div>
+    </div>
+
+    {/*
+      Visible in the built HTML and hidden by the edge Function. This is the
+      honest state of the page whenever it is served as a plain static file.
+    */}
+    <div
+      class="rounded-lg border border-line bg-surface-2 px-3.5 py-3 text-sm text-muted"
+      data-ip-fallback
+    >
+      <p>
+        This page is filled in at the edge from the request your browser made. You are seeing the
+        unfilled version, which happens when the site is served as static files — during local
+        development, or from a mirror. On <a href="/">findtool.dev</a> the values below are real.
+      </p>
+    </div>
+
+    <div data-status role="status" aria-live="polite" hidden></div>
+
+    {/* ── Where the address is registered ── */}
+    <div>
+      <h2 class="mb-1.5 text-xs font-medium tracking-wide text-muted uppercase">
+        What this address says about you
+      </h2>
+      <table class="w-full border-collapse text-sm">
+        <caption class="sr-only">Details derived from your IP address</caption>
+        <tbody>
+          {
+            rows.map((row) => (
+              <tr class="border-b border-line last:border-b-0" data-ip-row={row.key}>
+                <th scope="row" class="w-48 py-2 pr-3 text-left align-top font-medium text-muted">
+                  {row.label}
+                  {row.note && (
+                    <span class="mt-0.5 block text-xs font-normal text-muted">{row.note}</span>
+                  )}
+                </th>
+                <td class="py-2 align-top font-mono break-all" data-ip={row.key}>
+                  Not available
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+
+    {/* ── How the connection was made ── */}
+    <details class="bc-panel">
+      <summary class="cursor-pointer px-3 py-2.5 text-sm font-medium">
+        How your browser connected
+      </summary>
+      <div class="border-t border-line px-3 py-2">
+        <table class="w-full border-collapse text-sm">
+          <tbody>
+            {
+              connectionRows.map((row) => (
+                <tr class="border-b border-line last:border-b-0" data-ip-row={row.key}>
+                  <th scope="row" class="w-48 py-2 pr-3 text-left align-top font-medium text-muted">
+                    {row.label}
+                    {row.note && (
+                      <span class="mt-0.5 block text-xs font-normal text-muted">{row.note}</span>
+                    )}
+                  </th>
+                  <td class="py-2 align-top font-mono text-xs break-all" data-ip={row.key}>
+                    Not available
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    {/* Plain-text mirror for the copy-everything button. Filled at the edge. */}
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-copy="[data-output]">
+        <span data-label>Copy all details</span>
+      </button>
+    </div>
+    <textarea class="sr-only" data-output aria-hidden="true" tabindex="-1" readonly
+      >Not available</textarea
+    >
+  </div>
+
+  {/* ──────────────────────────────────────────────────────────────────── */}
+  <Fragment slot="content">
+    <h2>What this tool does</h2>
+    <p>
+      It shows the public IP address your traffic is arriving from, along with what that address
+      reveals: the country, the approximate region, the network operator announcing it, and the
+      details of the connection your browser negotiated.
+    </p>
+    <p>
+      There is no lookup involved. Your address is part of every request your browser makes — it
+      has to be, or nothing could be sent back — so this page simply reads it from the request that
+      fetched the page and prints it. Nothing is asked of any other service.
+    </p>
+
+    <h2>Common uses</h2>
+    <ul>
+      <li>Adding your address to an allowlist — a database firewall rule, an SSH
+        <code>AllowUsers</code> restriction, an office IP exception.</li>
+      <li>Checking whether a VPN or proxy is actually carrying your traffic, and where it exits.</li>
+      <li>Confirming a home connection's address before setting up dynamic DNS.</li>
+      <li>Working out whether you have IPv6 at all — if the address below starts with a number and
+        dots, this connection reached us over IPv4.</li>
+      <li>Giving support the address their logs will show.</li>
+    </ul>
+
+    <h2>Your IP address is not your identity</h2>
+    <p>
+      The location shown here comes from a registry of which network operator holds which address
+      block, not from your device. It is usually right about the country and frequently wrong about
+      the city — routinely by tens of kilometres, and sometimes by the entire width of a country
+      when an operator routes a region through one exchange. It is not GPS, it does not come from
+      your device's location services, and no website can obtain those without asking you first.
+    </p>
+    <p>
+      If you are on a home or office network, this address belongs to your router, not your
+      computer. Every device behind it shares the same public address through NAT, so what a remote
+      server sees is your household or your building, not your laptop. The <code>192.168.x.x</code>
+      or <code>10.x.x.x</code> address your machine holds internally is not visible here and cannot
+      be — those ranges are not routable and never leave your network.
+    </p>
+
+    <h2>Why the address may change</h2>
+    <p>
+      Most residential connections receive a dynamic address from the provider, which can change
+      when the router reconnects, and does so unpredictably — hours for some providers, months for
+      others. Mobile networks change it far more often, and a carrier-grade NAT deployment can put
+      thousands of subscribers behind a single address in the <code>100.64.0.0/10</code> range.
+      That is why a firewall rule pinned to a home IP eventually stops working, and why an
+      allowlist is a poor substitute for authentication.
+    </p>
+
+    <h2>Worth knowing</h2>
+    <p>
+      IPv6 changes the shape of this. A device on IPv6 generally holds a globally routable address
+      of its own rather than sharing one through NAT, so the address shown is more likely to
+      identify a single machine — which is precisely why privacy extensions (RFC 8981) exist, and
+      why operating systems rotate the interface portion of the address, typically daily. If you
+      see a long hexadecimal address above, you are on IPv6; a site reached over IPv4 would show
+      four numbers separated by dots, and many networks will give you a different address for each
+      depending on which the site supports.
+    </p>
+  </Fragment>
+</ToolLayout>
+
+<script>
+  import { mount, wireStandardActions, markUsed } from '~/lib/toolkit';
+
+  /*
+    Almost nothing happens here on purpose. Every value on this page is in the
+    HTML before any script runs, so the page is complete with JavaScript
+    disabled; the only thing the client adds is the copy buttons.
+  */
+  mount('what-is-my-ip', (root) => {
+    wireStandardActions(root);
+    markUsed();
+  });
+</script>

@@ -104,8 +104,20 @@ export interface Tool {
    * Every launch tool is false — the privacy note depends on this being honest.
    */
   serverProcessing: boolean;
-  /** Extra privacy wording shown in addition to the standard local-processing note. */
+  /**
+   * Extra privacy wording shown in addition to the standard local-processing
+   * note. Only meaningful when `serverProcessing` is false — a tool that does
+   * use a server must not append a sentence to a claim that is not true of it.
+   */
   privacyNote?: string;
+  /**
+   * Replaces the standard local-processing note entirely.
+   *
+   * The only way a `serverProcessing: true` tool may show a privacy note, and
+   * the wording has to be written for that specific tool. `npm run verify`
+   * rejects a server-processing tool that carries `privacyNote` instead.
+   */
+  privacyNoteOverride?: string;
   /** Surfaced on the homepage "Popular" grid. */
   popular?: boolean;
   /**
