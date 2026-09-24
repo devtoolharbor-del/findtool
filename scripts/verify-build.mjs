@@ -319,6 +319,36 @@ if (sitemapUrls.some((u) => u.endsWith('/') && u !== `${ORIGIN}/`)) {
   fail('Sitemap contains trailing-slash URLs, which do not match our canonical form');
 }
 
+// ─── Web app manifest ────────────────────────────────────────────────────
+//
+// The manifest names the app on a phone's home screen. It was hand-written
+// JSON in public/ and got missed by a rebrand, so an installed icon carried
+// the wrong name while every page showed the right one. Checked against the
+// same source the pages use.
+try {
+  const manifest = JSON.parse(await readFile(join(DIST, 'site.webmanifest'), 'utf8'));
+  const siteName = (await readFile(join(ROOT, 'site.config.mjs'), 'utf8')).match(
+    /SITE_NAME = '([^']+)'/,
+  )?.[1];
+
+  if (siteName && !manifest.name?.includes(siteName)) {
+    fail(`site.webmanifest name "${manifest.name}" does not contain the site name "${siteName}"`);
+  }
+  if (siteName && manifest.short_name !== siteName) {
+    fail(`site.webmanifest short_name is "${manifest.short_name}", expected "${siteName}"`);
+  }
+  for (const icon of manifest.icons ?? []) {
+    if (!existsSync(join(DIST, icon.src))) {
+      fail(`site.webmanifest references ${icon.src}, which is not in the build`);
+    }
+  }
+  if (!manifest.icons?.some((i) => i.purpose === 'maskable')) {
+    warn('site.webmanifest has no maskable icon — Android will letterbox the icon');
+  }
+} catch (err) {
+  fail(`site.webmanifest is missing or invalid: ${err.message}`);
+}
+
 // ─── robots.txt ──────────────────────────────────────────────────────────
 const robots = await readFile(join(DIST, 'robots.txt'), 'utf8').catch(() => '');
 if (!robots.includes(`Sitemap: ${ORIGIN}/sitemap.xml`)) {
