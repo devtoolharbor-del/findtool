@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { TOOLS } from '~/data/tools';
 import { CATEGORY_MAP } from '~/data/categories';
+import { featuredRank } from '~/data/featured';
 import type { SearchEntry } from '~/lib/search';
 
 /**
@@ -12,7 +13,21 @@ import type { SearchEntry } from '~/lib/search';
  * empty-query state can simply take the first six.
  */
 export const GET: APIRoute = () => {
+  /*
+    The dialog shows the first six entries when the query is empty, so the
+    head of this file is a curated list rather than an accident of sorting.
+
+    Featured tools lead, in the order chosen in src/data/featured.ts, so the
+    empty state matches the homepage shortcuts exactly. Popular tools follow,
+    then everything else. Alphabetical is only the final tie-break — using it
+    as the primary sort is what previously opened the dialog with Base64
+    Decoder and Color Converter.
+  */
   const ordered = [...TOOLS].sort((a, b) => {
+    const rank = featuredRank(a.slug) - featuredRank(b.slug);
+    if (rank !== 0 && Number.isFinite(Math.min(featuredRank(a.slug), featuredRank(b.slug)))) {
+      return rank;
+    }
     if (!!a.popular !== !!b.popular) return a.popular ? -1 : 1;
     return a.name.localeCompare(b.name);
   });
