@@ -73,7 +73,7 @@ export const CATEGORIES: Category[] = [
     tagline: 'Timestamps, timezones, durations and cron',
     seoTitle: 'Date & Time Tools — Timestamps and Cron',
     seoDescription:
-      'Convert Unix timestamps, translate ISO 8601 dates, compare timezones, measure date differences and build or explain cron expressions. Runs locally.',
+      'Convert Unix timestamps and see the current epoch live, translate ISO 8601 dates, compare timezones, measure date differences and build or explain cron expressions.',
     intro:
       'Time is where most off-by-one bugs live: seconds versus milliseconds, UTC versus local, and cron fields that do not mean what they look like. These tools make the ambiguous parts explicit — always showing you both the UTC and local reading of a value, and spelling out in plain English when a schedule will actually fire.',
     icon: 'clock',
@@ -98,12 +98,12 @@ export const CATEGORIES: Category[] = [
     slug: 'web',
     name: 'Web & Dev',
     shortName: 'Web',
-    tagline: 'Regex, HTTP status codes, colors, CSS and user agents',
-    seoTitle: 'Web Dev Tools — Regex, HTTP Codes, Colors',
+    tagline: 'IP addresses, subnets, regex, HTTP status codes and colors',
+    seoTitle: 'Web Dev Tools — IP, Subnets, Regex, HTTP Codes',
     seoDescription:
-      'Test regular expressions safely, look up HTTP status codes, parse user agent strings, convert colors between HEX, RGB, HSL and OKLCH, and minify CSS.',
+      'Find your public IP, calculate subnets and CIDR ranges, test regular expressions safely, look up HTTP status codes, parse user agents and convert colors.',
     intro:
-      'The reference material and quick checks that come up while building for the web. The regex tester runs your pattern inside a worker with a hard timeout, so a catastrophically backtracking expression cannot freeze the tab — a failure mode most online testers still have.',
+      'The reference material and quick checks that come up while building for the web, and while working out why something cannot reach something else. The IP page is read from the request your browser already made rather than from a third-party lookup, and the subnet calculator does its arithmetic in arbitrary-precision integers so an IPv6 host count is exact rather than rounded. The regex tester runs your pattern inside a worker with a hard timeout, so a catastrophically backtracking expression cannot freeze the tab — a failure mode most online testers still have.',
     icon: 'code',
     order: 7,
   },
