@@ -63,50 +63,61 @@ const connectionRows: { key: string; label: string; note?: string }[] = [
 
 <ToolLayout tool={tool}>
   <div data-tool="what-is-my-ip" class="space-y-4">
-    {/* ── The answer ── */}
+    {/*
+      ── The answer ──
+
+      Both families, IPv4 first, shown at the same weight. Only one of them
+      comes from the edge — a connection carries exactly one address family,
+      so the server can report the address you arrived on and no other. The
+      remaining row is filled by the script below.
+
+      Which row is which is fixed in the markup rather than ordered by
+      whichever you happened to connect over, so the page does not rearrange
+      itself between visits.
+    */}
     <div class="bc-panel p-4 sm:p-5">
-      <div class="flex items-baseline justify-between gap-3">
-        <span class="bc-label mb-0">Your public IP address</span>
-        <span
-          class="shrink-0 rounded border border-line px-1.5 py-0.5 font-mono text-[10px] text-muted"
-          data-ip="version">—</span
-        >
-      </div>
-      <p
-        class="mt-1.5 font-mono text-2xl leading-tight font-semibold break-all select-all sm:text-3xl"
-        data-ip="address"
-      >
-        Not available
-      </p>
-
-      {/*
-        The other address family.
-
-        A connection carries exactly one family, so the edge can only ever
-        report the one you arrived on. The second is fetched from a hostname
-        that resolves to the other family only — see the script below for why
-        it cannot be a hostname of ours.
-
-        Hidden until it resolves, so the panel never shows an empty row.
-      */}
-      <div class="mt-3 border-t border-line pt-3" data-other-block hidden>
-        <div class="flex items-baseline justify-between gap-3">
-          <span class="text-xs tracking-wide text-muted uppercase" data-other-label>
-            Other protocol
-          </span>
-          <span
-            class="shrink-0 rounded border border-line px-1.5 py-0.5 font-mono text-[10px] text-muted"
-            data-other-version></span
-          >
-        </div>
-        <p class="mt-1 font-mono text-sm break-all select-all sm:text-base" data-other-address></p>
+      <div class="mb-3 flex items-baseline justify-between gap-3">
+        <span class="bc-label mb-0">Your public IP addresses</span>
+        <span class="shrink-0 text-xs text-muted">
+          connected over <span class="font-mono" data-ip="version">—</span>
+        </span>
       </div>
 
-      <div class="bc-toolbar mt-3">
-        <button type="button" class="bc-btn bc-btn-primary bc-btn-sm" data-copy='[data-ip="address"]'>
-          <span data-label>Copy address</span>
-        </button>
-      </div>
+      <dl class="divide-y divide-line">
+        {
+          (
+            [
+              ['addressV4', 'IPv4'],
+              ['addressV6', 'IPv6'],
+            ] as const
+          ).map(([key, family]) => (
+            <div class="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+              <dt class="w-11 shrink-0 font-mono text-xs text-muted">{family}</dt>
+              {/*
+                The copy control lives inside the <dd>, not beside it: a <div>
+                wrapping a dt/dd pair may contain nothing else, and a button
+                as a third child makes the list invalid. axe flags it.
+              */}
+              <dd class="flex min-w-0 flex-1 items-center gap-3">
+                <span
+                  class="min-w-0 flex-1 font-mono text-base leading-snug font-semibold break-all select-all sm:text-lg"
+                  data-ip={key}
+                >
+                  Requires JavaScript
+                </span>
+                <button
+                  type="button"
+                  class="bc-btn bc-btn-ghost bc-btn-sm shrink-0 px-2 text-xs"
+                  data-copy={`[data-ip="${key}"]`}
+                  aria-label={`Copy ${family} address`}
+                >
+                  <span data-label>Copy</span>
+                </button>
+              </dd>
+            </div>
+          ))
+        }
+      </dl>
     </div>
 
     {/*
@@ -290,41 +301,39 @@ const connectionRows: { key: string; label: string; note?: string }[] = [
     wireStandardActions(root);
     markUsed();
 
-    const block = q('[data-other-block]', root)!;
-    const label = q('[data-other-label]', root)!;
-    const badge = q('[data-other-version]', root)!;
-    const value = q('[data-other-address]', root)!;
-
     /** Which family the edge said we arrived on. */
     const arrivedOn = q('[data-ip="version"]', root)?.textContent?.trim();
 
     /*
-      Served statically — during local development, or from a mirror — there
-      is no edge value to read. Asking for both is wrong there too, so the
-      block simply stays hidden and the page keeps its static fallback notice.
+      Served statically — local development, or a mirror — there is no edge
+      value to read and neither slot is authoritative. The static fallback
+      notice already explains that, so leave both rows alone.
     */
     if (arrivedOn !== 'IPv4' && arrivedOn !== 'IPv6') return;
 
     const want = arrivedOn === 'IPv4' ? 'IPv6' : 'IPv4';
-
-    label.textContent = `Your ${want} address`;
-    badge.textContent = want;
-    value.textContent = 'Checking…';
-    value.classList.add('text-muted');
-    block.removeAttribute('hidden');
+    const slot = q(`[data-ip="address${want === 'IPv4' ? 'V4' : 'V6'}"]`, root)!;
+    const copyButton = slot.closest('dd')?.querySelector('button') ?? null;
 
     const settle = (text: string, found: boolean) => {
-      value.textContent = text;
-      value.classList.toggle('text-muted', !found);
-      if (found) value.classList.add('select-all');
+      slot.textContent = text;
+      // Dim anything that is not an address, and hide the copy control so
+      // "No IPv6 detected on this network." can never be copied.
+      slot.classList.toggle('text-muted', !found);
+      slot.classList.toggle('font-semibold', found);
+      slot.classList.toggle('text-sm', !found);
+      slot.classList.toggle('sm:text-base', !found);
+      if (copyButton) copyButton.hidden = !found;
     };
+
+    settle('Checking…', false);
 
     fetch(ENDPOINT[want], { signal: AbortSignal.timeout(TIMEOUT_MS), cache: 'no-store' })
       .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
       .then((text) => {
         const address = text.trim();
-        // Never render something that is not an address: the response is
-        // plain text from another origin, and this goes into the DOM.
+        // Never render something that is not an address: this is plain text
+        // from another origin and it goes straight into the DOM.
         const looksRight =
           want === 'IPv4'
             ? /^\d{1,3}(\.\d{1,3}){3}$/.test(address)
@@ -334,10 +343,9 @@ const connectionRows: { key: string; label: string; note?: string }[] = [
       .catch(() => {
         /*
           A failure here is usually the answer rather than an error: a request
-          to an IPv6-only host cannot complete from a network without IPv6.
-          Saying so is more useful than reporting a fetch that failed.
+          to an IPv6-only host cannot complete on a network without IPv6.
         */
-        settle(`No ${want} detected on this network.`, false);
+        settle(`No ${want} on this network.`, false);
       });
   });
 </script>

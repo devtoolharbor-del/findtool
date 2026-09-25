@@ -246,11 +246,20 @@ describeBuilt('the edge-rendered IP page', () => {
     the checks below are about keeping it that way: the right hosts, on the
     right page, named in the CSP, and scoped in the audit.
   */
-  it('carries the markup for the other address family', () => {
+  it('shows both address families, IPv4 first', () => {
     const page = html();
-    for (const attr of ['data-other-block', 'data-other-label', 'data-other-version', 'data-other-address']) {
-      expect(page, `missing ${attr}`).toContain(attr);
-    }
+    expect(page, 'no IPv4 slot').toContain('data-ip="addressV4"');
+    expect(page, 'no IPv6 slot').toContain('data-ip="addressV6"');
+    // Order is fixed in the markup so the page never rearranges itself
+    // depending on which family the visitor happened to arrive over.
+    expect(page.indexOf('data-ip="addressV4"')).toBeLessThan(page.indexOf('data-ip="addressV6"'));
+  });
+
+  it('gives each address its own copy control', () => {
+    const page = html();
+    // Astro escapes the nested quotes in the selector.
+    expect(page).toContain('data-copy="[data-ip=&quot;addressV4&quot;]"');
+    expect(page).toContain('data-copy="[data-ip=&quot;addressV6&quot;]"');
   });
 
   it('names both single-family hosts in the CSP, or the fetch is blocked', () => {

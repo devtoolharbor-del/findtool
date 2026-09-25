@@ -22,7 +22,17 @@
  */
 
 /** Rows to hide when the edge has no value for them, rather than show empty. */
-const OPTIONAL = new Set(['region', 'city', 'postal', 'postalCode', 'language']);
+const OPTIONAL = new Set([
+  'region',
+  'city',
+  'postal',
+  'postalCode',
+  'language',
+  // Exactly one of these is knowable per request. The other keeps its static
+  // text until the client fetches it, rather than reading "Not reported".
+  'addressV4',
+  'addressV6',
+]);
 
 /** Turn an ISO country code into a name, falling back to the code itself. */
 export function countryName(code) {
@@ -77,7 +87,13 @@ export function collect(request) {
   const asn = cf.asn ? `AS${cf.asn}` : null;
 
   return {
-    address: ip || null,
+    /*
+      The address goes into the slot for its own family. The other slot is
+      left untouched for the client to fill — see OPTIONAL below, which is
+      what stops it being overwritten with "Not reported".
+    */
+    addressV4: ip && !isV6 ? ip : null,
+    addressV6: ip && isV6 ? ip : null,
     version: ip ? (isV6 ? 'IPv6' : 'IPv4') : null,
     reverse: reverseDnsName(ip),
     country: countryName(cf.country),
@@ -97,8 +113,9 @@ export function collect(request) {
 
 /** Labels for the plain-text block behind the "Copy all details" button. */
 const LABELS = {
-  address: 'IP address',
-  version: 'Protocol',
+  addressV4: 'IPv4 address',
+  addressV6: 'IPv6 address',
+  version: 'Connected over',
   reverse: 'Reverse DNS name',
   country: 'Country',
   region: 'Region',

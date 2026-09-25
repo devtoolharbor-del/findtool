@@ -78,11 +78,16 @@ describe('collect', () => {
   });
 
   it('reads the address and derives the family', () => {
+    // The address goes into the slot for its own family; the other stays
+    // null so the page can leave that row for the client to fill.
     const v4 = collect(fakeRequest({ 'cf-connecting-ip': '203.0.113.42' }, {}));
-    expect(v4.address).toBe('203.0.113.42');
+    expect(v4.addressV4).toBe('203.0.113.42');
+    expect(v4.addressV6).toBeNull();
     expect(v4.version).toBe('IPv4');
 
     const v6 = collect(fakeRequest({ 'cf-connecting-ip': '2001:db8::1' }, {}));
+    expect(v6.addressV6).toBe('2001:db8::1');
+    expect(v6.addressV4).toBeNull();
     expect(v6.version).toBe('IPv6');
   });
 
@@ -94,7 +99,8 @@ describe('collect', () => {
     // Local dev and any non-Cloudflare origin fetch land here. It must not
     // throw — the page is indexed, so a 500 is the worst possible outcome.
     const values = collect(fakeRequest({}));
-    expect(values.address).toBeNull();
+    expect(values.addressV4).toBeNull();
+    expect(values.addressV6).toBeNull();
     expect(values.version).toBeNull();
     expect(values.country).toBeNull();
   });
