@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { TOOLS, TOOL_MAP } from '~/data/tools';
 import { CATEGORIES } from '~/data/categories';
@@ -228,7 +228,7 @@ describeBuilt('the edge-rendered IP page', () => {
   });
 
   it('shows its own privacy wording instead', () => {
-    expect(html()).toContain('built from the request your browser already made');
+    expect(html()).toContain('read from the request your browser already made');
   });
 
   it('carries a placeholder for every key the edge function fills', () => {
@@ -239,6 +239,57 @@ describeBuilt('the edge-rendered IP page', () => {
     for (const key of keys) {
       expect(page, `no [data-ip="${key}"] for the function to fill`).toContain(`data-ip="${key}"`);
     }
+  });
+
+  /*
+    The dual-stack lookup. This is the only outbound request on the site, so
+    the checks below are about keeping it that way: the right hosts, on the
+    right page, named in the CSP, and scoped in the audit.
+  */
+  it('carries the markup for the other address family', () => {
+    const page = html();
+    for (const attr of ['data-other-block', 'data-other-label', 'data-other-version', 'data-other-address']) {
+      expect(page, `missing ${attr}`).toContain(attr);
+    }
+  });
+
+  it('names both single-family hosts in the CSP, or the fetch is blocked', () => {
+    const headers = read(join(ROOT, 'public/_headers'));
+    // Anchor on the header itself — the comment above it also says
+    // "connect-src" and matched first.
+    const csp = headers.match(/^\s*Content-Security-Policy:(.*)$/m)![1]!;
+    const connectSrc = csp.match(/connect-src ([^;]+);/)![1]!;
+    expect(connectSrc).toContain('https://ipv4.icanhazip.com');
+    expect(connectSrc).toContain('https://ipv6.icanhazip.com');
+  });
+
+  it('uses those hosts on this page and nowhere else in the source', () => {
+    // If another tool ever fetches them, the privacy claim on 50 other pages
+    // stops being true. The audit enforces this at runtime; this catches it
+    // at commit time.
+    const offenders: string[] = [];
+    for (const file of readdirSync(join(ROOT, 'src/tools'))) {
+      if (file === 'WhatIsMyIp.astro') continue;
+      if (readFileSync(join(ROOT, 'src/tools', file), 'utf8').includes('icanhazip')) {
+        offenders.push(file);
+      }
+    }
+    expect(offenders, 'only the IP page may contact these').toEqual([]);
+  });
+
+  it('scopes the audit exception to one page and two hosts', () => {
+    const audit = read(join(ROOT, 'scripts/audit-site.mjs'));
+    expect(audit).toContain("const IP_LOOKUP_PAGE = '/tools/what-is-my-ip'");
+    expect(audit).toMatch(/IP_LOOKUP_HOSTS = \['ipv4\.icanhazip\.com', 'ipv6\.icanhazip\.com'\]/);
+    // The guard must consider the page, not just the host.
+    expect(audit).toContain('if (pagePath !== IP_LOOKUP_PAGE) return false;');
+  });
+
+  it('describes the lookup in its privacy note rather than claiming none', () => {
+    const page = html();
+    expect(page).toContain('icanhazip.com');
+    expect(page).toMatch(/Every other tool on this site still sends nothing anywhere/);
+    expect(page).not.toContain('processed locally in your browser');
   });
 
   it('still renders honestly when served as a plain static file', () => {

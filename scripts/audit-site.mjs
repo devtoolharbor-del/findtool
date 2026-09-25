@@ -111,9 +111,34 @@ const isAnalytics = (url) => {
 };
 
 /**
+ * One page is allowed to reach the network, and only these two hosts.
+ *
+ * /tools/what-is-my-ip shows the address family the visitor did NOT arrive
+ * on. A connection carries one family, so that needs a second request to a
+ * hostname resolving to that family alone — which cannot be one of ours,
+ * because Cloudflare's proxy answers every name it fronts on both families.
+ *
+ * Scoped to the exact page and the exact hosts rather than allowed globally:
+ * if any other tool ever contacts these, or this page contacts anything else,
+ * the build still fails.
+ */
+const IP_LOOKUP_PAGE = '/tools/what-is-my-ip';
+const IP_LOOKUP_HOSTS = ['ipv4.icanhazip.com', 'ipv6.icanhazip.com'];
+
+const isAllowedIpLookup = (url, pagePath) => {
+  if (pagePath !== IP_LOOKUP_PAGE) return false;
+  try {
+    return IP_LOOKUP_HOSTS.includes(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+};
+
+/**
  * Requests to any origin other than our local server are a privacy failure —
- * with the single, enumerated exception of the analytics endpoints above.
- * Anything else reaching the network means a tool is leaking user input.
+ * with the enumerated exceptions of the analytics endpoints above and the
+ * single IP lookup below. Anything else reaching the network means a tool is
+ * leaking user input.
  */
 function watchNetwork(page, pagePath) {
   page.on('request', (req) => {
@@ -122,7 +147,8 @@ function watchNetwork(page, pagePath) {
       !url.startsWith(BASE) &&
       !url.startsWith('data:') &&
       !url.startsWith('blob:') &&
-      !isAnalytics(url)
+      !isAnalytics(url) &&
+      !isAllowedIpLookup(url, pagePath)
     ) {
       record(pagePath, 'network', `Outbound request to ${url}`);
     }

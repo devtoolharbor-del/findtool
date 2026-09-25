@@ -39,7 +39,9 @@ const { tool } = Astro.props;
  * a colo code and an ASN both look like noise without one line of context.
  */
 const rows: { key: string; label: string; note?: string }[] = [
-  { key: 'version', label: 'Protocol' },
+  // 'version' is not here: it is shown as a badge beside the address itself,
+  // where it answers "which protocol am I on" at a glance. The edge function
+  // still fills it — [data-ip="version"] just lives in the panel above.
   { key: 'reverse', label: 'Reverse DNS name', note: 'The .arpa name a PTR lookup would use' },
   { key: 'country', label: 'Country' },
   { key: 'region', label: 'Region' },
@@ -63,13 +65,43 @@ const connectionRows: { key: string; label: string; note?: string }[] = [
   <div data-tool="what-is-my-ip" class="space-y-4">
     {/* ── The answer ── */}
     <div class="bc-panel p-4 sm:p-5">
-      <span class="bc-label">Your public IP address</span>
+      <div class="flex items-baseline justify-between gap-3">
+        <span class="bc-label mb-0">Your public IP address</span>
+        <span
+          class="shrink-0 rounded border border-line px-1.5 py-0.5 font-mono text-[10px] text-muted"
+          data-ip="version">—</span
+        >
+      </div>
       <p
-        class="font-mono text-2xl leading-tight font-semibold break-all select-all sm:text-3xl"
+        class="mt-1.5 font-mono text-2xl leading-tight font-semibold break-all select-all sm:text-3xl"
         data-ip="address"
       >
         Not available
       </p>
+
+      {/*
+        The other address family.
+
+        A connection carries exactly one family, so the edge can only ever
+        report the one you arrived on. The second is fetched from a hostname
+        that resolves to the other family only — see the script below for why
+        it cannot be a hostname of ours.
+
+        Hidden until it resolves, so the panel never shows an empty row.
+      */}
+      <div class="mt-3 border-t border-line pt-3" data-other-block hidden>
+        <div class="flex items-baseline justify-between gap-3">
+          <span class="text-xs tracking-wide text-muted uppercase" data-other-label>
+            Other protocol
+          </span>
+          <span
+            class="shrink-0 rounded border border-line px-1.5 py-0.5 font-mono text-[10px] text-muted"
+            data-other-version></span
+          >
+        </div>
+        <p class="mt-1 font-mono text-sm break-all select-all sm:text-base" data-other-address></p>
+      </div>
+
       <div class="bc-toolbar mt-3">
         <button type="button" class="bc-btn bc-btn-primary bc-btn-sm" data-copy='[data-ip="address"]'>
           <span data-label>Copy address</span>
@@ -225,15 +257,87 @@ const connectionRows: { key: string; label: string; note?: string }[] = [
 </ToolLayout>
 
 <script>
-  import { mount, wireStandardActions, markUsed } from '~/lib/toolkit';
+  import { mount, q, wireStandardActions, markUsed } from '~/lib/toolkit';
 
-  /*
-    Almost nothing happens here on purpose. Every value on this page is in the
-    HTML before any script runs, so the page is complete with JavaScript
-    disabled; the only thing the client adds is the copy buttons.
-  */
+  /**
+   * The only outbound request anywhere on this site.
+   *
+   * A TCP connection carries exactly one address family, so the edge can
+   * report the address you arrived on and nothing else. Learning the other
+   * one requires a second connection over that family, which requires a
+   * hostname resolving to that family alone.
+   *
+   * That cannot be a hostname of ours. Every name Cloudflare proxies answers
+   * from their anycast addresses, which always carry both families — tested
+   * in both directions on this zone — and the only control the Free plan
+   * offers is a zone-wide IPv6 switch with no IPv4 equivalent. Per-hostname
+   * control is Enterprise. Running our own origin was the alternative and was
+   * judged not worth a server on a site whose point is not having one.
+   *
+   * icanhazip was chosen over ipify and the rest for one reason: Cloudflare
+   * has operated it since 2021, and Cloudflare already terminates every
+   * request to findtool.dev. So this discloses the address to a party that
+   * has already seen it, rather than introducing a new one.
+   *
+   * The page is complete without this. The address you connected with is in
+   * the served HTML, so everything below is enhancement — with JavaScript
+   * off, the page still answers the question it was opened for.
+   */
+  const ENDPOINT = { IPv4: 'https://ipv4.icanhazip.com', IPv6: 'https://ipv6.icanhazip.com' };
+  const TIMEOUT_MS = 5000;
+
   mount('what-is-my-ip', (root) => {
     wireStandardActions(root);
     markUsed();
+
+    const block = q('[data-other-block]', root)!;
+    const label = q('[data-other-label]', root)!;
+    const badge = q('[data-other-version]', root)!;
+    const value = q('[data-other-address]', root)!;
+
+    /** Which family the edge said we arrived on. */
+    const arrivedOn = q('[data-ip="version"]', root)?.textContent?.trim();
+
+    /*
+      Served statically — during local development, or from a mirror — there
+      is no edge value to read. Asking for both is wrong there too, so the
+      block simply stays hidden and the page keeps its static fallback notice.
+    */
+    if (arrivedOn !== 'IPv4' && arrivedOn !== 'IPv6') return;
+
+    const want = arrivedOn === 'IPv4' ? 'IPv6' : 'IPv4';
+
+    label.textContent = `Your ${want} address`;
+    badge.textContent = want;
+    value.textContent = 'Checking…';
+    value.classList.add('text-muted');
+    block.removeAttribute('hidden');
+
+    const settle = (text: string, found: boolean) => {
+      value.textContent = text;
+      value.classList.toggle('text-muted', !found);
+      if (found) value.classList.add('select-all');
+    };
+
+    fetch(ENDPOINT[want], { signal: AbortSignal.timeout(TIMEOUT_MS), cache: 'no-store' })
+      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
+      .then((text) => {
+        const address = text.trim();
+        // Never render something that is not an address: the response is
+        // plain text from another origin, and this goes into the DOM.
+        const looksRight =
+          want === 'IPv4'
+            ? /^\d{1,3}(\.\d{1,3}){3}$/.test(address)
+            : /^[0-9a-fA-F:]{2,45}$/.test(address) && address.includes(':');
+        settle(looksRight ? address : 'Could not be determined.', looksRight);
+      })
+      .catch(() => {
+        /*
+          A failure here is usually the answer rather than an error: a request
+          to an IPv6-only host cannot complete from a network without IPv6.
+          Saying so is more useful than reporting a fetch that failed.
+        */
+        settle(`No ${want} detected on this network.`, false);
+      });
   });
 </script>

@@ -978,7 +978,7 @@ export const TOOLS: Tool[] = [
     serverProcessing: true,
     popular: true,
     privacyNoteOverride:
-      'This page is built from the request your browser already made, so nothing is looked up and no request goes to a third party. FindTool keeps no record of your address. It is necessarily visible to Cloudflare, which serves this site — as it is to every website you visit.',
+      'Your address is read from the request your browser already made — nothing is looked up to find it. Showing the other protocol needs a second connection, so that one line is fetched from icanhazip.com, run by Cloudflare, which already serves this page and has seen your address either way. FindTool stores nothing. Every other tool on this site still sends nothing anywhere.',
     addedAt: '2026-09-25',
   },
 ];
