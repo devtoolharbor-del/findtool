@@ -34,7 +34,13 @@ These are load-bearing. Changing one changes what the site is.
 
 1. **Everything runs client-side.** No tool sends user input anywhere. This is
    architectural, not a policy — there is no server to send it to. The privacy
-   claim on each page depends on it staying true.
+   claim on each page depends on it staying true, and the browser audit fails
+   the build on any outbound request.
+
+   One documented exception: `/tools/what-is-my-ip` fetches the address family
+   the visitor did *not* arrive on, which cannot come from our own hostnames.
+   See [Dual-stack lookup](#dual-stack-lookup). It is scoped to that page and
+   two hostnames; everything else still sends nothing.
 2. **Static first.** The whole site is pre-rendered HTML on a CDN. No SSR, no
    runtime, no cold starts.
 3. **Minimal JavaScript.** No UI framework. Each tool ships only its own small
@@ -115,6 +121,28 @@ docs/runbook.md          How this project was built, end to end
 would add ~45 KB gzipped to every page to manage a handful of inputs. The
 `mount()` helper in `toolkit.ts` scopes a tool's script to its own root
 element, which is all the isolation these need.
+
+<a id="dual-stack-lookup"></a>
+**Why one page reaches the network.** A TCP connection carries exactly one
+address family, so the edge can report the address a visitor arrived on and no
+other. Showing both needs a second connection over the other family, which
+needs a hostname resolving to that family alone — and that cannot be one of
+ours. Tested in both directions on this zone: a proxied A-only record gets AAAA
+added and a proxied AAAA-only record gets A added, because Cloudflare answers
+every name it fronts from anycast addresses carrying both. The only control on
+the Free plan is a zone-wide IPv6 switch with no IPv4 equivalent; per-hostname
+control is Enterprise.
+
+So `/tools/what-is-my-ip` fetches `ipv4.icanhazip.com` or `ipv6.icanhazip.com`.
+icanhazip was chosen over ipify and the rest because Cloudflare has run it
+since 2021 and already terminates every request to findtool.dev — it discloses
+the address to a party that has already seen it rather than a new one. The
+alternative was running an origin, rejected as not worth a server on a site
+whose premise is not having one.
+
+The guarantee is kept narrow rather than relaxed: `scripts/audit-site.mjs`
+allows those two hostnames on that one path only, so another tool contacting
+them, or that page contacting anything else, still fails the build.
 
 **Why there is one Pages Function.** `/tools/what-is-my-ip` is the single route
 whose content depends on who is asking. A client-side version would have to ask

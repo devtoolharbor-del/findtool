@@ -229,11 +229,18 @@ Two specifics worth copying:
   4.40:1 against the surface — just under the 4.5:1 AA threshold — and was in
   use at 12–13px on every stat label across the site. Nobody saw it. axe-core
   did.
-- **`bc-tool-grid` carries `grid-auto-rows: 1fr`.** Without it each grid row
-  sizes independently, so a row whose longest description wraps to three lines
-  is 129px while the row beneath it is 106px. The same card renders at two
-  sizes depending on what happens to sit beside it, and adding one tool
-  silently resizes boxes on unrelated pages.
+- **Card height must not depend on content.** `bc-tool-grid` carries
+  `grid-auto-rows: 1fr`, but that only equalises rows *within one grid* — and
+  `/tools` renders a separate grid per category, so sections sized
+  independently and that page showed 129px, 152px and 174px cards stacked down
+  it. The fix is to stop letting text decide the height: `ToolCard` clamps the
+  description to three lines and reserves that height, `bc-tool-grid` starts
+  columns at `md`/`xl` so the narrowest card stays near 360px, and a test caps
+  `description` at 95 characters so the clamp never truncates.
+- **`line-clamp` and `block` cancel each other out.** `block` overrides the
+  `display: -webkit-box` the clamp needs, so the class sits in the list looking
+  correct and does nothing. Measure rendered heights; never read class names
+  and assume.
 
 ---
 
@@ -596,6 +603,43 @@ Rules that follow, each load-bearing:
 - **Pin any duplicated logic with a test.** A function cannot import from
   `src/lib`, so reverse-DNS formatting exists twice; a test runs both against
   the same addresses.
+
+### Showing both address families
+
+The same page shows IPv4 and IPv6 together, and only one of them can come from
+the edge. A connection carries exactly one family.
+
+Getting the other needs a hostname that resolves to that family alone, and on
+Cloudflare that cannot be one of yours — verified in both directions: a proxied
+A-only record gains AAAA, a proxied AAAA-only record gains A. Every name
+Cloudflare fronts answers from anycast addresses carrying both, the only Free
+plan control is a zone-wide IPv6 switch with no IPv4 counterpart, and
+per-hostname control is Enterprise. This is why ipify runs its own origin for
+`api6` while proxying `api4`.
+
+The options are therefore: run an origin (a small VM, roughly $0–4/month, and a
+server on a site that claims not to have one), or use someone else's
+single-family endpoint. This project took the second, using
+`ipv4.icanhazip.com` / `ipv6.icanhazip.com` — Cloudflare has operated icanhazip
+since 2021 and already terminates every request to the site, so it discloses
+the address to a party that has already seen it.
+
+What that costs, and how it is contained:
+
+- **The privacy note on that page changed**, and only that page. It now says a
+  lookup happens, names who it goes to, and states that every other tool still
+  sends nothing.
+- **The audit exception is scoped to one path and two hostnames**, so the
+  build still fails if any other tool contacts them or if that page contacts
+  anything else. Widening the ban globally would have quietly removed the
+  guarantee from fifty pages.
+- **The page still works without JavaScript.** The connected address is
+  server-rendered; the fetched row simply stays as-is.
+- **A failed lookup is an answer, not an error** — a request to an IPv6-only
+  host cannot complete on a network without IPv6, so it reads "No IPv6 on this
+  network."
+- **Validate the response before it reaches the DOM.** It is plain text from
+  another origin.
 
 ---
 

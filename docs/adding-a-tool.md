@@ -83,7 +83,7 @@ palette and keep 50 pages consistent. Defined in `src/styles/global.css`.
 | Field label    | `bc-label`                                                    |
 | Checkbox       | `bc-checkbox` inside a `bc-check-label`                       |
 | Panels / cards | `bc-panel`, `bc-card`                                         |
-| Grid of cards  | `bc-tool-grid` — never hand-roll the columns; it carries `grid-auto-rows: 1fr` so every card is the same height whatever its description length |
+| Grid of cards  | `bc-tool-grid` — never hand-roll the columns. It sets the breakpoints *and* `grid-auto-rows: 1fr`; both matter, see §4 |
 | Result area    | `bc-output`                                                   |
 | Stat chip      | `bc-stat` › `bc-stat-value` + `bc-stat-label`                 |
 | Button row     | `bc-toolbar`                                                  |
@@ -169,7 +169,7 @@ questions. It renders as crawlable HTML and as `FAQPage` structured data.
   slug: 'base64-encoder',          // URL: /tools/base64-encoder
   name: 'Base64 Encoder',
   category: 'encoding',            // must be an id from src/data/categories.ts
-  description: '…',                // one sentence, used on cards + as subtitle
+  description: '…',                // one sentence, ≤95 chars — see below
   seoTitle: '…',                   // <title>, ≤60 chars, unique
   seoDescription: '…',             // <meta description>, 140–160 chars, unique
   keywords: ['…'],                 // topic terms
@@ -191,6 +191,29 @@ a pair that reads better together.
 
 `aliases` is what makes search feel good — put in what a hurried developer
 actually types: `b64`, `epoch`, `guid`, `regexp`, `crontab`, `nbsp`.
+
+### The card, and why `description` has a length limit
+
+`description` is rendered on every listing page inside `ToolCard`, which
+**clamps it to three lines and reserves exactly that height**. That is what
+makes every card identical on every page — without it each grid sizes its own
+rows, and `/tools` renders a separate grid per category, so one section's cards
+came out 174px directly above another's at 129px.
+
+Two rules follow, both enforced:
+
+- **Keep `description` to 95 characters or fewer.** `npm test` fails above
+  that. The limit is measured, not chosen: at 360px — the narrowest current
+  phone — a longer description wraps to a fourth line and is silently cut off.
+- **Never add `block` to a clamped element.** It overrides the
+  `display: -webkit-box` that `line-clamp` needs, so the clamp does nothing at
+  all while still looking correct in the class list. That is exactly how the
+  problem above went unnoticed.
+
+`bc-tool-grid` also sets deliberately late breakpoints — `md:grid-cols-2
+xl:grid-cols-3` rather than `sm`/`lg` — so the narrowest card stays near 360px
+at every width. Two columns starting at 640px makes cards ~296px, narrow
+enough that names wrap and descriptions overflow.
 
 ## 5. Privacy honesty
 
