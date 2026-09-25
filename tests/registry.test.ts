@@ -73,6 +73,25 @@ describe('registry integrity', () => {
     }
   });
 
+  it('leaves no tool without an inbound related link', () => {
+    /*
+      `related` is the internal link graph. A tool nobody links to is
+      reachable only from its category page and /tools, which is the weakest
+      possible internal signal and makes it the last thing crawled.
+
+      Lorem Ipsum Generator sat at zero, and the two newest tools — the ones
+      with the highest search intent — sat at one apiece because they only
+      pointed at each other. Adding a tool does not automatically get it
+      linked; something existing has to point at it.
+    */
+    const inbound = new Map(TOOLS.map((t) => [t.slug, 0]));
+    for (const tool of TOOLS) {
+      for (const slug of tool.related) inbound.set(slug, (inbound.get(slug) ?? 0) + 1);
+    }
+    const orphans = [...inbound].filter(([, n]) => n === 0).map(([slug]) => slug);
+    expect(orphans, 'no other tool links to these').toEqual([]);
+  });
+
   it('gives every tool a unique SEO title and description', () => {
     const titles = TOOLS.map((t) => t.seoTitle);
     const descriptions = TOOLS.map((t) => t.seoDescription);
