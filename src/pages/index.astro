@@ -19,11 +19,6 @@ const schema = [
     name: SITE.name,
     url: SITE.url,
     description: SITE.description,
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: `${SITE.url}/tools?q={search_term_string}`,
-      'query-input': 'required name=search_term_string',
-    },
   },
   {
     '@context': 'https://schema.org',
@@ -32,6 +27,12 @@ const schema = [
     url: SITE.url,
     logo: `${SITE.url}/icon-512.png`,
     description: SITE.description,
+    /*
+      Entity disambiguation: ties the name "FindTool" to a profile that
+      demonstrably belongs to it. No controlled evidence that this moves
+      rankings, but it is one line and it is true.
+    */
+    sameAs: ['https://github.com/devtoolharbor-del/findtool'],
   },
 ];
 ---

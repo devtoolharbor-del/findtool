@@ -20,7 +20,9 @@ interface Entry {
 
 function build(): Entry[] {
   const entries: Entry[] = [
-    { loc: '/', lastmod: LAUNCH_DATE, changefreq: 'weekly', priority: '1.0' },
+    // Bare origin, no trailing slash, to match the homepage's own
+    // <link rel="canonical"> and og:url exactly.
+    { loc: '', lastmod: LAUNCH_DATE, changefreq: 'weekly', priority: '1.0' },
     { loc: '/tools', lastmod: LAUNCH_DATE, changefreq: 'weekly', priority: '0.9' },
   ];
 

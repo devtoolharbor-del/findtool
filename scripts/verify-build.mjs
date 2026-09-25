@@ -360,7 +360,11 @@ const sitemap = await readFile(join(DIST, 'sitemap.xml'), 'utf8').catch(() => ''
 const sitemapUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
 
 for (const page of expected) {
-  const want = page === '/' ? `${ORIGIN}/` : `${ORIGIN}${page}`;
+  // The homepage is the bare origin with no trailing slash, matching its own
+  // <link rel="canonical"> and og:url. The two disagreed — canonical said
+  // findtool.dev and the sitemap said findtool.dev/ — which is two spellings
+  // of the most important page on the site for no benefit.
+  const want = page === '/' ? ORIGIN : `${ORIGIN}${page}`;
   if (!sitemapUrls.includes(want)) fail(`Sitemap is missing ${want}`);
 }
 for (const url of sitemapUrls) {

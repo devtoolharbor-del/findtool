@@ -56,10 +56,7 @@ describeBuilt('sitemap', () => {
 
   it('lists the homepage and the index pages', () => {
     const s = xml();
-    // The root is the one URL that keeps its trailing slash; everything else
-    // is canonically slash-free.
-    expect(s, 'homepage').toContain(`<loc>${SITE_URL}/</loc>`);
-    for (const path of ['/tools', '/about', '/contact', '/privacy', '/terms']) {
+    for (const path of ['', '/tools', '/about', '/contact', '/privacy', '/terms']) {
       expect(s, path).toContain(`<loc>${SITE_URL}${path}</loc>`);
     }
   });
@@ -85,8 +82,7 @@ describeBuilt('sitemap', () => {
       const loc = match[1]!;
       expect(loc.startsWith(SITE_URL), loc).toBe(true);
       expect(loc.endsWith('.html'), loc).toBe(false);
-      // Only the root may end in a slash.
-      if (loc !== `${SITE_URL}/`) expect(loc.endsWith('/'), loc).toBe(false);
+      expect(loc.endsWith('/'), loc).toBe(false);
     }
   });
 

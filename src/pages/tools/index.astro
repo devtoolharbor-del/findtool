@@ -123,7 +123,7 @@ const schema = [
 
     input.addEventListener('input', apply);
 
-    // Support /tools?q=json so the homepage SearchAction target resolves.
+    // Support /tools?q=json, so a shared or bookmarked search URL works.
     const initial = new URLSearchParams(location.search).get('q');
     if (initial) {
       input.value = initial;
