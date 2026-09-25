@@ -120,6 +120,22 @@ describe('registry integrity', () => {
     }
   });
 
+  it('keeps card descriptions inside the three lines the card reserves', () => {
+    /*
+      ToolCard clamps the description to three lines and reserves exactly that
+      height, which is what makes every card the same size on every page. The
+      clamp only stays invisible while the text fits.
+
+      95 characters is measured, not guessed: at 360px — the narrowest current
+      phone — a description longer than that wraps to a fourth line and gets
+      cut. The JWT decoder's was 107 and was the one tool being truncated.
+    */
+    for (const tool of TOOLS) {
+      expect(tool.description.length, `${tool.slug} description would be truncated on the card`)
+        .toBeLessThanOrEqual(95);
+    }
+  });
+
   it('gives every tool searchable keywords and aliases', () => {
     for (const tool of TOOLS) {
       expect(tool.keywords.length, tool.slug).toBeGreaterThan(0);

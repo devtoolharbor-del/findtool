@@ -28,7 +28,7 @@ const category = CATEGORY_MAP[tool.category];
 
   <span class="min-w-0 flex-1">
     <span class="flex items-start justify-between gap-2">
-      <span class="text-[0.9375rem] font-medium text-ink group-hover:text-accent">
+      <span class="line-clamp-2 text-[0.9375rem] leading-normal font-medium text-ink group-hover:text-accent">
         {tool.name}
       </span>
       {
@@ -39,6 +39,28 @@ const category = CATEGORY_MAP[tool.category];
         )
       }
     </span>
-    <span class="mt-1 block text-sm leading-relaxed text-muted">{tool.description}</span>
+    {/*
+      Exactly three lines, always.
+
+      `grid-auto-rows: 1fr` on .bc-tool-grid equalises rows within one grid,
+      but /tools renders a separate grid per category, so a section whose
+      longest description wrapped to four lines rendered 174px cards directly
+      above a section of 129px ones. Letting the text decide the height means
+      the card size depends on which neighbours it happens to have.
+
+      Reserving three lines and clamping to three makes every tool card
+      identical at every breakpoint and on every page. A registry test keeps
+      descriptions short enough that the clamp never actually truncates.
+
+      Below 360px — narrower than any current phone — three lines is not
+      enough for the longest descriptions, so a fourth is allowed there. The
+      arbitrary breakpoint is deliberate: reserving four lines everywhere
+      would add a blank line to every card on every ordinary phone to serve a
+      width almost nobody has.
+    */}
+    <span
+      class="mt-1 line-clamp-3 min-h-[calc(3*1.625em)] text-sm leading-relaxed text-muted max-[359px]:line-clamp-4 max-[359px]:min-h-[calc(4*1.625em)]"
+      >{tool.description}</span
+    >
   </span>
 </a>

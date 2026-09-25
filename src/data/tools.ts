@@ -362,7 +362,7 @@ export const TOOLS: Tool[] = [
     category: 'encoding',
     order: 3,
     description:
-      'Decode JWT header and payload, read claim timestamps in plain English, and optionally verify the signature.',
+      'Decode JWT header and payload, read claim timestamps, and optionally verify the signature.',
     seoTitle: 'JWT Decoder — Decode and Verify JSON Web Tokens Online',
     seoDescription:
       'Decode a JWT to inspect its header and payload, see exp, iat and nbf as readable dates with expiry status, and optionally verify HS256, RS256 or ES256 signatures locally.',

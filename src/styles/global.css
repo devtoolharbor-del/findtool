@@ -307,11 +307,17 @@
     single tool reshuffles which descriptions share a row and silently
     resizes boxes halfway down an unrelated page.
 
+    The breakpoints are deliberately later than Tailwind's defaults. With
+    `sm:grid-cols-2 lg:grid-cols-3` the two-column range began at 640px, where
+    a card is only ~296px wide — narrow enough that longer tool names wrapped
+    to a second line and longer descriptions ran past three. Starting columns
+    at md and xl keeps the narrowest card around 360px at every breakpoint.
+
     One class rather than the same five utilities repeated at each call site,
     so a new listing page cannot quietly opt out of it.
   */
   .bc-tool-grid {
-    @apply grid gap-3 sm:grid-cols-2 lg:grid-cols-3;
+    @apply grid gap-3 md:grid-cols-2 xl:grid-cols-3;
     grid-auto-rows: 1fr;
   }
 
