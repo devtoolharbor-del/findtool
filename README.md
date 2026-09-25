@@ -207,6 +207,7 @@ npm run dev          # http://localhost:4321
 | `npm run edge`     | Empty / malformed / 2.1 MB input, plus keyboard use  |
 | `npm run perf`     | Core Web Vitals against a budget, throttled          |
 | `npm run assets`   | Regenerate favicons / PWA icons / OG image           |
+| `npm run check:prod` | Smoke-test the live site (beacon blocked)            |
 | `npm run check:analytics` | Prove the beacon records, against production  |
 | `npm run ci`       | Everything above in order — what CI runs              |
 
@@ -398,9 +399,18 @@ Plus two that are deliberately **not** in CI, because they test the deployed
 site rather than the build and need the public internet:
 
 ```bash
+npm run check:prod        # sitemap URLs, redirects, headers, card sizing,
+                          # the edge-rendered IP page and its one allowed
+                          # outbound request — all against the live site
 npm run check:analytics   # drives a browser at production, waits for the
                           # beacon's POST and checks it returns 204
 ```
+
+**`check:prod` blocks the analytics beacon; `check:analytics` does not.** That
+split matters on a young site: driving production in a browser records a
+pageview per navigation, and at ~60 navigations a run it briefly accounted for
+54% of all recorded visits, which made the real numbers unreadable. Proving
+collection works is the one job worth two pageviews.
 
 The guiding rule, learned from an analytics beacon that sat in the HTML
 recording nothing for weeks: **presence proves nothing, only a success

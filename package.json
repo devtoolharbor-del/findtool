@@ -25,6 +25,7 @@
     "security": "node scripts/security-check.mjs",
     "edge": "node scripts/edge-cases.mjs",
     "check:analytics": "node scripts/check-analytics.mjs",
+    "check:prod": "node scripts/check-production.mjs",
     "ci": "npm run check && npm run test && npm run build && npm run verify && npm run audit && npm run cross-browser && npm run security && npm run edge && npm run perf"
   },
   "dependencies": {

@@ -688,8 +688,17 @@ violations, 350 XSS payloads blocked, zero npm vulnerabilities.
 
 ```sh
 npm run build && npm run verify     # before pushing
-npm run check:analytics             # after it is live
+npm run check:prod                  # smoke-test the live site
+npm run check:analytics             # confirm the beacon still records
 ```
+
+Test against production, not only against `dist/` — the edge function, the
+redirect rules and the served headers exist nowhere else. But **block the
+analytics beacon when you do**, which `check:prod` does at the browser context
+level. Sixty navigations a run against a site with a few dozen real visits a
+day makes the numbers meaningless; this was 54% of recorded visits before it
+was noticed. `check:analytics` is the deliberate exception, and costs two
+pageviews.
 
 **Adding a tool** — [`docs/adding-a-tool.md`](adding-a-tool.md).
 
