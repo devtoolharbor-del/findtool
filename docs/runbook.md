@@ -515,8 +515,40 @@ does not help; the header does. Use URL Inspection on a single page to confirm
 "Crawl allowed: Yes", "Page fetch: Successful", "Indexing allowed: Yes" before
 concluding anything is wrong.
 
-IndexNow pings Bing and Yandex when URLs change. The key is a public file at
-`/<key>.txt`; the script reads the origin from `site.config.mjs`.
+### Bing Webmaster Tools
+
+Worth doing for one reason: its **AI Performance report** is the only
+first-party telemetry anyone publishes on whether LLMs cite your pages. Google
+offers no equivalent. Bing also feeds ChatGPT's search, so being indexed there
+matters more than Bing's own share of search suggests.
+
+**Skip the "import from Google Search Console" path.** It routinely returns
+nothing — it does not reliably see URL-prefix properties, and it silently finds
+nothing at all if the Google account signed in to Bing is not the one that owns
+the property. Verify manually instead.
+
+Of the three manual methods, **the CNAME is the one to use**: it is live in
+seconds, needs no deploy, and puts no verification token in the repository.
+
+```sh
+# Bing gives a 32-hex code. Add it as a DNS-only CNAME — a proxied record
+# resolves to Cloudflare's IPs and the check fails.
+curl -X POST -H "Authorization: Bearer $CF_TOKEN" \
+  "https://api.cloudflare.com/client/v4/zones/$ZONE/dns_records" \
+  -d '{"type":"CNAME","name":"<code>","content":"verify.bing.com","proxied":false,"ttl":300}'
+```
+
+Then submit `https://findtool.dev/sitemap.xml` there as well. Expect the AI
+report to stay empty for weeks — it needs crawl data first, and Bing indexes
+new sites more slowly than Google.
+
+### IndexNow
+
+IndexNow pings Bing and Yandex when URLs change; **Google does not support it**
+and has said so repeatedly. The key is a public file at `/<key>.txt`; the
+script reads the origin from `site.config.mjs`. Cloudflare's **Crawler Hints**
+(Caching → Configuration) does the same pinging automatically on every deploy
+and is one toggle.
 
 ---
 
