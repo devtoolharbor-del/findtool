@@ -441,6 +441,52 @@ for (const file of htmlFiles) {
   }
 }
 
+// ─── The old brand name must not come back ───────────────────────────────
+//
+// The site was renamed from ByteCabin to FindTool, and the rename was missed
+// three separate times: once in public/site.webmanifest, where a real phone
+// showed the old name on the home screen; once in the README, which named a
+// domain we do not own as production; and once in package.json. Each was
+// found by a person noticing, not by the build.
+//
+// Source files are checked as well as output, because the manifest case only
+// reached a user through a file that no page links to.
+
+const OLD_BRAND = /bytecabin/i;
+const brandRoots = ['src', 'scripts', 'functions', 'docs', 'public', 'package.json', 'README.md'];
+
+const walkAll = async (dir) => {
+  const out = [];
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...(await walkAll(full)));
+    else out.push(full);
+  }
+  return out;
+};
+
+for (const root of brandRoots) {
+  const path = join(ROOT, root);
+  if (!existsSync(path)) continue;
+  const files = (await stat(path)).isDirectory() ? await walkAll(path) : [path];
+  for (const file of files) {
+    if (/\.(png|jpg|jpeg|ico|woff2?|webp|gz|br)$/i.test(file)) continue;
+    // This file states the old name in order to look for it.
+    if (file === fileURLToPath(import.meta.url)) continue;
+    const content = await readFile(file, 'utf8').catch(() => '');
+    if (OLD_BRAND.test(content)) {
+      fail(`${relative(ROOT, file)}: still mentions the old brand name "ByteCabin"`);
+    }
+  }
+}
+
+for (const file of htmlFiles) {
+  if (OLD_BRAND.test(await readFile(file, 'utf8'))) {
+    fail(`${relative(DIST, file)}: build output still mentions "ByteCabin"`);
+  }
+}
+
 // ─── No tool counts in copy ──────────────────────────────────────────────
 //
 // The site deliberately does not advertise how many tools it has. The number

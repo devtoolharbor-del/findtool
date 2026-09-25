@@ -10,6 +10,7 @@ No accounts, no uploads, no backend.
 
 ## Contents
 
+- [How this was built](docs/runbook.md) — the full project runbook
 - [Principles](#principles)
 - [Architecture](#architecture)
 - [Local development](#local-development)
@@ -92,8 +93,22 @@ scripts/
   measure-perf.mjs       Core Web Vitals against a budget
   generate-og.mjs        Per-tool social cards (runs as part of build)
   submit-indexnow.mjs    Ping Bing/Yandex when URLs change
-tests/                   Vitest unit tests for every lib module
+  check-analytics.mjs    Prove analytics records, against live production
+  styles/global.css      Design tokens and the bc-* class vocabulary,
+                         including .bc-tool-grid (equal-height card rows).
+public/
+  _headers               Security headers and cache policy.
+  _redirects             301s for URLs that were live and moved. Append only.
+  <indexnow-key>.txt     IndexNow ownership proof.
+tests/                   Vitest unit tests. Beyond one per lib module:
+  registry.test.ts       Registry invariants — slugs, ordering, related links,
+                         privacy claims, FAQs, retired URLs.
+  seo.test.ts            Sitemap, robots.txt, canonicals, OG tags and
+                         structured data, checked against dist/.
+  analytics.test.ts      The beacon must stay out of the repo (see Analytics).
+  edge-ip.test.ts        Pins the edge function against src/lib/ip.ts.
 docs/adding-a-tool.md    The full contract for a new tool
+docs/runbook.md          How this project was built, end to end
 ```
 
 **Why no UI framework.** Tools are independent islands of plain DOM code. React
@@ -164,6 +179,7 @@ npm run dev          # http://localhost:4321
 | `npm run edge`     | Empty / malformed / 2.1 MB input, plus keyboard use  |
 | `npm run perf`     | Core Web Vitals against a budget, throttled          |
 | `npm run assets`   | Regenerate favicons / PWA icons / OG image           |
+| `npm run check:analytics` | Prove the beacon records, against production  |
 | `npm run ci`       | Everything above in order — what CI runs              |
 
 No environment variables are needed for local development. Every tool works
@@ -340,15 +356,28 @@ Required GitHub repository secrets:
 
 ## Testing
 
-Four layers, all gating CI:
+Five layers, all gating CI:
 
 ```bash
-npm test          # unit tests for every lib module
+npm test          # unit tests, registry invariants, SEO surfaces
 npm run check     # TypeScript + Astro template diagnostics
 npm run verify    # static QA of dist/ — run after npm run build
-npm run audit     # real browser over all 64 pages
+npm run audit     # real browser over every page
 npm run perf      # Core Web Vitals budget
 ```
+
+Plus two that are deliberately **not** in CI, because they test the deployed
+site rather than the build and need the public internet:
+
+```bash
+npm run check:analytics   # drives a browser at production, waits for the
+                          # beacon's POST and checks it returns 204
+```
+
+The guiding rule, learned from an analytics beacon that sat in the HTML
+recording nothing for weeks: **presence proves nothing, only a success
+response does.** Any check that asserts a thing exists should be asked
+whether it can instead assert the thing worked.
 
 ### Browser audit (`scripts/audit-site.mjs`)
 

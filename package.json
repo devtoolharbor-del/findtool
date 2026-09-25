@@ -1,9 +1,9 @@
 {
-  "name": "bytecabin",
+  "name": "findtool",
   "type": "module",
   "version": "1.0.0",
   "private": true,
-  "description": "FindTool — fast, private, browser-based developer tools.",
+  "description": "FindTool \u2014 fast, private, browser-based developer tools.",
   "engines": {
     "node": ">=22.12.0"
   },
@@ -24,6 +24,7 @@
     "cross-browser": "node scripts/cross-browser.mjs",
     "security": "node scripts/security-check.mjs",
     "edge": "node scripts/edge-cases.mjs",
+    "check:analytics": "node scripts/check-analytics.mjs",
     "ci": "npm run check && npm run test && npm run build && npm run verify && npm run audit && npm run cross-browser && npm run security && npm run edge && npm run perf"
   },
   "dependencies": {

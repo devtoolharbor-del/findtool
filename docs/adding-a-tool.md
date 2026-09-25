@@ -83,6 +83,7 @@ palette and keep 50 pages consistent. Defined in `src/styles/global.css`.
 | Field label    | `bc-label`                                                    |
 | Checkbox       | `bc-checkbox` inside a `bc-check-label`                       |
 | Panels / cards | `bc-panel`, `bc-card`                                         |
+| Grid of cards  | `bc-tool-grid` — never hand-roll the columns; it carries `grid-auto-rows: 1fr` so every card is the same height whatever its description length |
 | Result area    | `bc-output`                                                   |
 | Stat chip      | `bc-stat` › `bc-stat-value` + `bc-stat-label`                 |
 | Button row     | `bc-toolbar`                                                  |
@@ -255,7 +256,29 @@ The rules that follow from that split:
   something has to be written twice, pin the two copies together with a test
   — see `tests/edge-ip.test.ts`.
 
-## 7. Checklist before you call a tool done
+## 7. Removing or merging a tool
+
+A tool that has been live has been indexed, and possibly linked. Deleting the
+entry is not enough — the URL has to keep working.
+
+1. **Move the content** into whichever tool absorbs it, and fold in the old
+   tool's keywords and aliases so the search intent is not lost.
+2. **Move the FAQs** across, keeping the better set.
+3. **Delete the registry entry and the component file.** `tests/registry.test.ts`
+   fails on a component left behind with no entry pointing at it.
+4. **Add a 301 to `public/_redirects`**, pointing the old path at the new one.
+   This is what passes the old page's ranking to the new one; letting it 404
+   discards it. Never remove a line from that file afterwards — the links
+   pointing at an old URL do not expire.
+5. **Fix `related` arrays** in any other tool that referenced the old slug.
+   `npm run verify` fails on a dangling one.
+6. Check the sitemap no longer lists the retired URL. `tests/seo.test.ts`
+   asserts this, because a redirect in a sitemap is a wasted crawl.
+
+Worked example: `/tools/current-unix-timestamp` merged into
+`/tools/unix-timestamp-converter`.
+
+## 8. Checklist before you call a tool done
 
 - [ ] `npm run build` passes
 - [ ] `npx astro check` reports no errors for your files
@@ -267,3 +290,7 @@ The rules that follow from that split:
 - [ ] Looks correct in light and dark mode
 - [ ] Explainer prose is unique to this tool
 - [ ] `tests/<topic>.test.ts` covers the logic, including error cases
+- [ ] `npm test` passes, including `tests/registry.test.ts`, which checks the
+      new entry's slug, ordering, related links, FAQs and privacy claim
+- [ ] No tool count appears in any copy you wrote — the site does not state
+      how many tools it has, and `npm run verify` fails on one
