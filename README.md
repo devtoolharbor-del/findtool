@@ -71,6 +71,7 @@ src/
   components/            Header, Footer, ToolCard, SearchDialog, AdSlot …
   layouts/
     BaseLayout.astro     <head>, canonical, OG, theme bootstrap, chrome.
+                         Dark is the default; the bootstrap only removes it.
     ToolLayout.astro     The standard tool page + structured data.
   tools/                 One .astro per tool.
 functions/

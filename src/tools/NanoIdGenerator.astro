@@ -76,14 +76,19 @@ const { tool } = Astro.props;
     </div>
 
     {/* ── The headline number ── */}
+    {/*
+      text-ink-soft, not text-muted. On the accent-soft surface muted measures
+      3.76:1 in dark mode — under the 4.5:1 AA threshold — while passing at
+      5.51:1 in light. It was invisible until dark became the default theme.
+    */}
     <div class="rounded-xl border border-accent-line bg-accent-soft p-4">
-      <p class="text-xs font-medium tracking-wide text-muted uppercase">
+      <p class="text-xs font-medium tracking-wide text-ink-soft uppercase">
         IDs before a 1% chance of one collision
       </p>
       <p class="mt-1 text-3xl font-semibold tabular-nums text-ink" data-collision>—</p>
       <p class="mt-1 text-sm text-ink-soft" data-collision-time>—</p>
       <div class="mt-3 flex flex-wrap items-center gap-2">
-        <label for="nano-rate" class="text-xs text-muted">Generated at</label>
+        <label for="nano-rate" class="text-xs text-ink-soft">Generated at</label>
         <select id="nano-rate" class="bc-select w-auto py-1 text-xs">
           <option value="0.2777777777777778">1,000 per hour</option>
           <option value="1" selected>1 per second</option>

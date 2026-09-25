@@ -73,12 +73,29 @@ const eventsEndpoint = import.meta.env.PUBLIC_EVENTS_ENDPOINT ?? '';
 /**
  * Runs before first paint so the correct theme is applied with no flash.
  * Kept as a raw inline string — an external file would arrive too late.
+ *
+ * Dark is the site default, so `<html>` ships with the class already on it
+ * and this script only ever *removes* it, for a visitor who chose light. That
+ * ordering matters: the common case then needs no JavaScript at all to paint
+ * correctly, and there is nothing to flash.
+ *
+ * The OS `prefers-color-scheme` is deliberately not consulted. Dark is the
+ * default for everyone until they say otherwise, and the toggle stores that
+ * choice; following the OS again means clearing site data.
  */
-const themeBootstrap = `(function(){try{var s=localStorage.getItem('bc-theme');var d=s?s==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark');document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`;
+const themeBootstrap = `(function(){try{` +
+  `var s=localStorage.getItem('bc-theme');` +
+  `var d=s!=='light';` +
+  `var r=document.documentElement;` +
+  `r.classList.toggle('dark',d);` +
+  `r.style.colorScheme=d?'dark':'light';` +
+  `var m=document.querySelector('meta[name="theme-color"]');` +
+  `if(m)m.setAttribute('content',d?'${SITE.themeColorDark}':'${SITE.themeColorLight}');` +
+  `}catch(e){}})();`;
 ---
 
 <!doctype html>
-<html lang={SITE.locale} class="h-full">
+<html lang={SITE.locale} class="h-full dark" style="color-scheme: dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -117,8 +134,13 @@ const themeBootstrap = `(function(){try{var s=localStorage.getItem('bc-theme');v
     <link rel="alternate icon" href="/favicon.ico" sizes="32x32" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="theme-color" content={SITE.themeColorLight} media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content={SITE.themeColorDark} media="(prefers-color-scheme: dark)" />
+    {/*
+      One value, not a prefers-color-scheme pair. The site no longer follows
+      the OS setting, so a media-matched theme-color would tint the browser
+      chrome light while the page rendered dark. The bootstrap and the toggle
+      both keep this in step with the actual theme.
+    */}
+    <meta name="theme-color" content={SITE.themeColorDark} />
 
     <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
 

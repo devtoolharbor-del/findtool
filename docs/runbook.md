@@ -218,6 +218,23 @@ and a `@custom-variant dark`. Never hard-code a colour in a component; use
 `text-ink`, `text-muted`, `bg-surface`, `border-line`, `text-accent` and the
 rest, which flip automatically.
 
+**Dark is the default**, for everyone, regardless of `prefers-color-scheme`.
+`<html>` ships with the class already applied, so the common case paints
+correctly with no JavaScript and nothing can flash; the inline bootstrap only
+ever *removes* it, for a visitor who chose light. Returning to the default
+means clearing site data.
+
+Two consequences worth knowing before making that switch on an existing site:
+
+- **`<meta name="theme-color">` must stop being a `prefers-color-scheme`
+  pair.** Media-matched values tint the browser chrome to the OS setting while
+  the page renders dark. One value, kept in step by the bootstrap and toggle.
+- **Contrast has to be re-checked, and it will find things.** Making dark the
+  audited default immediately surfaced `text-muted` on `bg-accent-soft` at
+  **3.76:1** — under the 4.5:1 AA threshold — which had passed unnoticed at
+  5.51:1 in light mode. A palette that is accessible in one theme is not
+  automatically accessible in the other.
+
 A `bc-*` class vocabulary sits on top — `bc-btn`, `bc-input`, `bc-panel`,
 `bc-card`, `bc-stat`, `bc-toolbar`, `bc-tool-grid`. Fifty tools built from the
 same dozen classes look like one product; fifty tools built from ad-hoc

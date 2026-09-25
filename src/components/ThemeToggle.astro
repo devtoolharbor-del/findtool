@@ -2,17 +2,21 @@
 /**
  * Light / dark toggle.
  *
- * Defaults to the OS preference (handled by the inline bootstrap in
- * BaseLayout) and stores an explicit override in localStorage. Following the
- * OS again is possible by clearing site data; a three-way control tested
- * worse than a simple switch, so this stays binary.
+ * Dark is the site default for everyone; the OS `prefers-color-scheme` is not
+ * consulted. The inline bootstrap in BaseLayout resolves the theme before
+ * first paint, and this stores an explicit choice in localStorage. Returning
+ * to the default means clearing site data; a three-way control tested worse
+ * than a simple switch, so this stays binary.
  */
+import { SITE } from '~/consts';
 ---
 
 <button
   type="button"
   id="bc-theme-toggle"
   class="bc-btn bc-btn-ghost size-9 p-0"
+  data-theme-dark={SITE.themeColorDark}
+  data-theme-light={SITE.themeColorLight}
   aria-label="Switch between light and dark theme"
   title="Switch theme"
 >
@@ -47,8 +51,24 @@
 
 <script>
   const btn = document.getElementById('bc-theme-toggle');
+  const root = document.documentElement;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  /*
+    The theme colours come from data attributes on the button, not from
+    document.currentScript: Astro bundles this as a module, where
+    currentScript is null and the tint would have been silently blanked.
+  */
+  const sync = (dark: boolean) => {
+    btn?.setAttribute('aria-pressed', String(dark));
+    const color = dark ? btn?.dataset.themeDark : btn?.dataset.themeLight;
+    if (color) meta?.setAttribute('content', color);
+  };
+
+  // The bootstrap resolved the theme before this element existed, so the
+  // button's initial state has to be read back rather than assumed.
+  sync(root.classList.contains('dark'));
+
   btn?.addEventListener('click', () => {
-    const root = document.documentElement;
     const dark = root.classList.toggle('dark');
     root.style.colorScheme = dark ? 'dark' : 'light';
     try {
@@ -56,6 +76,6 @@
     } catch {
       /* private browsing: the toggle still works for this page view */
     }
-    btn.setAttribute('aria-pressed', String(dark));
+    sync(dark);
   });
 </script>
