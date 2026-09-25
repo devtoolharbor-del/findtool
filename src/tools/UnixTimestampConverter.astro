@@ -1,10 +1,17 @@
 ---
 /**
- * Unix Timestamp Converter — bidirectional.
+ * Unix Timestamp Converter — the live clock and both conversion directions.
  *
- * Epoch → date and date → epoch in one page, with automatic seconds /
- * milliseconds / microseconds / nanoseconds detection that always tells the
- * user which unit it assumed and lets them override it.
+ * Three jobs on one page: what the epoch is right now, epoch → date, and
+ * date → epoch. Automatic seconds / milliseconds / microseconds / nanoseconds
+ * detection always says which unit it assumed and lets the user override it.
+ *
+ * The live clock used to be a separate tool at /tools/current-unix-timestamp.
+ * It was merged in here because the two were almost always wanted together —
+ * people read the current epoch and then immediately convert something — and
+ * splitting them meant two pages competing for the same search intent. That
+ * URL now 301s to this one from public/_redirects; it was indexed, so the
+ * redirect has to stay.
  *
  * All logic lives in src/lib/datetime.ts and is unit-tested in Node.
  */
@@ -31,10 +38,128 @@ const OUTPUT_ROWS = [
   { key: 'millis', label: 'Epoch milliseconds' },
   { key: 'week', label: 'ISO week / day of year' },
 ];
+
+/** Rows under the live clock: the same instant in the formats usually wanted next. */
+const NOW_ROWS = [
+  { key: 'utc', label: 'UTC' },
+  { key: 'local', label: 'Local time' },
+  { key: 'iso', label: 'ISO 8601' },
+  { key: 'rfc', label: 'RFC 2822' },
+  { key: 'micros', label: 'Microseconds' },
+  { key: 'week', label: 'ISO week / day of year' },
+];
 ---
 
 <ToolLayout tool={tool}>
   <div data-tool="unix-timestamp-converter" class="space-y-6">
+    {/* ── The current epoch, live ── */}
+    <section class="space-y-3" aria-labelledby="ut-h-now">
+      <h2 id="ut-h-now" class="text-sm font-semibold tracking-tight">The time right now</h2>
+
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div class="bc-panel p-4">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <div
+                class="font-mono text-3xl font-semibold tabular-nums"
+                data-now-value="seconds"
+                aria-live="off"
+              >
+                —
+              </div>
+              <div class="mt-1 text-xs tracking-wide text-muted uppercase">Seconds</div>
+            </div>
+            <button
+              type="button"
+              class="bc-btn bc-btn-secondary bc-btn-sm"
+              data-copy='[data-now-value="seconds"]'
+              aria-label="Copy the current timestamp in seconds"
+            >
+              <span data-label>Copy</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="bc-panel p-4">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <div
+                class="font-mono text-3xl font-semibold tabular-nums"
+                data-now-value="millis"
+                aria-live="off"
+              >
+                —
+              </div>
+              <div class="mt-1 text-xs tracking-wide text-muted uppercase">Milliseconds</div>
+            </div>
+            <button
+              type="button"
+              class="bc-btn bc-btn-secondary bc-btn-sm"
+              data-copy='[data-now-value="millis"]'
+              aria-label="Copy the current timestamp in milliseconds"
+            >
+              <span data-label>Copy</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="bc-toolbar">
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-toggle aria-pressed="false">
+          <span data-toggle-label>Pause</span>
+        </button>
+        <button type="button" class="bc-btn bc-btn-secondary bc-btn-sm" data-use-now>
+          Convert this timestamp
+        </button>
+        <span class="text-xs text-muted" data-tick-note>Updating live, ten times a second.</span>
+      </div>
+
+      <details class="bc-panel">
+        <summary class="cursor-pointer px-3 py-2.5 text-sm font-medium">
+          This moment in other formats
+        </summary>
+        <div class="overflow-x-auto border-t border-line px-3 py-1">
+          <table class="w-full text-sm">
+            <caption class="sr-only">The current moment in other formats</caption>
+            <tbody>
+              {
+                NOW_ROWS.map((row) => (
+                  <tr class="border-b border-line last:border-0">
+                    <th
+                      scope="row"
+                      class="py-2 pr-3 text-left align-top text-xs font-medium tracking-wide whitespace-nowrap text-muted uppercase"
+                    >
+                      {row.label}
+                    </th>
+                    <td class="py-2 pr-2 align-top font-mono text-[0.8125rem] break-all">
+                      <span data-now-out={row.key}>—</span>
+                    </td>
+                    <td class="w-px py-2 align-top">
+                      <button
+                        type="button"
+                        class="bc-btn bc-btn-ghost bc-btn-sm"
+                        data-copy={`[data-now-out="${row.key}"]`}
+                        aria-label={`Copy ${row.label}`}
+                      >
+                        <span data-label>Copy</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <p class="text-xs text-muted">
+        Your clock reads <span data-zone class="font-mono">—</span>. The value comes from this
+        device, so it is only as accurate as your system clock.
+      </p>
+    </section>
+
+    <hr class="border-line" />
+
     {/* ── Direction 1: timestamp → date ── */}
     <section class="space-y-3" aria-labelledby="ut-h-decode">
       <h2 id="ut-h-decode" class="text-sm font-semibold tracking-tight">Timestamp to date</h2>
@@ -178,12 +303,21 @@ const OUTPUT_ROWS = [
     <p>
       A Unix timestamp counts the seconds elapsed since 00:00:00 UTC on 1 January 1970, ignoring
       leap seconds. That makes it compact and unambiguous for machines and completely unreadable
-      for people. Paste one here and you get the instant it represents in UTC, in your own zone,
-      and in the three string formats you are most likely to need to paste back somewhere else.
+      for people. This page covers all three things you normally want from one: what the epoch is
+      at this moment, what a given timestamp means, and what a given date is as a timestamp.
     </p>
     <p>
-      The second half of the page runs the other way: pick a date and time, say whether you mean
-      it in your local zone or in UTC, and read off the epoch value in seconds and milliseconds.
+      At the top, the current epoch ticks live in seconds and milliseconds. Press <strong
+        >Pause</strong
+      > to freeze it so a value cannot change between reading it and pasting it — both copy buttons
+      keep working while paused — or <strong>Convert this timestamp</strong> to drop the current
+      value straight into the converter below.
+    </p>
+    <p>
+      The middle section takes any timestamp and shows the instant it represents in UTC, in your
+      own zone, and in the string formats you are most likely to paste back somewhere else. The
+      last section runs the other way: pick a date and time, say whether you mean it locally or in
+      UTC, and read off the epoch value.
     </p>
 
     <h2>Common uses</h2>
@@ -419,5 +553,86 @@ Epoch ms   1700000000000`}</code></pre>
     // Prefill the encoder so the second half is never an empty box.
     dateInput.value = toDatetimeLocalValue(Date.now(), zone, true);
     encode();
+
+    /*
+      The live clock, merged in from what used to be a separate tool.
+
+      Ten frames a second is smooth enough to read and cheap enough to ignore.
+      Only the millisecond readout changes that often; the formatted rows are
+      recomputed once a second, and the whole interval is torn down whenever
+      the tab is hidden so a backgrounded page costs nothing.
+    */
+    const TICK_MS = 100;
+    const nowSeconds = q('[data-now-value="seconds"]', root)!;
+    const nowMillis = q('[data-now-value="millis"]', root)!;
+    const toggle = q('[data-toggle]', root)!;
+    const toggleLabel = q('[data-toggle-label]', root)!;
+    const tickNote = q('[data-tick-note]', root)!;
+
+    const nowOut = (key: string, value: string) => {
+      const el = q(`[data-now-out="${key}"]`, root);
+      if (el) el.textContent = value;
+    };
+
+    let lastSecond = -1;
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let paused = false;
+
+    const renderNow = (now: number) => {
+      nowMillis.textContent = timestampIn(now, 'milliseconds');
+      const second = Math.floor(now / 1000);
+      if (second === lastSecond) return; // the slow rows only change once a second
+      lastSecond = second;
+
+      nowSeconds.textContent = String(second);
+      nowOut('utc', `${formatShort(now, 'UTC')} UTC`);
+      nowOut('local', formatHuman(now, zone));
+      nowOut('iso', formatIsoUtc(now));
+      nowOut('rfc', formatRfc2822(now, 'UTC'));
+      nowOut('micros', timestampIn(now, 'microseconds'));
+      nowOut('week', `${isoWeekDate(now)} · day ${ordinalDate(now).split('-')[1]}`);
+    };
+
+    const startClock = () => {
+      if (timer !== null || paused) return;
+      renderNow(Date.now());
+      timer = setInterval(() => renderNow(Date.now()), TICK_MS);
+    };
+
+    const stopClock = () => {
+      if (timer === null) return;
+      clearInterval(timer);
+      timer = null;
+    };
+
+    on(toggle, 'click', () => {
+      paused = !paused;
+      toggle.setAttribute('aria-pressed', String(paused));
+      toggleLabel.textContent = paused ? 'Resume' : 'Pause';
+      tickNote.textContent = paused
+        ? 'Paused — the values above are frozen and safe to copy.'
+        : 'Updating live, ten times a second.';
+      if (paused) stopClock();
+      else startClock();
+    });
+
+    // Drops whatever the clock currently reads into the converter below.
+    on(q('[data-use-now]', root), 'click', () => {
+      unitSelect.value = 'auto';
+      input.value = nowSeconds.textContent?.trim() ?? String(Math.floor(Date.now() / 1000));
+      decode();
+      input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+
+    on(document, 'visibilitychange', () => (document.hidden ? stopClock() : startClock()));
+    on(window, 'pagehide', stopClock);
+    on(window, 'pageshow', startClock);
+
+    q('[data-zone]', root)!.textContent = (() => {
+      const info = zoneInfo(Date.now(), zone);
+      return `${zone} (${formatOffset(info.offsetMinutes)}${info.dst ? ', daylight saving' : ''})`;
+    })();
+
+    startClock();
   });
 </script>

@@ -305,6 +305,13 @@ for (const page of expected) {
       // A FAQ answer containing markup is a common cause of rejection.
       if (type === 'FAQPage') {
         for (const q of node.mainEntity ?? []) {
+          // A null entry means a hole in the source array — a stray comma in
+          // src/data/faqs/*.ts. Reaching for .name on it used to crash this
+          // script with a TypeError instead of naming the page at fault.
+          if (!q) {
+            fail(`${page}: FAQPage contains an empty entry — check for a stray comma in src/data/faqs/`);
+            continue;
+          }
           if (!q.name || !q.acceptedAnswer?.text) {
             fail(`${page}: FAQPage entry missing question name or answer text`);
           }

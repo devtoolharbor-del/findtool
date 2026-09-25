@@ -14,8 +14,6 @@ export const timeFaqs: FaqMap = {
       q: 'What is the year 2038 problem?',
       a: 'Systems that store Unix time in a signed 32-bit integer overflow on 19 January 2038. Any modern language using 64-bit integers is unaffected, but legacy C code and some embedded databases still are.',
     },
-  ],
-  'current-unix-timestamp': [
     {
       q: 'Does a Unix timestamp depend on my timezone?',
       a: 'No. The count is the same integer in Auckland as in Los Angeles; only the rendering of it changes. So when two systems differ by exactly 3,600 or 19,800, that is not a timezone living inside the number — it is one side converting a wall-clock reading as though it were already UTC. MySQL is a frequent culprit: <code>TIMESTAMP</code> columns are converted using the session <code>time_zone</code>, <code>DATETIME</code> columns are not.',

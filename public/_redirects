@@ -1,0 +1,15 @@
+# Cloudflare Pages redirect rules.
+#
+# One rule per URL that was once live and is not any more. These are permanent
+# (301) because the content genuinely moved, which is what tells Google to
+# transfer the old page's ranking to the new one rather than treat it as a
+# soft 404 and drop it.
+#
+# Never delete a line from this file. A redirect costs nothing to keep and the
+# links pointing at these URLs — search results, bookmarks, other people's
+# posts — do not expire.
+
+# Merged into the converter, which now shows the live epoch as well. The two
+# pages were competing for the same search intent and people almost always
+# wanted both at once.
+/tools/current-unix-timestamp  /tools/unix-timestamp-converter  301
