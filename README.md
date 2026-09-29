@@ -335,11 +335,13 @@ Off by default: `GA_MEASUREMENT_ID` in `site.config.mjs` is empty, so no
 script is emitted and local builds and previews send nothing. Set it to a
 `G-XXXXXXXXXX` ID to enable, or pass `PUBLIC_GA_ID` in the environment.
 
-It runs **cookieless** — `client_storage: 'none'` — because `/privacy` and
-`/about` both state the site sets no cookies. That flag is what keeps those
-true and avoids a consent banner in the EU and UK. Removing it is a one-word
-edit, so `tests/analytics.test.ts` asserts it and the browser audit fails if
-any page sets a cookie.
+It runs **cookieless via Consent Mode** — `analytics_storage: 'denied'`, set
+before the config call — because `/privacy` and `/about` both state the site
+sets no cookies. Note the mechanism: `client_storage: 'none'` is what most
+sources recommend, is a Universal Analytics parameter GA4 ignores, and was
+caught writing `_ga` and `_ga_<id>` in testing. `tests/analytics.test.ts` pins
+the consent call and its ordering, and the browser audit fails if any page
+sets a cookie.
 
 Cookieless means no persistent client ID, so every pageview is a new user.
 Trust pageviews, referrers and landing pages; use Cloudflare Web Analytics for

@@ -552,20 +552,34 @@ Add GA for its own reporting, not for rankings.
 If you add it, run it **cookieless**:
 
 ```js
+// Consent FIRST, then config. Order matters: config applies the default
+// otherwise, and the cookies land before consent is read.
+gtag('consent', 'default', {
+  ad_storage: 'denied',
+  ad_user_data: 'denied',
+  ad_personalization: 'denied',
+  analytics_storage: 'denied',   // this is what prevents _ga / _ga_<id>
+});
 gtag('config', 'G-XXXXXXXXXX', {
-  client_storage: 'none',        // no _ga / _ga_<id>; the whole point
   anonymize_ip: true,
   allow_google_signals: false,
   allow_ad_personalization_signals: false,
 });
 ```
 
-`client_storage: 'none'` is load-bearing on a site that claims to set no
-cookies. Without it GA writes two, both privacy statements become false, and
-EU/UK visitors need a consent banner before the script may load. It is a
-one-word edit, so it is pinned two ways: a unit test asserts the flag, and the
-browser audit fails if **any page sets any cookie** — the behavioural check,
-which is the one that would actually catch a regression.
+**Do not use `client_storage: 'none'`.** It is the answer most sources give
+and it does not work — a Universal Analytics parameter that GA4 accepts and
+silently ignores. It was tried here first and caught writing both cookies in
+testing, before shipping, by the cookie check rather than by review. Consent
+Mode is the mechanism that actually works; with `analytics_storage` denied GA
+sends cookieless pings and collects data without storing anything.
+
+This is load-bearing on a site claiming to set no cookies, and it is one line
+from being broken, so it is pinned three ways: a unit test on the consent
+call and its ordering, the browser audit failing if **any page sets any
+cookie**, and `check:analytics` verifying the same against production. Only
+the cookie checks would catch a parameter that is accepted but ignored —
+which is exactly what happened.
 
 Be honest about what cookieless costs: no persistent client ID, so every
 pageview looks like a new user. Pageviews, referrers, landing pages and

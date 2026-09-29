@@ -196,16 +196,26 @@ const themeBootstrap = `(function(){try{` +
       /*
         Google Analytics 4, in cookieless mode.
 
-        `client_storage: 'none'` is load-bearing, not a preference. Without it
-        GA writes _ga and _ga_<id>, which would falsify the "sets no cookies"
-        statements on /privacy and /about and oblige us to show a consent
-        banner in the EU and UK. tests/analytics.test.ts asserts the flag is
-        present, and the browser audit fails if any page sets a cookie at all.
+        Cookielessness comes from Consent Mode — `analytics_storage: 'denied'`
+        set BEFORE config — and nothing else. `client_storage: 'none'` was
+        tried first because it is widely repeated as the way to do this; it is
+        a Universal Analytics parameter that GA4 ignores, and it was caught
+        writing _ga and _ga_<id> in testing. With storage denied GA sends
+        cookieless pings instead: no cookies, data still collected.
 
-        `send_page_view` stays on: without a client ID this is effectively a
-        pageview counter, which is all the data cookieless GA can honestly
-        support. Read pageviews, referrers and landing pages from it; read
-        visit counts from Cloudflare.
+        This is load-bearing, not a preference. /privacy and /about both state
+        the site sets no cookies, and EU/UK visitors would otherwise need a
+        consent banner before the script could load at all.
+
+        Pinned three ways because it is a one-line edit away: a unit test on
+        the directive, the browser audit failing if any page sets any cookie,
+        and check:analytics verifying the same against production. Only the
+        cookie checks would catch a parameter that is accepted but ignored —
+        which is precisely what happened.
+
+        The cost: no persistent client ID, so every pageview counts as a new
+        user. Read pageviews, referrers and landing pages from GA; read visit
+        counts from Cloudflare.
 
         Emitted only when an ID is configured, so development and previews
         send nothing.
@@ -217,7 +227,7 @@ const themeBootstrap = `(function(){try{` +
           <script is:inline async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
           <script
             is:inline
-            set:html={`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaId}',{client_storage:'none',anonymize_ip:true,allow_google_signals:false,allow_ad_personalization_signals:false});`}
+            set:html={`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied'});gtag('js',new Date());gtag('config','${gaId}',{anonymize_ip:true,allow_google_signals:false,allow_ad_personalization_signals:false});`}
           />
         </Fragment>
       )

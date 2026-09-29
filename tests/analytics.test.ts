@@ -88,9 +88,15 @@ describe('analytics beacon configuration', () => {
 /**
  * Google Analytics, in cookieless mode.
  *
- * The whole point of these is one flag. `client_storage: 'none'` is what
- * stops GA4 writing `_ga` and `_ga_<id>`, and two pages state plainly that
- * the site sets no cookies:
+ * Cookielessness comes from Consent Mode, and only from Consent Mode.
+ *
+ * `client_storage: 'none'` is the answer everyone repeats, and it does not
+ * work: it is a Universal Analytics parameter that GA4 accepts and ignores.
+ * It was caught writing `_ga` and `_ga_<id>` in testing, before shipping, by
+ * the cookie check rather than by review. `analytics_storage: 'denied'`, set
+ * before the config call, is what actually stops it.
+ *
+ * Two pages state plainly that the site sets no cookies:
  *
  *   /privacy  "FindTool sets no cookies — not for analytics, not for anything."
  *   /about    "It sets no cookies and does not follow you between sites."
@@ -102,8 +108,35 @@ describe('analytics beacon configuration', () => {
 describe('Google Analytics stays cookieless', () => {
   const layout = read('src/layouts/BaseLayout.astro');
 
-  it('configures GA with client_storage set to none', () => {
-    expect(layout, 'GA must not be allowed to write cookies').toContain("client_storage:'none'");
+  it('denies analytics_storage, which is what stops GA writing cookies', () => {
+    expect(layout, 'GA must not be allowed to write cookies').toContain(
+      "analytics_storage:'denied'",
+    );
+  });
+
+  it('sets consent before config, or the default applies first and cookies land', () => {
+    const consent = layout.indexOf("gtag('consent','default'");
+    const config = layout.indexOf("gtag('config'");
+    expect(consent, 'no consent call').toBeGreaterThan(-1);
+    expect(consent, 'consent must precede config').toBeLessThan(config);
+  });
+
+  it('does not rely on client_storage, which GA4 ignores', () => {
+    /*
+      Scoped to the emitted script, not the whole file: the surrounding
+      comment names client_storage deliberately, to explain why it is absent.
+      Kept as an assertion so nobody "restores" it and assumes the cookie
+      problem is handled.
+    */
+    const inlineTag = layout.match(/window\.dataLayer=window\.dataLayer[^`]*/)![0];
+    expect(inlineTag).not.toContain('client_storage');
+    expect(inlineTag).toContain("analytics_storage:'denied'");
+  });
+
+  it('denies the ad storage signals too', () => {
+    expect(layout).toContain("ad_storage:'denied'");
+    expect(layout).toContain("ad_user_data:'denied'");
+    expect(layout).toContain("ad_personalization:'denied'");
   });
 
   it('disables Google Signals and ad personalisation', () => {
@@ -138,14 +171,16 @@ describe('Google Analytics stays cookieless', () => {
     expect(read('scripts/audit-site.mjs')).toContain('page.context().cookies()');
   });
 
-  it('keeps the measurement ID out of the repo until it is deliberately set', () => {
-    // Not a secret — it ships in the HTML — but an ID committed by accident
-    // sends development and preview traffic into the production property.
-    expect(GA_MEASUREMENT_ID === '' || /^G-[A-Z0-9]{6,}$/.test(GA_MEASUREMENT_ID)).toBe(true);
+  it('has a measurement ID that is either unset or well-formed', () => {
+    // Not a secret — it ships in the HTML of every page that uses it.
+    // Widened: TypeScript narrows the export to a string literal, which makes
+    // the empty-string branch look provably dead.
+    const id: string = GA_MEASUREMENT_ID;
+    expect(id === '' || /^G-[A-Z0-9]{6,}$/.test(id)).toBe(true);
   });
 
-  it('documents why the flag cannot be removed', () => {
-    expect(read('site.config.mjs')).toMatch(/client_storage/);
+  it('documents why the consent default cannot be removed', () => {
+    expect(read('site.config.mjs')).toMatch(/analytics_storage/);
     expect(read('site.config.mjs')).toMatch(/sets no cookies/);
   });
 });

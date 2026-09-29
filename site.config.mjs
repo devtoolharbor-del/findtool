@@ -65,11 +65,16 @@ export const ANALYTICS_BEACON_TOKEN = '';
  *   /privacy  "FindTool sets no cookies — not for analytics, not for anything."
  *   /about    "It sets no cookies and does not follow you between sites."
  *
- * `client_storage: 'none'` is what keeps those true. Remove it and GA writes
- * `_ga` and `_ga_<id>`, both sentences become false, and EU/UK visitors need
- * a consent banner before the script may load at all. tests/analytics.test.ts
- * fails if the flag disappears, and the browser audit fails if any page sets
- * a cookie.
+ * Consent Mode is what keeps those true: `analytics_storage: 'denied'`, set
+ * before the config call, makes GA send cookieless pings instead of writing
+ * `_ga` and `_ga_<id>`. Remove it and both sentences become false, and EU/UK
+ * visitors need a consent banner before the script may load at all.
+ *
+ * Note the mechanism, because the obvious one is wrong: `client_storage:
+ * 'none'` is a Universal Analytics parameter that GA4 accepts and silently
+ * ignores. It was tried first and caught writing both cookies in testing.
+ * tests/analytics.test.ts pins the consent call, and the browser audit fails
+ * if any page sets a cookie — the check that actually found this.
  *
  * The cost of cookieless, so nobody is surprised by the reports: there is no
  * persistent client ID, so every pageview counts as a new user. Pageviews,
@@ -80,4 +85,4 @@ export const ANALYTICS_BEACON_TOKEN = '';
  * A measurement ID is not a secret — it ships in the HTML of every page that
  * uses it.
  */
-export const GA_MEASUREMENT_ID = '';
+export const GA_MEASUREMENT_ID = 'G-1Z84JFQJPV';
