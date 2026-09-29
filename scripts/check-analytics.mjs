@@ -80,6 +80,16 @@ await page.waitForTimeout(3000);
 await page.goto(`${target}/tools`, { waitUntil: 'networkidle', timeout: TIMEOUT_MS }).catch(() => {});
 await page.waitForTimeout(2000);
 
+/*
+  Read GA's state before the browser closes. An earlier version did this
+  after, where page.evaluate throws and the catch reported "not configured"
+  on a site that plainly was — a check failing open, which is the worst kind.
+*/
+const gaConfigured = await page
+  .evaluate(() => !!document.querySelector('script[src*="googletagmanager.com/gtag/js"]'))
+  .catch(() => false);
+const cookiesAfter = await context.cookies().catch(() => []);
+
 await browser.close();
 
 // ─── Report ──────────────────────────────────────────────────────────────
@@ -126,10 +136,6 @@ if (corsErrors.length > 0) {
 
 // ─── Google Analytics ────────────────────────────────────────────────────
 
-const gaConfigured = await page
-  .evaluate(() => !!document.querySelector('script[src*="googletagmanager.com/gtag/js"]'))
-  .catch(() => false);
-
 if (!gaConfigured) {
   console.log('\nGoogle Analytics: not configured (no measurement ID set)');
 } else {
@@ -147,19 +153,17 @@ if (!gaConfigured) {
   }
 
   /*
-    The claim that actually matters. /privacy and /about both say the site
-    sets no cookies, which holds only while GA runs with
-    client_storage: 'none'. Checked here against the live site rather than
-    against the config, because the config is not what visitors get.
+    GA sets cookies deliberately — /privacy names them. The check is an
+    allowlist, so an advertising cookie or a new third party appearing here
+    fails rather than passing unnoticed.
   */
-  const cookies = await context.cookies();
-  if (cookies.length > 0) {
+  const declared = [/^_ga$/, /^_ga_[A-Z0-9]+$/];
+  const undeclared = cookiesAfter.filter((c) => !declared.some((re) => re.test(c.name)));
+  console.log(`  cookies: ${cookiesAfter.map((c) => c.name).join(', ') || 'none'}`);
+  if (undeclared.length > 0) {
     problems.push(
-      `GA set ${cookies.length} cookie(s) — /privacy and /about both state none: ` +
-        cookies.map((c) => c.name).join(', '),
+      `cookies /privacy does not declare: ${undeclared.map((c) => c.name).join(', ')}`,
     );
-  } else {
-    console.log('  ✓ no cookies set');
   }
 }
 
