@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ANALYTICS_BEACON_TOKEN, SITE_URL, SITE_DOMAIN, SITE_NAME } from '../site.config.mjs';
+import {
+  ANALYTICS_BEACON_TOKEN,
+  GA_MEASUREMENT_ID,
+  SITE_URL,
+  SITE_DOMAIN,
+  SITE_NAME,
+} from '../site.config.mjs';
 
 const ROOT = join(import.meta.dirname, '..');
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8');
@@ -76,6 +82,71 @@ describe('analytics beacon configuration', () => {
     const audit = read('scripts/audit-site.mjs');
     expect(audit).toMatch(/static\.cloudflareinsights\.com/);
     expect(audit).toMatch(/'cloudflareinsights\.com'/);
+  });
+});
+
+/**
+ * Google Analytics, in cookieless mode.
+ *
+ * The whole point of these is one flag. `client_storage: 'none'` is what
+ * stops GA4 writing `_ga` and `_ga_<id>`, and two pages state plainly that
+ * the site sets no cookies:
+ *
+ *   /privacy  "FindTool sets no cookies — not for analytics, not for anything."
+ *   /about    "It sets no cookies and does not follow you between sites."
+ *
+ * Dropping the flag would falsify both and create a consent obligation in the
+ * EU and UK — and it is a one-word edit that nothing else would catch. The
+ * browser audit additionally fails if any page sets a cookie at all.
+ */
+describe('Google Analytics stays cookieless', () => {
+  const layout = read('src/layouts/BaseLayout.astro');
+
+  it('configures GA with client_storage set to none', () => {
+    expect(layout, 'GA must not be allowed to write cookies').toContain("client_storage:'none'");
+  });
+
+  it('disables Google Signals and ad personalisation', () => {
+    // Both re-enable cross-site identity, which /about says does not happen.
+    expect(layout).toContain('allow_google_signals:false');
+    expect(layout).toContain('allow_ad_personalization_signals:false');
+  });
+
+  it('emits nothing at all when no measurement ID is configured', () => {
+    // Local builds and previews must not report into production numbers.
+    expect(layout).toMatch(/gaId &&/);
+  });
+
+  it('names the GA hosts in the CSP, or the tag is blocked', () => {
+    const headers = read('public/_headers');
+    const csp = headers.match(/^\s*Content-Security-Policy:(.*)$/m)![1]!;
+    expect(csp.match(/script-src ([^;]+);/)![1]).toContain('https://www.googletagmanager.com');
+    const connect = csp.match(/connect-src ([^;]+);/)![1]!;
+    expect(connect).toContain('https://www.google-analytics.com');
+    expect(connect).toContain('https://region1.google-analytics.com');
+  });
+
+  it('counts the GA hosts as forbidden during the offline audit', () => {
+    const audit = read('scripts/audit-site.mjs');
+    expect(audit).toContain('www.googletagmanager.com');
+    expect(audit).toContain('www.google-analytics.com');
+  });
+
+  it('fails the audit if any page sets a cookie', () => {
+    // The behavioural half of the claim. Without this the flag could be
+    // removed and only a human reading the config would notice.
+    expect(read('scripts/audit-site.mjs')).toContain('page.context().cookies()');
+  });
+
+  it('keeps the measurement ID out of the repo until it is deliberately set', () => {
+    // Not a secret — it ships in the HTML — but an ID committed by accident
+    // sends development and preview traffic into the production property.
+    expect(GA_MEASUREMENT_ID === '' || /^G-[A-Z0-9]{6,}$/.test(GA_MEASUREMENT_ID)).toBe(true);
+  });
+
+  it('documents why the flag cannot be removed', () => {
+    expect(read('site.config.mjs')).toMatch(/client_storage/);
+    expect(read('site.config.mjs')).toMatch(/sets no cookies/);
   });
 });
 

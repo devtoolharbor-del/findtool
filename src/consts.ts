@@ -10,6 +10,7 @@ import {
   SITE_DOMAIN,
   SITE_URL,
   ANALYTICS_BEACON_TOKEN,
+  GA_MEASUREMENT_ID,
 } from '../site.config.mjs';
 
 export const SITE = {
@@ -40,6 +41,9 @@ export const CONTACT = {
  * is how a fork points at its own analytics without editing source.
  */
 export const BEACON_TOKEN = ANALYTICS_BEACON_TOKEN;
+
+/** Google Analytics 4 measurement ID, re-exported for the layout. Empty disables it. */
+export const GA_ID = GA_MEASUREMENT_ID;
 
 export const REPO_URL = 'https://github.com/devtoolharbor-del/findtool';
 

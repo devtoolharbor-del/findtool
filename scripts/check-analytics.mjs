@@ -40,10 +40,17 @@ const page = await context.newPage();
 const collections = [];
 let beaconScript = null;
 
+/** Google Analytics collection hits, and whether it wrote any cookie. */
+const gaHits = [];
+
 page.on('response', (response) => {
   const url = response.url();
   if (url.includes('/cdn-cgi/rum') || url.includes('cloudflareinsights.com/cdn-cgi/rum')) {
     collections.push({ url, status: response.status() });
+  }
+  // GA4 reports via /g/collect on either host.
+  if (/google-analytics\.com\/(g\/)?collect/.test(url)) {
+    gaHits.push({ status: response.status() });
   }
 });
 
@@ -115,6 +122,45 @@ if (collections.length === 0) {
 const corsErrors = consoleErrors.filter((e) => /cors|cloudflareinsights/i.test(e));
 if (corsErrors.length > 0) {
   problems.push(`Console reported: ${corsErrors[0]}`);
+}
+
+// ─── Google Analytics ────────────────────────────────────────────────────
+
+const gaConfigured = await page
+  .evaluate(() => !!document.querySelector('script[src*="googletagmanager.com/gtag/js"]'))
+  .catch(() => false);
+
+if (!gaConfigured) {
+  console.log('\nGoogle Analytics: not configured (no measurement ID set)');
+} else {
+  console.log(`\nGA collection hits: ${gaHits.length}`);
+  for (const h of gaHits) {
+    const good = h.status === 200 || h.status === 204;
+    console.log(`  ${good ? '✓' : '✗'} ${h.status}`);
+    if (!good) problems.push(`GA collect returned ${h.status}`);
+  }
+  if (gaHits.length === 0) {
+    problems.push(
+      'GA tag is on the page but never reported. The tag being present proves ' +
+        'nothing — that is exactly how the Cloudflare beacon went unnoticed.',
+    );
+  }
+
+  /*
+    The claim that actually matters. /privacy and /about both say the site
+    sets no cookies, which holds only while GA runs with
+    client_storage: 'none'. Checked here against the live site rather than
+    against the config, because the config is not what visitors get.
+  */
+  const cookies = await context.cookies();
+  if (cookies.length > 0) {
+    problems.push(
+      `GA set ${cookies.length} cookie(s) — /privacy and /about both state none: ` +
+        cookies.map((c) => c.name).join(', '),
+    );
+  } else {
+    console.log('  ✓ no cookies set');
+  }
 }
 
 console.log();

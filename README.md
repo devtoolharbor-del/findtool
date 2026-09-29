@@ -329,6 +329,22 @@ pollutes production numbers.
 Events are only sent when `PUBLIC_EVENTS_ENDPOINT` is set. Unset (the launch
 state), `track()` dispatches a DOM event and does nothing else.
 
+### Google Analytics
+
+Off by default: `GA_MEASUREMENT_ID` in `site.config.mjs` is empty, so no
+script is emitted and local builds and previews send nothing. Set it to a
+`G-XXXXXXXXXX` ID to enable, or pass `PUBLIC_GA_ID` in the environment.
+
+It runs **cookieless** — `client_storage: 'none'` — because `/privacy` and
+`/about` both state the site sets no cookies. That flag is what keeps those
+true and avoids a consent banner in the EU and UK. Removing it is a one-word
+edit, so `tests/analytics.test.ts` asserts it and the browser audit fails if
+any page sets a cookie.
+
+Cookieless means no persistent client ID, so every pageview is a new user.
+Trust pageviews, referrers and landing pages; use Cloudflare Web Analytics for
+visit counts. GA is not a ranking factor — it is for reporting, not SEO.
+
 ## Environment variables
 
 See `.env.example`. None are required to run or build the site.

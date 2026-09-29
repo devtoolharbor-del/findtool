@@ -51,3 +51,33 @@ export const SITE_URL = `https://${SITE_DOMAIN}`;
  * Set this only for a deployment NOT proxied through Cloudflare.
  */
 export const ANALYTICS_BEACON_TOKEN = '';
+
+/**
+ * Google Analytics 4 measurement ID, e.g. 'G-XXXXXXXXXX'.
+ *
+ * Empty disables GA entirely — no script, no requests. That is the correct
+ * value for local development and preview builds, so they never pollute
+ * production numbers.
+ *
+ * **GA runs here in cookieless mode and must stay that way.** The site states
+ * in two places that it sets no cookies:
+ *
+ *   /privacy  "FindTool sets no cookies — not for analytics, not for anything."
+ *   /about    "It sets no cookies and does not follow you between sites."
+ *
+ * `client_storage: 'none'` is what keeps those true. Remove it and GA writes
+ * `_ga` and `_ga_<id>`, both sentences become false, and EU/UK visitors need
+ * a consent banner before the script may load at all. tests/analytics.test.ts
+ * fails if the flag disappears, and the browser audit fails if any page sets
+ * a cookie.
+ *
+ * The cost of cookieless, so nobody is surprised by the reports: there is no
+ * persistent client ID, so every pageview counts as a new user. Pageviews,
+ * referrers, landing pages and geography are trustworthy; users, sessions and
+ * retention are not. Cloudflare Web Analytics remains the source for visit
+ * counts.
+ *
+ * A measurement ID is not a secret — it ships in the HTML of every page that
+ * uses it.
+ */
+export const GA_MEASUREMENT_ID = '';

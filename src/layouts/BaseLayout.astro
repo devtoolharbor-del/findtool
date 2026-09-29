@@ -15,7 +15,7 @@ import '~/styles/global.css';
  * visitor never requests them.
  */
 import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
-import { SITE, BEACON_TOKEN } from '~/consts';
+import { SITE, BEACON_TOKEN, GA_ID } from '~/consts';
 import Header from '~/components/Header.astro';
 import Footer from '~/components/Footer.astro';
 
@@ -68,6 +68,7 @@ const ogImageUrl = new URL(ogImage ?? SITE.ogImage, SITE.url).href;
  * neither is required for the site to work.
  */
 const beaconToken = import.meta.env.PUBLIC_CF_BEACON_TOKEN || BEACON_TOKEN;
+const gaId = import.meta.env.PUBLIC_GA_ID || GA_ID;
 const eventsEndpoint = import.meta.env.PUBLIC_EVENTS_ENDPOINT ?? '';
 
 /**
@@ -188,6 +189,37 @@ const themeBootstrap = `(function(){try{` +
           src="https://static.cloudflareinsights.com/beacon.min.js"
           data-cf-beacon={`{"token": "${beaconToken}"}`}
         />
+      )
+    }
+
+    {
+      /*
+        Google Analytics 4, in cookieless mode.
+
+        `client_storage: 'none'` is load-bearing, not a preference. Without it
+        GA writes _ga and _ga_<id>, which would falsify the "sets no cookies"
+        statements on /privacy and /about and oblige us to show a consent
+        banner in the EU and UK. tests/analytics.test.ts asserts the flag is
+        present, and the browser audit fails if any page sets a cookie at all.
+
+        `send_page_view` stays on: without a client ID this is effectively a
+        pageview counter, which is all the data cookieless GA can honestly
+        support. Read pageviews, referrers and landing pages from it; read
+        visit counts from Cloudflare.
+
+        Emitted only when an ID is configured, so development and previews
+        send nothing.
+      */
+    }
+    {
+      gaId && (
+        <Fragment>
+          <script is:inline async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
+          <script
+            is:inline
+            set:html={`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaId}',{client_storage:'none',anonymize_ip:true,allow_google_signals:false,allow_ad_personalization_signals:false});`}
+          />
+        </Fragment>
       )
     }
 

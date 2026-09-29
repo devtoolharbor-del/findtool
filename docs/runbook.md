@@ -539,6 +539,39 @@ does not help; the header does. Use URL Inspection on a single page to confirm
 "Crawl allowed: Yes", "Page fetch: Successful", "Indexing allowed: Yes" before
 concluding anything is wrong.
 
+### Google Analytics, if you add it
+
+First, the thing people get wrong: **GA is not a ranking factor.** Google has
+said so consistently for over a decade, and the reasoning holds — it would be
+trivially gameable, and plenty of top-ranking sites do not run it. Google
+already sees your traffic through crawling, Search Console and Chrome's CrUX
+data. The click signal that *is* real (NavBoost, confirmed in the 2023 DOJ
+trial) measures clicks on search results and happens whether GA exists or not.
+Add GA for its own reporting, not for rankings.
+
+If you add it, run it **cookieless**:
+
+```js
+gtag('config', 'G-XXXXXXXXXX', {
+  client_storage: 'none',        // no _ga / _ga_<id>; the whole point
+  anonymize_ip: true,
+  allow_google_signals: false,
+  allow_ad_personalization_signals: false,
+});
+```
+
+`client_storage: 'none'` is load-bearing on a site that claims to set no
+cookies. Without it GA writes two, both privacy statements become false, and
+EU/UK visitors need a consent banner before the script may load. It is a
+one-word edit, so it is pinned two ways: a unit test asserts the flag, and the
+browser audit fails if **any page sets any cookie** — the behavioural check,
+which is the one that would actually catch a regression.
+
+Be honest about what cookieless costs: no persistent client ID, so every
+pageview looks like a new user. Pageviews, referrers, landing pages and
+geography are trustworthy; users, sessions and retention are not. Keep
+Cloudflare Web Analytics as the source for visit counts.
+
 ### Bing Webmaster Tools
 
 Worth doing for one reason: its **AI Performance report** is the only

@@ -214,6 +214,29 @@ for (const pagePath of allPages) {
     );
   }
 
+  /*
+    ── No cookies, on any page ──
+
+    /privacy says "FindTool sets no cookies — not for analytics, not for
+    anything" and /about repeats it. That is a claim about behaviour, so it
+    gets checked like one rather than trusted.
+
+    It matters most for Google Analytics: GA4 writes _ga and _ga_<id> unless
+    configured with client_storage:'none'. Losing that flag is a one-character
+    edit that silently falsifies two pages and creates a consent obligation in
+    the EU and UK. This is the check that catches it.
+  */
+  const cookies = await page.context().cookies();
+  if (cookies.length > 0) {
+    record(
+      pagePath,
+      'privacy',
+      `sets ${cookies.length} cookie(s) — /privacy and /about both state none: ${cookies
+        .map((c) => c.name)
+        .join(', ')}`,
+    );
+  }
+
   // ── Functional smoke test for tool pages ──
   if (pagePath.startsWith('/tools/') && pagePath !== '/tools') {
     const slug = pagePath.slice('/tools/'.length);
