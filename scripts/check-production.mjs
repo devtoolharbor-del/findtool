@@ -22,11 +22,11 @@
 import { chromium } from 'playwright';
 import { readFile } from 'node:fs/promises';
 import { SITE_URL } from '../site.config.mjs';
+import { blockAnalytics, ANALYTICS_HOSTS } from './lib/block-analytics.mjs';
 
 const ORIGIN = process.argv[2] ?? SITE_URL;
 
-/** Hosts whose requests are aborted so a check run records nothing. */
-const BEACON_HOSTS = ['static.cloudflareinsights.com', 'cloudflareinsights.com'];
+
 
 const problems = [];
 const fail = (msg) => problems.push(msg);
@@ -38,15 +38,8 @@ const browser = await chromium.launch();
 const context = await browser.newContext();
 
 // Applied at the context level so nothing opened here can leak a pageview.
-await context.route('**/*', (route) => {
-  let host = '';
-  try {
-    host = new URL(route.request().url()).hostname;
-  } catch {
-    /* non-URL scheme */
-  }
-  return BEACON_HOSTS.includes(host) ? route.abort() : route.continue();
-});
+// ~40 navigations a run would otherwise land in Google Analytics.
+await blockAnalytics(context);
 
 // ─── Every URL in the sitemap resolves ───────────────────────────────────
 
@@ -204,9 +197,9 @@ if (!/no-store/.test(ipHeaders.get('cache-control') ?? '')) {
 const unexpected = [...outbound].filter(
   (h) =>
     !['ipv4.icanhazip.com', 'ipv6.icanhazip.com'].includes(h) &&
-    // The request event fires before the route abort, so blocked beacon hosts
-    // still appear here. They never left the browser.
-    !BEACON_HOSTS.includes(h),
+    // The request event fires before the route abort, so blocked analytics
+    // hosts still appear here. They never left the browser.
+    !ANALYTICS_HOSTS.includes(h),
 );
 if (unexpected.length) fail(`unexpected outbound requests: ${unexpected.join(', ')}`);
 else ok('no outbound requests beyond the documented IP lookup');

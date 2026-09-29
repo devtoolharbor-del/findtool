@@ -75,13 +75,39 @@ describe('analytics beacon configuration', () => {
     expect(headers).toMatch(/connect-src[^;]*cloudflareinsights\.com/);
   });
 
-  it('counts the analytics hosts as forbidden during the offline audit', () => {
-    // The audit fails the build on any outbound request, which would flag the
-    // beacon if it ever appeared locally. Those hosts are enumerated so the
-    // ban stays specific rather than being switched off wholesale.
-    const audit = read('scripts/audit-site.mjs');
-    expect(audit).toMatch(/static\.cloudflareinsights\.com/);
-    expect(audit).toMatch(/'cloudflareinsights\.com'/);
+  it('enumerates the analytics hosts every browser suite blocks', () => {
+    /*
+      One shared list, used by every browser-driven script. It matters more
+      since GA arrived: the Cloudflare beacon is injected at the edge so a
+      local dist never carried it, but the GA tag is in the built HTML and
+      fires from dist too — cross-browser alone would have put ~150 invented
+      pageviews into the property on every push.
+    */
+    const lib = read('scripts/lib/block-analytics.mjs');
+    for (const host of [
+      'static.cloudflareinsights.com',
+      'cloudflareinsights.com',
+      'www.googletagmanager.com',
+      'www.google-analytics.com',
+      'region1.google-analytics.com',
+    ]) {
+      expect(lib, `${host} must be blocked`).toContain(host);
+    }
+  });
+
+  it('is used by every script that drives a browser', () => {
+    for (const script of [
+      'audit-site',
+      'cross-browser',
+      'edge-cases',
+      'security-check',
+      'measure-perf',
+      'check-production',
+    ]) {
+      expect(read(`scripts/${script}.mjs`), `${script} must block analytics`).toContain(
+        'blockAnalytics',
+      );
+    }
   });
 });
 

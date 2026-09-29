@@ -22,6 +22,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, firefox, webkit } from 'playwright';
 import { serveDist } from './lib/serve-dist.mjs';
+import { blockAnalytics } from './lib/block-analytics.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
@@ -114,6 +115,8 @@ for (const [name, engine] of Object.entries(selected)) {
   process.stdout.write(`\n${name}\n${'─'.repeat(60)}\n`);
   const browser = await engine.launch();
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  // 51 tools x 3 engines would otherwise be ~150 fabricated pageviews per run.
+  await blockAnalytics(context);
 
   let pass = 0;
   for (const slug of slugs) {

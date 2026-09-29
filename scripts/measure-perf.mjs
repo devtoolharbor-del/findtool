@@ -17,6 +17,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { serveDist } from './lib/serve-dist.mjs';
+import { blockAnalytics } from './lib/block-analytics.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
@@ -69,6 +70,12 @@ const results = [];
 
 for (const path of PAGES) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  /*
+    collectionOnly: the tag script still loads, so the third-party transfer
+    column keeps measuring what GA actually costs, but the beacon is dropped
+    so measuring does not report a visit.
+  */
+  await blockAnalytics(context, { collectionOnly: true });
   const page = await context.newPage();
 
   // Simulate a mid-tier mobile connection: Slow 4G plus 4× CPU slowdown,

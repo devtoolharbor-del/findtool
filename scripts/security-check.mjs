@@ -17,6 +17,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { serveDist } from './lib/serve-dist.mjs';
+import { blockAnalytics } from './lib/block-analytics.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
@@ -129,6 +130,7 @@ const PAYLOADS = [
 const { base, close } = await serveDist(DIST);
 const browser = await chromium.launch();
 const context = await browser.newContext();
+await blockAnalytics(context);
 
 // Any dialog at all means a payload executed.
 let dialogFired = false;

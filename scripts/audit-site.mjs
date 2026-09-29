@@ -27,6 +27,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { AxeBuilder } from '@axe-core/playwright';
 import { serveDist } from './lib/serve-dist.mjs';
+import { ANALYTICS_HOSTS, isAnalytics, blockAnalytics } from './lib/block-analytics.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
@@ -81,13 +82,6 @@ const browser = await chromium.launch({ headless: true });
  * audit cannot detect a broken analytics endpoint, so do not treat a clean run
  * as evidence that analytics works. Check the live site.
  */
-const ANALYTICS_HOSTS = [
-  'static.cloudflareinsights.com', // Cloudflare Web Analytics beacon script
-  'cloudflareinsights.com', // its collection endpoint
-  'www.googletagmanager.com', // Google Analytics 4
-  'www.google-analytics.com',
-  'region1.google-analytics.com',
-];
 
 /**
  * Open a page with analytics blocked. Every pass must go through this — a
@@ -96,19 +90,12 @@ const ANALYTICS_HOSTS = [
  */
 async function newAuditPage(ctx) {
   const page = await ctx.newPage();
-  await page.route('**/*', (route) =>
-    isAnalytics(route.request().url()) ? route.abort() : route.continue(),
-  );
+  // abort, not fulfill: this suite exists partly to prove the pages work for
+  // a visitor running an ad blocker, and it tolerates the console noise.
+  await blockAnalytics(page, { abort: true });
   return page;
 }
 
-const isAnalytics = (url) => {
-  try {
-    return ANALYTICS_HOSTS.includes(new URL(url).hostname);
-  } catch {
-    return false;
-  }
-};
 
 /**
  * One page is allowed to reach the network, and only these two hosts.
