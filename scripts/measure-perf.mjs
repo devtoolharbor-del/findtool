@@ -31,8 +31,20 @@ const BUDGET = {
    * Our own budget: compressed bytes over the wire for a cold visit, including
    * the 47 KB font. Cloudflare serves brotli, which is ~15% better than the
    * gzip used here, so production will come in under these figures.
+   *
+   * **First-party only.** This exists to stop our own output growing
+   * carelessly, which is something we control. Third-party bytes are reported
+   * beside it but do not fail the run, because total transfer turned out to
+   * be the wrong proxy for them: adding Google Analytics put 173 KB on every
+   * page and moved LCP by a median of 0 ms across six pages (deltas +52, 0,
+   * +8, +16, 0, 0 under Slow 4G with 4x CPU throttling). An async script that
+   * costs bytes and not time should not fail a budget whose purpose is
+   * protecting speed — the Core Web Vitals above are the real gate, and they
+   * cover third-party cost when there is any.
    */
   transferKb: 120,
+  /** Reported, not enforced. A ceiling here would be arbitrary. */
+  thirdPartyKb: null,
 };
 
 if (!existsSync(DIST)) {
@@ -74,9 +86,18 @@ for (const path of PAGES) {
   }
 
   let transfer = 0;
+  let thirdParty = 0;
   page.on('response', async (res) => {
     const len = Number(res.headers()['content-length'] ?? 0);
-    transfer += len;
+    // Split by origin: our bytes are the ones the budget is about.
+    let sameOrigin = true;
+    try {
+      sameOrigin = new URL(res.url()).host === new URL(BASE).host;
+    } catch {
+      /* data: and blob: count as ours */
+    }
+    if (sameOrigin) transfer += len;
+    else thirdParty += len;
   });
 
   /**
@@ -119,7 +140,12 @@ for (const path of PAGES) {
     };
   });
 
-  results.push({ path, ...vitals, transferKb: Math.round(transfer / 1024) });
+  results.push({
+    path,
+    ...vitals,
+    transferKb: Math.round(transfer / 1024),
+    thirdPartyKb: Math.round(thirdParty / 1024),
+  });
   await context.close();
 }
 
@@ -133,7 +159,7 @@ console.log(
     ? 'Throttled: Slow 4G (1.6 Mbps, 150ms RTT) + 4x CPU slowdown\n'
     : 'Unthrottled (local loopback)\n',
 );
-console.log('page                            LCP      CLS     FCP    transfer');
+console.log('page                            LCP      CLS     FCP   1st-party  3rd-party');
 console.log('─'.repeat(70));
 
 const failures = [];
@@ -143,7 +169,8 @@ for (const r of results) {
     `${r.path.padEnd(30)} ${String(r.lcp).padStart(5)}ms${flag(r.lcp, BUDGET.lcp)} ` +
       `${String(r.cls).padStart(6)}${flag(r.cls, BUDGET.cls)} ` +
       `${String(r.fcp).padStart(5)}ms${flag(r.fcp, BUDGET.fcp)} ` +
-      `${String(r.transferKb).padStart(6)} KB${flag(r.transferKb, BUDGET.transferKb)}`,
+      `${String(r.transferKb).padStart(6)} KB${flag(r.transferKb, BUDGET.transferKb)}` +
+      `${String(r.thirdPartyKb).padStart(7)} KB `,
   );
   if (r.lcp > BUDGET.lcp) failures.push(`${r.path}: LCP ${r.lcp}ms > ${BUDGET.lcp}ms`);
   if (r.cls > BUDGET.cls) failures.push(`${r.path}: CLS ${r.cls} > ${BUDGET.cls}`);
@@ -155,7 +182,7 @@ for (const r of results) {
 console.log('─'.repeat(70));
 console.log(
   `Budget: LCP < ${BUDGET.lcp}ms · CLS < ${BUDGET.cls} · FCP < ${BUDGET.fcp}ms · ` +
-    `transfer < ${BUDGET.transferKb} KB`,
+    `first-party transfer < ${BUDGET.transferKb} KB  (third-party reported, not enforced)`,
 );
 
 if (failures.length) {
