@@ -21,9 +21,10 @@ const updated = 'September 24, 2026';
     <div class="bc-prose mt-6">
       <h2>The short version</h2>
       <p>
-        FindTool does not collect the content you paste into its tools, does not require an
-        account, and does not set advertising or tracking cookies. We collect aggregate,
-        anonymous traffic statistics so we know which tools are worth improving.
+        FindTool does not collect the content you paste into its tools and does not require an
+        account. We collect aggregate traffic statistics so we know which tools are worth
+        improving, and Google Analytics sets one cookie to count returning visits. There is no
+        advertising, no profiling and no cross-site tracking.
       </p>
 
       <h2>What we do not collect</h2>
@@ -43,9 +44,19 @@ const updated = 'September 24, 2026';
 
       <h2>What we do collect</h2>
       <p>
-        We use <strong>Cloudflare Web Analytics</strong>, a privacy-focused analytics service that
-        does not use cookies, does not fingerprint visitors, and does not track people across
-        sites. It records, in aggregate:
+        We use two analytics services, both only to count and describe traffic in aggregate.
+      </p>
+      <p>
+        <strong>Cloudflare Web Analytics</strong> uses no cookies, does not fingerprint visitors
+        and does not track people across sites.
+      </p>
+      <p>
+        <strong>Google Analytics</strong> sets a cookie so a repeat visit is not counted as a new
+        one. Google Signals and ad personalisation are both switched off, so your activity here
+        is not linked to a Google account, combined with your behaviour on other sites, or used
+        for advertising. IP addresses are anonymised.
+      </p>
+      <p>Between them they record, in aggregate:
       </p>
       <ul>
         <li>which pages were visited, and how many times</li>
@@ -66,8 +77,15 @@ const updated = 'September 24, 2026';
 
       <h2>Cookies and local storage</h2>
       <p>
-        FindTool sets no cookies — not for analytics, not for anything. It uses your browser's
-        <code>localStorage</code> for three things, all of them conveniences:
+        FindTool sets <strong>one</strong> cookie, and only for counting visits: Google
+        Analytics stores <code>_ga</code> and a companion <code>_ga_&lt;id&gt;</code> so that a
+        person returning tomorrow is recognised as the same visit rather than a new one. They
+        hold a random identifier and nothing else — no name, no email, nothing you typed into a
+        tool. No advertising or cross-site tracking cookie is set.
+      </p>
+      <p>
+        Everything else is your browser's <code>localStorage</code>, which never leaves your
+        device and is used for three conveniences:
       </p>
       <ul>
         <li>whether you chose light or dark mode</li>

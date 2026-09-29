@@ -539,52 +539,45 @@ does not help; the header does. Use URL Inspection on a single page to confirm
 "Crawl allowed: Yes", "Page fetch: Successful", "Indexing allowed: Yes" before
 concluding anything is wrong.
 
-### Google Analytics, if you add it
+### Google Analytics
 
 First, the thing people get wrong: **GA is not a ranking factor.** Google has
-said so consistently for over a decade, and the reasoning holds — it would be
-trivially gameable, and plenty of top-ranking sites do not run it. Google
-already sees your traffic through crawling, Search Console and Chrome's CrUX
-data. The click signal that *is* real (NavBoost, confirmed in the 2023 DOJ
-trial) measures clicks on search results and happens whether GA exists or not.
-Add GA for its own reporting, not for rankings.
+said so consistently for over a decade, it would be trivially gameable, and
+Google already sees your traffic through crawling, Search Console and Chrome's
+CrUX data. The click signal that *is* real (NavBoost, confirmed in the 2023
+DOJ trial) measures clicks on search results and happens whether GA exists or
+not. Add GA for its reporting, not for rankings.
 
-If you add it, run it **cookieless**:
+**Cookieless GA that reports data does not exist.** Three mechanisms were
+tried here and all failed, in this order:
 
-```js
-// Consent FIRST, then config. Order matters: config applies the default
-// otherwise, and the cookies land before consent is read.
-gtag('consent', 'default', {
-  ad_storage: 'denied',
-  ad_user_data: 'denied',
-  ad_personalization: 'denied',
-  analytics_storage: 'denied',   // this is what prevents _ga / _ga_<id>
-});
-gtag('config', 'G-XXXXXXXXXX', {
-  anonymize_ip: true,
-  allow_google_signals: false,
-  allow_ad_personalization_signals: false,
-});
-```
+1. `client_storage: 'none'` — a Universal Analytics parameter. GA4 accepts it
+   and ignores it. Caught writing `_ga` and `_ga_<id>` in a real browser.
+2. `storage: 'none'` with a supplied `client_id` — also still wrote cookies.
+3. Consent Mode, `analytics_storage: 'denied'` — this *does* suppress the
+   cookies, and the collect requests return 204 with `gcs=G100`. But the
+   reports stay empty. Denied pings only feed behavioural modelling, and
+   modelling needs a baseline of consented traffic that a permanently-denied
+   site never produces.
 
-**Do not use `client_storage: 'none'`.** It is the answer most sources give
-and it does not work — a Universal Analytics parameter that GA4 accepts and
-silently ignores. It was tried here first and caught writing both cookies in
-testing, before shipping, by the cookie check rather than by review. Consent
-Mode is the mechanism that actually works; with `analytics_storage` denied GA
-sends cookieless pings and collects data without storing anything.
+The reason is structural: GA4 identifies a visitor by a stored `client_id`,
+and a cookie is the only place it keeps one. So the real choice is cookies, a
+consent banner, or different analytics — not a GA setting.
 
-This is load-bearing on a site claiming to set no cookies, and it is one line
-from being broken, so it is pinned three ways: a unit test on the consent
-call and its ordering, the browser audit failing if **any page sets any
-cookie**, and `check:analytics` verifying the same against production. Only
-the cookie checks would catch a parameter that is accepted but ignored —
-which is exactly what happened.
+This site runs GA **with cookies and no banner**, a deliberate trade: it is
+technically non-compliant with EU/UK ePrivacy, and it is what most of the web
+does. Two things make that survivable:
 
-Be honest about what cookieless costs: no persistent client ID, so every
-pageview looks like a new user. Pageviews, referrers, landing pages and
-geography are trustworthy; users, sessions and retention are not. Keep
-Cloudflare Web Analytics as the source for visit counts.
+- **Google Signals and ad personalisation are off**, so there is no cross-site
+  tracking and no ad profile. `/about` can still truthfully say the site does
+  not follow you between sites.
+- **`/privacy` names the cookies.** The audit enforces an allowlist rather than
+  a ban — `_ga` and `_ga_<id>` pass, anything else fails the build — so a new
+  dependency cannot add one without the privacy page being updated too.
+
+If you want no banner *and* no cookies, use analytics built that way:
+Plausible, Fathom, Umami or GoatCounter identify visitors with a
+daily-rotating hash instead of stored state, and report properly.
 
 ### Bing Webmaster Tools
 

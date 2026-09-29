@@ -215,23 +215,25 @@ for (const pagePath of allPages) {
   }
 
   /*
-    ── No cookies, on any page ──
+    ── Only the cookies we declare ──
 
-    /privacy says "FindTool sets no cookies — not for analytics, not for
-    anything" and /about repeats it. That is a claim about behaviour, so it
-    gets checked like one rather than trusted.
+    /privacy names exactly which cookies exist and why: Google Analytics'
+    _ga and _ga_<id>, for counting returning visits, and nothing else. That
+    is a claim about behaviour, so it is checked like one.
 
-    It matters most for Google Analytics: GA4 writes _ga and _ga_<id> unless
-    configured with client_storage:'none'. Losing that flag is a one-character
-    edit that silently falsifies two pages and creates a consent obligation in
-    the EU and UK. This is the check that catches it.
+    The list is an allowlist rather than a ban, so the check still earns its
+    keep: a new dependency that quietly sets a cookie, or GA being
+    reconfigured to write an advertising one, fails the build and forces the
+    privacy page to be updated with it.
   */
+  const ALLOWED_COOKIES = [/^_ga$/, /^_ga_[A-Z0-9]+$/];
   const cookies = await page.context().cookies();
-  if (cookies.length > 0) {
+  const undeclared = cookies.filter((c) => !ALLOWED_COOKIES.some((re) => re.test(c.name)));
+  if (undeclared.length > 0) {
     record(
       pagePath,
       'privacy',
-      `sets ${cookies.length} cookie(s) — /privacy and /about both state none: ${cookies
+      `sets ${undeclared.length} cookie(s) that /privacy does not declare: ${undeclared
         .map((c) => c.name)
         .join(', ')}`,
     );

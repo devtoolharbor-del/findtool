@@ -86,67 +86,46 @@ describe('analytics beacon configuration', () => {
 });
 
 /**
- * Google Analytics, in cookieless mode.
+ * Google Analytics.
  *
- * Cookielessness comes from Consent Mode, and only from Consent Mode.
+ * GA runs with cookies, deliberately. Cookieless GA was attempted twice and
+ * neither mechanism works: `client_storage: 'none'` is a Universal Analytics
+ * parameter that GA4 ignores, and `storage: 'none'` did not prevent cookies
+ * either — both were caught writing `_ga` and `_ga_<id>` in a real browser.
+ * Consent Mode with `analytics_storage: 'denied'` does suppress them, but GA
+ * then reports nothing: denied pings only feed behavioural modelling, which
+ * needs a baseline of consented traffic a permanently-denied site never
+ * produces. Verified in production, where the reports showed zero.
  *
- * `client_storage: 'none'` is the answer everyone repeats, and it does not
- * work: it is a Universal Analytics parameter that GA4 accepts and ignores.
- * It was caught writing `_ga` and `_ga_<id>` in testing, before shipping, by
- * the cookie check rather than by review. `analytics_storage: 'denied'`, set
- * before the config call, is what actually stops it.
+ * GA4 identifies a visitor by a stored client_id, and there is no
+ * configuration that reports data without storing one.
  *
- * Two pages state plainly that the site sets no cookies:
- *
- *   /privacy  "FindTool sets no cookies — not for analytics, not for anything."
- *   /about    "It sets no cookies and does not follow you between sites."
- *
- * Dropping the flag would falsify both and create a consent obligation in the
- * EU and UK — and it is a one-word edit that nothing else would catch. The
- * browser audit additionally fails if any page sets a cookie at all.
+ * So the cookies exist, /privacy declares them by name, and these hold the
+ * line that still matters: nothing gets added quietly, and the tracking that
+ * would falsify "does not follow you between sites" stays switched off.
  */
-describe('Google Analytics stays cookieless', () => {
+describe('Google Analytics', () => {
   const layout = read('src/layouts/BaseLayout.astro');
 
-  it('denies analytics_storage, which is what stops GA writing cookies', () => {
-    expect(layout, 'GA must not be allowed to write cookies').toContain(
-      "analytics_storage:'denied'",
-    );
-  });
-
-  it('sets consent before config, or the default applies first and cookies land', () => {
-    const consent = layout.indexOf("gtag('consent','default'");
-    const config = layout.indexOf("gtag('config'");
-    expect(consent, 'no consent call').toBeGreaterThan(-1);
-    expect(consent, 'consent must precede config').toBeLessThan(config);
-  });
-
-  it('does not rely on client_storage, which GA4 ignores', () => {
-    /*
-      Scoped to the emitted script, not the whole file: the surrounding
-      comment names client_storage deliberately, to explain why it is absent.
-      Kept as an assertion so nobody "restores" it and assumes the cookie
-      problem is handled.
-    */
-    const inlineTag = layout.match(/window\.dataLayer=window\.dataLayer[^`]*/)![0];
-    expect(inlineTag).not.toContain('client_storage');
-    expect(inlineTag).toContain("analytics_storage:'denied'");
-  });
-
-  it('denies the ad storage signals too', () => {
-    expect(layout).toContain("ad_storage:'denied'");
-    expect(layout).toContain("ad_user_data:'denied'");
-    expect(layout).toContain("ad_personalization:'denied'");
-  });
-
-  it('disables Google Signals and ad personalisation', () => {
-    // Both re-enable cross-site identity, which /about says does not happen.
+  it('keeps Google Signals off, which cross-site tracking would need', () => {
     expect(layout).toContain('allow_google_signals:false');
     expect(layout).toContain('allow_ad_personalization_signals:false');
   });
 
+  it('anonymises IP addresses', () => {
+    expect(layout).toContain('anonymize_ip:true');
+  });
+
+  it('does not supply a per-pageview client_id or a storage override', () => {
+    // Both are leftovers from the cookieless attempts. A fresh client_id per
+    // load would make every visit a new user even though the cookie exists,
+    // defeating the reason for having cookies at all.
+    const inlineTag = layout.match(/window\.dataLayer=window\.dataLayer[^`]*/)![0];
+    expect(inlineTag).not.toContain('client_id');
+    expect(inlineTag).not.toContain('storage:');
+  });
+
   it('emits nothing at all when no measurement ID is configured', () => {
-    // Local builds and previews must not report into production numbers.
     expect(layout).toMatch(/gaId &&/);
   });
 
@@ -159,29 +138,45 @@ describe('Google Analytics stays cookieless', () => {
     expect(connect).toContain('https://region1.google-analytics.com');
   });
 
-  it('counts the GA hosts as forbidden during the offline audit', () => {
+  it('allowlists only the GA cookies, so a new one fails the build', () => {
     const audit = read('scripts/audit-site.mjs');
-    expect(audit).toContain('www.googletagmanager.com');
-    expect(audit).toContain('www.google-analytics.com');
-  });
-
-  it('fails the audit if any page sets a cookie', () => {
-    // The behavioural half of the claim. Without this the flag could be
-    // removed and only a human reading the config would notice.
-    expect(read('scripts/audit-site.mjs')).toContain('page.context().cookies()');
+    expect(audit).toContain('ALLOWED_COOKIES');
+    expect(audit).toContain('page.context().cookies()');
   });
 
   it('has a measurement ID that is either unset or well-formed', () => {
-    // Not a secret — it ships in the HTML of every page that uses it.
-    // Widened: TypeScript narrows the export to a string literal, which makes
-    // the empty-string branch look provably dead.
     const id: string = GA_MEASUREMENT_ID;
     expect(id === '' || /^G-[A-Z0-9]{6,}$/.test(id)).toBe(true);
   });
+});
 
-  it('documents why the consent default cannot be removed', () => {
-    expect(read('site.config.mjs')).toMatch(/analytics_storage/);
-    expect(read('site.config.mjs')).toMatch(/sets no cookies/);
+/**
+ * The privacy pages have to match what the site actually does. Both used to
+ * say it set no cookies; the only thing stopping that becoming a lie is a
+ * check that reads them.
+ */
+describe('privacy claims match behaviour', () => {
+  const privacy = read('src/pages/privacy.astro');
+  const about = read('src/pages/about.astro');
+
+  it('no longer claims the site sets no cookies', () => {
+    expect(privacy).not.toMatch(/sets no cookies/);
+    expect(about).not.toMatch(/sets no cookies/);
+  });
+
+  it('declares the GA cookies by name on the privacy page', () => {
+    expect(privacy).toContain('_ga');
+    expect(privacy).toMatch(/Google Analytics/);
+  });
+
+  it('still claims no cross-site tracking, which Signals being off makes true', () => {
+    // Whitespace collapsed: Astro wraps the prose across lines.
+    expect(about.replace(/\s+/g, ' ')).toMatch(/does not follow you between sites/);
+    expect(read('src/layouts/BaseLayout.astro')).toContain('allow_google_signals:false');
+  });
+
+  it('still claims tool input is never transmitted', () => {
+    expect(privacy).toMatch(/does not collect the content you paste/);
   });
 });
 

@@ -331,21 +331,23 @@ state), `track()` dispatches a DOM event and does nothing else.
 
 ### Google Analytics
 
-Off by default: `GA_MEASUREMENT_ID` in `site.config.mjs` is empty, so no
-script is emitted and local builds and previews send nothing. Set it to a
-`G-XXXXXXXXXX` ID to enable, or pass `PUBLIC_GA_ID` in the environment.
+Set `GA_MEASUREMENT_ID` in `site.config.mjs` (or `PUBLIC_GA_ID` in the
+environment). Empty disables it entirely, which is what local builds and
+previews use so they never report into production.
 
-It runs **cookieless via Consent Mode** — `analytics_storage: 'denied'`, set
-before the config call — because `/privacy` and `/about` both state the site
-sets no cookies. Note the mechanism: `client_storage: 'none'` is what most
-sources recommend, is a Universal Analytics parameter GA4 ignores, and was
-caught writing `_ga` and `_ga_<id>` in testing. `tests/analytics.test.ts` pins
-the consent call and its ordering, and the browser audit fails if any page
-sets a cookie.
+It runs **with cookies and no consent banner** — a deliberate trade, not an
+oversight. Cookieless GA that reports data does not exist: `client_storage:
+'none'` is a Universal Analytics parameter GA4 ignores, `storage: 'none'` does
+not prevent cookies either, and Consent Mode with `analytics_storage: 'denied'`
+suppresses them but reports nothing, because denied pings only feed modelling
+that needs consented traffic as a baseline. GA4 needs a stored `client_id`.
 
-Cookieless means no persistent client ID, so every pageview is a new user.
-Trust pageviews, referrers and landing pages; use Cloudflare Web Analytics for
-visit counts. GA is not a ranking factor — it is for reporting, not SEO.
+Google Signals and ad personalisation are off, so there is no cross-site
+tracking. `/privacy` names `_ga` and `_ga_<id>` explicitly, and the browser
+audit enforces an **allowlist** — those two pass, any other cookie fails the
+build and forces the privacy page to be updated with it.
+
+GA is not a ranking factor. It is for reporting.
 
 ## Environment variables
 
